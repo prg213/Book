@@ -588,9 +588,12 @@ function LandscapeBook({ story, page, staticPage, peekPage, pageNumber, totalPag
         {/* Page face — folds for prev swipe, static otherwise */}
         <div className="absolute inset-0"
           style={{
+            background: '#e0ceaa',
             transformOrigin: '100% 50%',
             transform: leftFolding ? `perspective(1400px) rotateY(${rawAngle}deg)` : 'none',
             transition: leftFolding ? tx : 'none',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
           }}>
           <PageIllustration imgPage={leftStaticPage} pageNumber={pageNumber} testId={`img-page-ls-${pageNumber}`} />
           <div className="absolute inset-y-0 left-0 w-4 pointer-events-none"
@@ -632,9 +635,12 @@ function LandscapeBook({ story, page, staticPage, peekPage, pageNumber, totalPag
         {/* Page face — folds for next swipe, static otherwise */}
         <div className="absolute inset-0 flex flex-col"
           style={{
+            background: 'linear-gradient(135deg, #f5e6c0 0%, #ecddb8 100%)',
             transformOrigin: '0% 50%',
             transform: rightFolding ? `perspective(1400px) rotateY(-${rawAngle}deg)` : 'none',
             transition: rightFolding ? tx : 'none',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
           }}>
           <div className="absolute inset-y-0 left-0 w-10 pointer-events-none z-10"
             style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.20), transparent)' }} />
