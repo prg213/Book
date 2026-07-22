@@ -5,23 +5,18 @@ import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 
 function useIsLandscape() {
-  const getOrientation = () => {
-    // screen.orientation.type is most reliable on Android Chrome
-    if (window.screen?.orientation?.type) {
-      return window.screen.orientation.type.startsWith('landscape');
-    }
-    return window.innerWidth > window.innerHeight;
-  };
+  // innerWidth > innerHeight is the ground truth — it reflects the actual
+  // rendered viewport regardless of screen.orientation (which headless/desktop
+  // browsers report as 'landscape-primary' even for portrait viewports).
+  const getOrientation = () => window.innerWidth > window.innerHeight;
   const [landscape, setLandscape] = useState(getOrientation);
   useEffect(() => {
     const update = () => setLandscape(getOrientation());
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
-    window.screen?.orientation?.addEventListener?.('change', update);
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
-      window.screen?.orientation?.removeEventListener?.('change', update);
     };
   }, []);
   return landscape;
@@ -325,33 +320,53 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
+// Aurora images are square (1:1). The book face is also square so the full
+// image — title and all — is visible with zero cropping.
 function PortraitCover({ story }: { story: any }) {
   return (
-    <div className="h-full flex items-center justify-center"
-      style={{ filter: 'drop-shadow(-6px 10px 32px rgba(0,0,0,0.9))' }}>
-      <div className="flex" style={{ height: '100%', maxHeight: '100%', aspectRatio: '9/10', maxWidth: '90vw' }}>
-        {/* Spine */}
-        <div className="flex-shrink-0 rounded-l-sm self-stretch"
-          style={{ width: '5%', minWidth: '10px', maxWidth: '20px', background: 'linear-gradient(to right, #0f0703, #3d1f0c, #221008)', boxShadow: 'inset -3px 0 8px rgba(0,0,0,0.6)' }} />
-        {/* Cover face */}
-        <div className="relative flex-1 overflow-hidden rounded-r-lg">
+    <div
+      className="w-full flex justify-center px-2"
+      style={{ filter: 'drop-shadow(-5px 12px 28px rgba(0,0,0,0.85))' }}
+    >
+      {/* Outer row: spine + cover. Width is 92% of screen, capped at 480px. */}
+      <div className="flex" style={{ width: '92%', maxWidth: '480px' }}>
+        {/* Spine — stretches to match cover height */}
+        <div
+          className="self-stretch flex-shrink-0 rounded-l"
+          style={{
+            width: '14px',
+            background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
+            boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
+          }}
+        />
+        {/* Cover face: flex-1 fills remaining width; aspectRatio:1 makes it square */}
+        <div
+          className="relative flex-1 overflow-hidden rounded-r-xl"
+          style={{ aspectRatio: '1 / 1' }}
+        >
           {story.coverImageUrl ? (
-            <img src={story.coverImageUrl} alt={story.title}
+            <img
+              src={story.coverImageUrl}
+              alt={story.title}
               className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'cover', objectPosition: 'top center' }}
-              data-testid="img-cover" draggable={false} />
+              style={{ objectFit: 'fill' }}
+              data-testid="img-cover"
+              draggable={false}
+            />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
               <div className="text-center text-amber-200">
                 <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="font-display text-lg font-bold">{story.title}</p>
               </div>
             </div>
           )}
+          {/* Right-edge page sheen */}
           <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
-            style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.2), transparent)' }} />
+            style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.25), transparent)' }} />
+          {/* Bottom sheen */}
           <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
         </div>
       </div>
     </div>
