@@ -42,9 +42,11 @@ export async function analyzePhoto(filePath: string): Promise<string> {
             },
             {
               type: "text",
-              text: `Analyse this photo in exhaustive detail so an AI image generator can recreate this exact person as a 3D cartoon character. Be extremely specific — describe everything you can see.
+              text: `Analyse this photo to capture ONLY this person's physical appearance — so an AI image generator can recreate them as a 3D cartoon character across many different scenes and poses.
 
-Write a single dense paragraph covering ALL of the following:
+IMPORTANT: Do NOT describe body pose, posture, stance, arm position, hand position, or what the person is doing. Only describe how they look.
+
+Write a single dense paragraph covering ALL of the following in this order:
 
 AGE & BUILD: Estimate precise age (e.g. "approximately 5-year-old girl"), body build (slender, stocky, tall for age, etc.).
 
@@ -63,7 +65,7 @@ OUTFIT — list EVERY visible item:
 - Shoes: exact type and color (e.g. "white croc-style sandals with chunky sole")
 - ALL accessories: hair ties, clips, bows, glasses, necklaces, bracelets, bags, hats — describe color and position
 
-Begin the description with the person's approximate age and gender, then flow through hair, eyes, skin, outfit, and accessories in that order. Be precise, not general. Write as a single paragraph.`,
+Begin the description with the person's approximate age and gender, then flow through hair, eyes, skin, outfit, and accessories in that order. Be precise, not general. Write as a single paragraph. Do NOT mention what the person is doing or their pose.`,
             },
           ],
         },
