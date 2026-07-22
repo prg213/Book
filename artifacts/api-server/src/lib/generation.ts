@@ -102,7 +102,7 @@ CRITICAL: The character description below may mention different clothing from th
     ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
     : `CHARACTER APPEARANCE — reproduce faithfully (hair, eyes, skin, outfit, accessories):`;
 
-  return `Create a vibrant, professional children's picture book COVER illustration.
+  return `Create a vibrant, professional children's picture book COVER illustration in a 3D animated Pixar / Disney movie style — high-quality 3D render, soft cel-shading, vibrant saturated colors. The style must exactly match a 3D animated movie still, NOT a 2D hand-drawn illustration.
 
 MAIN CHARACTER (must be prominently centered, full body visible): ${story.characterName}
 ${outfitBlock}
@@ -110,11 +110,13 @@ ${descLabel}
 ${characterDesc}
 ${char2Line}
 
-CHARACTER STYLE (MUST match the pre-generated character exactly):
+CHARACTER STYLE (MUST match the pre-generated character exactly — 3D animated, NOT 2D):
+- 3D animated Pixar / Disney movie style — high-quality 3D render, soft cel-shading
 - Oversized head, small body proportions (chibi / Pixar-style)
 - Big, round, expressive cartoon eyes matching the character's eye color
 - Same hair color, length, and style as described above
 - Friendly, joyful expression
+- Vibrant saturated colors, smooth rounded surfaces
 
 CHARACTER POSE: Standing confidently, slight weight shift to one side, arms relaxed, big smile.
 
@@ -150,10 +152,9 @@ CRITICAL: The character description below may mention different clothing from th
     ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
     : `CHARACTER APPEARANCE (hair, eyes, skin, outfit, accessories — consistent across all pages):`;
 
-  return `Create a children's picture book page illustration.
+  return `Create a children's picture book page illustration in a 3D animated Pixar / Disney movie style — high-quality 3D render, soft cel-shading, vibrant saturated colors. The style must exactly match a 3D animated movie still, NOT a 2D hand-drawn illustration.
 
 SCENE: ${page.image_prompt}
-STORY TEXT FOR THIS PAGE: "${page.text}"
 
 MAIN CHARACTER — MUST APPEAR IN THIS SCENE: ${story.characterName}
 ${outfitBlock}
@@ -161,10 +162,12 @@ ${descLabel}
 ${characterDesc}
 ${char2Line}
 
-CHARACTER STYLE (identical across every page):
+CHARACTER STYLE (identical across every page — 3D animated, NOT 2D):
+- 3D animated Pixar / Disney movie style — high-quality 3D render, soft cel-shading
 - Oversized head, small body (chibi / Pixar-style)
 - Big round expressive cartoon eyes — same eye color as character description
 - Same hair color, length, and exact style every time
+- Vibrant saturated colors, smooth rounded surfaces
 
 CHARACTER POSE FOR THIS PAGE (match the scene action — this pose is unique to this page):
 ${poseInstruction}
@@ -173,7 +176,9 @@ ${ANATOMY_RULE}
 
 SETTING: ${effectiveTheme} adventure scene, richly detailed, vibrant colors, soft warm lighting.
 
-COMPOSITION: Square 1:1 aspect ratio. Edge-to-edge illustration. Richly detailed background. NO text, NO letters, NO numbers, NO watermarks anywhere. Professional children's picture book quality.`;
+CRITICAL — NO TEXT WHATSOEVER: Do NOT render any letters, words, numbers, speech bubbles, signs with text, book pages with text, or any written characters anywhere in the image. The image must be a purely visual scene — zero text of any kind.
+
+COMPOSITION: Square 1:1 aspect ratio. Edge-to-edge illustration. Richly detailed background. Professional 3D animated children's picture book quality.`;
 }
 
 export async function runStoryGeneration(storyId: string): Promise<void> {

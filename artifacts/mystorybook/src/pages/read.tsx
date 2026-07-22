@@ -447,55 +447,51 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// Size the book by whichever axis is tighter — width or height — so it fills
-// the stage without dead space on tall phones.
+// Fills the same w-full h-full stage as OpenBookPortrait so both views have
+// the same visual footprint. Spine on the left, cover image fills remaining
+// space with object-fit:cover to match the portrait book shape.
 function PortraitCover({ story }: { story: any }) {
-  // The stage area sits between the topbar (~48px) and nav (~80px) with p-2 padding.
-  // Use min(92vw, calc(100dvh - 160px)) so the square cover fills both axes.
-  const coverSize = 'min(92vw, calc(100dvh - 160px))';
   return (
     <div
-      className="flex items-center justify-center"
-      style={{ filter: 'drop-shadow(-5px 12px 28px rgba(0,0,0,0.85))' }}
+      className="w-full h-full flex rounded-xl overflow-hidden"
+      style={{
+        maxWidth: '480px',
+        filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.85))',
+      }}
     >
-      {/* Outer row: spine + square cover face, sized to fill the stage */}
-      <div className="flex" style={{ height: coverSize }}>
-        {/* Spine */}
-        <div
-          className="self-stretch flex-shrink-0 rounded-l"
-          style={{
-            width: '14px',
-            background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
-            boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
-          }}
-        />
-        {/* Cover face: square driven by height */}
-        <div
-          className="relative overflow-hidden rounded-r-xl"
-          style={{ height: '100%', aspectRatio: '1 / 1' }}
-        >
-          {story.coverImageUrl ? (
-            <img
-              src={story.coverImageUrl}
-              alt={story.title}
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'fill' }}
-              data-testid="img-cover"
-              draggable={false}
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
-              <div className="text-center text-amber-200">
-                <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="font-display text-lg font-bold">{story.title}</p>
-              </div>
+      {/* Spine */}
+      <div
+        className="flex-shrink-0 self-stretch"
+        style={{
+          width: '14px',
+          background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
+          boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
+          borderRadius: '0.75rem 0 0 0.75rem',
+        }}
+      />
+      {/* Cover face — fills remaining width and full height */}
+      <div className="relative flex-1 overflow-hidden" style={{ borderRadius: '0 0.75rem 0.75rem 0' }}>
+        {story.coverImageUrl ? (
+          <img
+            src={story.coverImageUrl}
+            alt={story.title}
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: 'cover', objectPosition: 'center top' }}
+            data-testid="img-cover"
+            draggable={false}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
+            <div className="text-center text-amber-200">
+              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="font-display text-lg font-bold">{story.title}</p>
             </div>
-          )}
-          <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
-            style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.25), transparent)' }} />
-          <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
-        </div>
+          </div>
+        )}
+        <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
+          style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.25), transparent)' }} />
+        <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
       </div>
     </div>
   );
