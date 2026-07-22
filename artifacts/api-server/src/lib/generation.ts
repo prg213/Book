@@ -113,7 +113,7 @@ ${ANATOMY_RULE}
 
 SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.${occasionLine}
 
-TITLE TEXT: The book title "${story.title}" must appear prominently at the TOP of the image in large, bold, decorative children's book lettering that is clearly readable.
+TITLE TEXT: The book title "${story.title}" must appear prominently at the TOP of the image in large, bold, decorative children's book lettering that is clearly readable. The title must be centered horizontally with at least 15% blank margin on BOTH the left and right sides — do not let the text touch the edges of the image.
 
 COMPOSITION: Square 1:1 aspect ratio. Edge-to-edge illustration — no blank borders. Professional picture book cover quality. No logos, no brand names, no watermarks other than the story title.`;
 }

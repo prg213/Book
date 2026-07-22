@@ -4,9 +4,24 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Link } from 'wouter';
 
+function useIsLandscape() {
+  const [landscape, setLandscape] = useState(() => window.innerWidth > window.innerHeight);
+  useEffect(() => {
+    const check = () => setLandscape(window.innerWidth > window.innerHeight);
+    window.addEventListener('resize', check);
+    window.addEventListener('orientationchange', check);
+    return () => {
+      window.removeEventListener('resize', check);
+      window.removeEventListener('orientationchange', check);
+    };
+  }, []);
+  return landscape;
+}
+
 export default function Read() {
   const params = new URLSearchParams(window.location.search);
   const storyId = params.get('storyId') || '';
+  const isLandscape = useIsLandscape();
 
   const { data: storyData, isLoading, isError } = useGetStoryForReading(storyId, {
     query: {
@@ -15,7 +30,7 @@ export default function Read() {
     },
   });
 
-  const [currentPage, setCurrentPage] = useState(-1); // -1 = cover
+  const [currentPage, setCurrentPage] = useState(-1);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
@@ -31,7 +46,6 @@ export default function Read() {
     setCurrentPage(p => (p >= 0 ? p - 1 : p));
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') handleNext();
@@ -41,7 +55,6 @@ export default function Read() {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleNext, handlePrev]);
 
-  // Swipe handling
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -50,7 +63,6 @@ export default function Read() {
     if (touchStartX.current === null || touchStartY.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-    // Only count horizontal swipes (dx > dy in magnitude, and > 40px threshold)
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
       if (dx < 0) handleNext();
       else handlePrev();
@@ -107,220 +119,316 @@ export default function Read() {
         <div className="w-16" />
       </div>
 
-      {/* Book stage — fills remaining height */}
-      <div className="flex-1 min-h-0 flex items-center justify-center px-3 py-3">
+      {/* Book stage */}
+      <div className="flex-1 min-h-0 flex items-center justify-center p-2">
         {isCover ? (
-          /* ── COVER ── */
-          /* Aurora generates square (1:1) images. Show full image without cropping. */
-          <div
-            className="h-full max-h-full flex items-center justify-center"
-            style={{ filter: 'drop-shadow(-6px 8px 28px rgba(0,0,0,0.85))' }}
-          >
-            <div className="flex h-full max-h-full" style={{ maxWidth: 'min(90vw, calc(100dvh - 9rem))' }}>
-              {/* Spine */}
-              <div
-                className="flex-shrink-0 rounded-l-sm"
-                style={{
-                  width: '18px',
-                  background: 'linear-gradient(to right, #0f0703, #3d1f0c, #221008)',
-                  boxShadow: 'inset -3px 0 8px rgba(0,0,0,0.6)',
-                }}
-              />
-              {/* Cover face — square image shown in full with object-contain */}
-              <div className="relative overflow-hidden rounded-r-lg flex-1" style={{ aspectRatio: '1/1' }}>
-                {story.coverImageUrl ? (
-                  <img
-                    src={story.coverImageUrl}
-                    alt={story.title}
-                    className="w-full h-full object-contain bg-black"
-                    data-testid="img-cover"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-                    <div className="text-center text-amber-200 p-8">
-                      <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="font-display text-2xl font-bold">{story.title}</p>
-                    </div>
-                  </div>
-                )}
-                {/* Right-edge page sheen */}
-                <div className="absolute inset-y-0 right-0 w-4 pointer-events-none"
-                  style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.18), transparent)' }} />
-              </div>
-            </div>
-          </div>
+          <Cover story={story} isLandscape={isLandscape} />
         ) : (
-          /* ── OPEN BOOK (inner pages) ── */
-          <div
-            className="w-full h-full max-h-full flex"
-            style={{
-              filter: 'drop-shadow(0 12px 40px rgba(0,0,0,0.75))',
-              maxWidth: 'min(98vw, calc((100dvh - 9rem) * 2))',
-            }}
-          >
-            {/* Left page — illustration */}
-            <div
-              className="flex-1 relative flex items-center justify-center overflow-hidden rounded-l-lg"
-              style={{
-                background: 'linear-gradient(to right, #e8d8b0, #f0e3c8)',
-                boxShadow: 'inset -2px 0 8px rgba(0,0,0,0.10)',
-              }}
-            >
-              {/* Left spine shadow */}
-              <div className="absolute inset-y-0 left-0 w-5 pointer-events-none z-10"
-                style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.18), transparent)' }} />
-              {currentPageData?.imageUrl ? (
-                <img
-                  src={currentPageData.imageUrl}
-                  alt={`Page ${currentPageData.pageNumber}`}
-                  className="w-full h-full object-contain"
-                  style={{ padding: '4%' }}
-                  data-testid={`img-page-${currentPageData.pageNumber}`}
-                  draggable={false}
-                />
-              ) : (
-                <div className="text-amber-800/30 text-center p-8">
-                  <BookOpen className="w-12 h-12 mx-auto mb-2" />
-                  <p className="text-xs">Illustration</p>
-                </div>
-              )}
-              {/* Page number */}
-              <div className="absolute bottom-3 left-6 text-amber-800/40 text-xs italic font-serif z-10">
-                {currentPageData?.pageNumber}
-              </div>
-            </div>
-
-            {/* Centre spine */}
-            <div
-              className="flex-shrink-0 self-stretch"
-              style={{
-                width: '16px',
-                background: 'linear-gradient(to right, #b8933e, #e8d08a, #c4a050, #e8d08a, #b8933e)',
-                boxShadow: '0 0 8px rgba(0,0,0,0.35)',
-              }}
-            />
-
-            {/* Right page — text */}
-            <div
-              className="flex-1 relative flex flex-col justify-center overflow-y-auto rounded-r-lg"
-              style={{
-                background: 'linear-gradient(to left, #e8d8b0, #f0e3c8)',
-                fontFamily: '"Georgia", "Times New Roman", serif',
-              }}
-            >
-              {/* Right spine shadow */}
-              <div className="absolute inset-y-0 right-0 w-5 pointer-events-none z-10"
-                style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.12), transparent)' }} />
-              <div className="px-[8%] py-[6%]">
-                <p className="text-amber-900/50 text-xs italic mb-4 font-sans tracking-wide">{story.title}</p>
-                <div
-                  className="leading-relaxed text-[#3a1f06]"
-                  style={{ fontSize: 'clamp(0.85rem, 2.2vw, 1.15rem)' }}
-                  data-testid={`text-page-${currentPageData?.pageNumber}`}
-                >
-                  {currentPageData?.text?.split('\n').map((para, i) => (
-                    <p
-                      key={i}
-                      className="mb-3"
-                      style={i === 0 ? {
-                        // Drop-cap on first paragraph
-                        paddingLeft: 0,
-                      } : {}}
-                    >
-                      {i === 0 && para[0] ? (
-                        <>
-                          <span style={{
-                            float: 'left',
-                            fontSize: 'clamp(2.5rem, 6vw, 3.5rem)',
-                            lineHeight: '0.75',
-                            fontWeight: 'bold',
-                            marginRight: '0.1em',
-                            marginTop: '0.1em',
-                            color: '#8b4513',
-                          }}>
-                            {para[0]}
-                          </span>
-                          {para.slice(1)}
-                        </>
-                      ) : para}
-                    </p>
-                  ))}
-                </div>
-              </div>
-              {/* Page number */}
-              <div className="absolute bottom-3 right-6 text-amber-800/40 text-xs italic font-serif z-10">
-                {currentPageData && currentPageData.pageNumber + 1}
-              </div>
-            </div>
-          </div>
+          <OpenBook
+            story={story}
+            page={currentPageData}
+            isLandscape={isLandscape}
+            pageNumber={currentPage + 1}
+            totalPages={totalPages}
+          />
         )}
       </div>
 
-      {/* Navigation bar */}
-      <div className="flex-shrink-0 px-4 pb-3 pt-1">
-        <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
-          {/* Prev */}
+      {/* Navigation */}
+      <div className="flex-shrink-0 px-3 pb-3 pt-1">
+        <div className="flex items-center justify-between gap-2 max-w-lg mx-auto">
           <button
             onClick={handlePrev}
             disabled={isCover}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-25"
-            style={{
-              background: 'rgba(245,201,122,0.12)',
-              color: '#f5c97a',
-              border: '1px solid rgba(245,201,122,0.2)',
-              minWidth: '90px',
-            }}
+            className="flex items-center gap-1 px-3 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-25"
+            style={{ background: 'rgba(245,201,122,0.12)', color: '#f5c97a', border: '1px solid rgba(245,201,122,0.2)', minWidth: '80px' }}
             data-testid="button-prev-page"
           >
             <ChevronLeft className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">{isCover ? 'Cover' : currentPage === 0 ? 'Cover' : `Pg ${currentPage}`}</span>
+            <span className="truncate">{isCover || currentPage === 0 ? 'Cover' : `Pg ${currentPage}`}</span>
           </button>
 
-          {/* Page dots */}
           <div className="flex items-center gap-1.5 flex-1 justify-center overflow-hidden">
             <button onClick={() => setCurrentPage(-1)}
               className="rounded-full flex-shrink-0 transition-all"
               style={{ width: isCover ? '18px' : '7px', height: '7px', background: isCover ? '#f5c97a' : 'rgba(245,201,122,0.3)' }}
-              data-testid="button-dot-cover"
             />
             {pages.map((_, i) => (
               <button key={i} onClick={() => setCurrentPage(i)}
                 className="rounded-full flex-shrink-0 transition-all"
                 style={{ width: i === currentPage ? '18px' : '7px', height: '7px', background: i === currentPage ? '#f5c97a' : 'rgba(245,201,122,0.3)' }}
-                data-testid={`button-dot-${i}`}
               />
             ))}
           </div>
 
-          {/* Next */}
           {isCover ? (
-            <button
-              onClick={handleNext}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm"
-              style={{ background: '#f5c97a', color: '#1a0e08', minWidth: '90px' }}
+            <button onClick={handleNext}
+              className="flex items-center gap-1 px-3 py-2.5 rounded-xl font-medium text-sm"
+              style={{ background: '#f5c97a', color: '#1a0e08', minWidth: '80px' }}
               data-testid="button-start-reading"
             >
-              <span>Start Reading</span>
+              <span>Start</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0" />
             </button>
           ) : (
-            <button
-              onClick={handleNext}
-              disabled={isLastPage}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-25"
-              style={{
-                background: isLastPage ? 'rgba(245,201,122,0.08)' : 'rgba(245,201,122,0.12)',
-                color: '#f5c97a',
-                border: '1px solid rgba(245,201,122,0.2)',
-                minWidth: '90px',
-              }}
+            <button onClick={handleNext} disabled={isLastPage}
+              className="flex items-center gap-1 px-3 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-25"
+              style={{ background: isLastPage ? 'rgba(245,201,122,0.08)' : 'rgba(245,201,122,0.12)', color: '#f5c97a', border: '1px solid rgba(245,201,122,0.2)', minWidth: '80px' }}
               data-testid="button-next-page"
             >
-              <span className="truncate">{isLastPage ? 'The End' : `Pg ${currentPage + 2}`}</span>
+              <span className="truncate">{isLastPage ? 'End' : `Pg ${currentPage + 2}`}</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0" />
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Cover component ──────────────────────────────────────────────────────────
+function Cover({ story, isLandscape }: { story: any; isLandscape: boolean }) {
+  // Book is portrait-shaped (2:3). Aurora images are square (1:1).
+  // We use object-cover + object-position:top so the title (top of image) is
+  // always shown and the book fills its frame with no letterboxing.
+  return (
+    <div
+      className="h-full flex items-center justify-center"
+      style={{ filter: 'drop-shadow(-6px 10px 32px rgba(0,0,0,0.9))' }}
+    >
+      <div
+        className="flex"
+        style={{
+          // Aurora generates square images. Using a near-square book ratio (9:10)
+          // means only ~5% is cropped from each side — title stays fully visible.
+          // Children's picture books are often square or near-square format.
+          height: '100%',
+          maxHeight: '100%',
+          aspectRatio: '9/10',
+          maxWidth: '90vw',
+        }}
+      >
+        {/* Spine */}
+        <div
+          className="flex-shrink-0 rounded-l-sm self-stretch"
+          style={{
+            width: '5%',
+            minWidth: '10px',
+            maxWidth: '20px',
+            background: 'linear-gradient(to right, #0f0703, #3d1f0c, #221008)',
+            boxShadow: 'inset -3px 0 8px rgba(0,0,0,0.6)',
+          }}
+        />
+        {/* Cover face: full-bleed portrait book cover */}
+        <div className="relative flex-1 overflow-hidden rounded-r-lg">
+          {story.coverImageUrl ? (
+            <img
+              src={story.coverImageUrl}
+              alt={story.title}
+              className="absolute inset-0 w-full h-full"
+              style={{
+                objectFit: 'cover',
+                // Position top-center so the title (at top of square image) is always visible
+                objectPosition: 'top center',
+              }}
+              data-testid="img-cover"
+              draggable={false}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
+              <div className="text-center text-amber-200">
+                <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="font-display text-lg font-bold">{story.title}</p>
+              </div>
+            </div>
+          )}
+          {/* Right page-edge sheen */}
+          <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
+            style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.2), transparent)' }} />
+          {/* Bottom page-edge sheen */}
+          <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── OpenBook component ───────────────────────────────────────────────────────
+function OpenBook({
+  story, page, isLandscape, pageNumber, totalPages,
+}: {
+  story: any;
+  page: any;
+  isLandscape: boolean;
+  pageNumber: number;
+  totalPages: number;
+}) {
+  if (isLandscape) {
+    return <OpenBookLandscape story={story} page={page} pageNumber={pageNumber} totalPages={totalPages} />;
+  }
+  return <OpenBookPortrait story={story} page={page} pageNumber={pageNumber} totalPages={totalPages} />;
+}
+
+// Portrait: illustration top, text bottom, stacked
+function OpenBookPortrait({ story, page, pageNumber, totalPages }: any) {
+  return (
+    <div
+      className="w-full h-full flex flex-col rounded-xl overflow-hidden"
+      style={{
+        background: '#f0e3c8',
+        filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.7))',
+        maxWidth: '480px',
+      }}
+    >
+      {/* Illustration — top 55% */}
+      <div
+        className="relative flex-shrink-0 overflow-hidden"
+        style={{ height: '55%', background: '#e8d8b0' }}
+      >
+        {/* Top spine shadow */}
+        <div className="absolute inset-x-0 top-0 h-4 z-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15), transparent)' }} />
+        {page?.imageUrl ? (
+          <img
+            src={page.imageUrl}
+            alt={`Page ${pageNumber}`}
+            className="w-full h-full"
+            style={{ objectFit: 'cover', objectPosition: 'center top' }}
+            data-testid={`img-page-${pageNumber}`}
+            draggable={false}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-amber-800/30">
+            <BookOpen className="w-10 h-10" />
+          </div>
+        )}
+        {/* Horizontal gold rule separating illustration from text */}
+        <div className="absolute inset-x-0 bottom-0 h-[3px]"
+          style={{ background: 'linear-gradient(to right, transparent, #c9a96e 15%, #c9a96e 85%, transparent)' }} />
+        {/* Page number left */}
+        <div className="absolute bottom-1 left-4 text-amber-800/40 text-xs italic font-serif z-10">
+          {pageNumber}
+        </div>
+      </div>
+
+      {/* Text — bottom 45% */}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto relative"
+        style={{
+          background: 'linear-gradient(to bottom, #f0e3c8, #ece0c2)',
+          fontFamily: '"Georgia", "Times New Roman", serif',
+          padding: '5% 7%',
+        }}
+      >
+        <p className="text-amber-900/40 text-xs italic mb-3 font-sans">{story.title}</p>
+        <div
+          className="leading-snug text-[#3a1f06]"
+          style={{ fontSize: 'clamp(0.85rem, 3.5vw, 1.05rem)' }}
+          data-testid={`text-page-${pageNumber}`}
+        >
+          {page?.text?.split('\n').map((para: string, i: number) => (
+            <p key={i} className="mb-2">
+              {i === 0 && para[0] ? (
+                <>
+                  <span style={{
+                    float: 'left', fontSize: 'clamp(2rem, 8vw, 2.8rem)',
+                    lineHeight: '0.8', fontWeight: 'bold',
+                    marginRight: '0.08em', marginTop: '0.08em', color: '#8b4513',
+                  }}>{para[0]}</span>
+                  {para.slice(1)}
+                </>
+              ) : para}
+            </p>
+          ))}
+        </div>
+        {/* Right page number */}
+        <div className="absolute bottom-2 right-4 text-amber-800/40 text-xs italic font-serif">
+          {pageNumber + 1}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Landscape: side-by-side open book, fills full available height
+function OpenBookLandscape({ story, page, pageNumber, totalPages }: any) {
+  return (
+    <div
+      className="flex h-full rounded-xl overflow-hidden"
+      style={{
+        // Book width = 2× height (two square-ish pages side by side)
+        // Height fills available space; width is capped to maintain proportion
+        width: '100%',
+        maxWidth: 'calc(100dvh * 2.2)',
+        filter: 'drop-shadow(0 10px 36px rgba(0,0,0,0.75))',
+      }}
+    >
+      {/* Left page — illustration fills the whole page */}
+      <div
+        className="flex-1 relative flex items-center justify-center overflow-hidden"
+        style={{
+          background: '#e8d8b0',
+          boxShadow: 'inset -2px 0 6px rgba(0,0,0,0.08)',
+        }}
+      >
+        <div className="absolute inset-y-0 left-0 w-4 pointer-events-none z-10"
+          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.15), transparent)' }} />
+        {page?.imageUrl ? (
+          <img
+            src={page.imageUrl}
+            alt={`Page ${pageNumber}`}
+            className="w-full h-full"
+            style={{ objectFit: 'cover' }}
+            data-testid={`img-page-ls-${pageNumber}`}
+            draggable={false}
+          />
+        ) : (
+          <div className="text-amber-800/30 text-center">
+            <BookOpen className="w-10 h-10 mx-auto" />
+          </div>
+        )}
+        <div className="absolute bottom-2 left-5 text-amber-800/40 text-xs italic font-serif z-10">
+          {pageNumber}
+        </div>
+      </div>
+
+      {/* Spine */}
+      <div className="flex-shrink-0 self-stretch"
+        style={{ width: '12px', background: 'linear-gradient(to right, #b8933e, #edd990, #c4a050, #edd990, #b8933e)', boxShadow: '0 0 6px rgba(0,0,0,0.3)' }} />
+
+      {/* Right page — text, scrollable */}
+      <div
+        className="flex-1 relative overflow-hidden flex flex-col"
+        style={{ background: 'linear-gradient(to left, #e8d8b0, #f0e3c8)', fontFamily: '"Georgia", "Times New Roman", serif' }}
+      >
+        <div className="absolute inset-y-0 right-0 w-4 pointer-events-none z-10"
+          style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.10), transparent)' }} />
+        <div className="flex-1 overflow-y-auto px-[7%] py-[5%]">
+          <p className="text-amber-900/40 text-xs italic mb-2 font-sans">{story.title}</p>
+          <div
+            className="leading-snug text-[#3a1f06]"
+            style={{ fontSize: 'clamp(0.7rem, 1.6vw, 0.95rem)' }}
+            data-testid={`text-page-ls-${pageNumber}`}
+          >
+            {page?.text?.split('\n').map((para: string, i: number) => (
+              <p key={i} className="mb-2">
+                {i === 0 && para[0] ? (
+                  <>
+                    <span style={{
+                      float: 'left', fontSize: 'clamp(1.8rem, 4.5vw, 2.5rem)',
+                      lineHeight: '0.8', fontWeight: 'bold',
+                      marginRight: '0.07em', marginTop: '0.07em', color: '#8b4513',
+                    }}>{para[0]}</span>
+                    {para.slice(1)}
+                  </>
+                ) : para}
+              </p>
+            ))}
+          </div>
+        </div>
+        <div className="flex-shrink-0 pb-2 pr-5 text-right text-amber-800/40 text-xs italic font-serif">
+          {pageNumber + 1}
         </div>
       </div>
     </div>
