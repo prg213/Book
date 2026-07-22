@@ -463,36 +463,34 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// Fills the same w-full h-full stage as OpenBookPortrait so both views have
-// the same visual footprint. Spine on the left, cover image fills remaining
-// space with object-fit:cover to match the portrait book shape.
+// The AI generates a square (1:1) cover image. We keep the cover face square
+// and size it by the stage height so the full image is always visible uncropped.
 function PortraitCover({ story }: { story: any }) {
   return (
     <div
-      className="w-full h-full flex rounded-xl overflow-hidden"
-      style={{
-        maxWidth: '480px',
-        filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.85))',
-      }}
+      className="h-full flex"
+      style={{ filter: 'drop-shadow(-4px 10px 28px rgba(0,0,0,0.85))' }}
     >
       {/* Spine */}
       <div
-        className="flex-shrink-0 self-stretch"
+        className="flex-shrink-0 self-stretch rounded-l"
         style={{
           width: '14px',
           background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
           boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
-          borderRadius: '0.75rem 0 0 0.75rem',
         }}
       />
-      {/* Cover face — fills remaining width and full height */}
-      <div className="relative flex-1 overflow-hidden" style={{ borderRadius: '0 0.75rem 0.75rem 0' }}>
+      {/* Cover face — square, driven by height so image is never cropped */}
+      <div
+        className="relative self-stretch rounded-r-xl overflow-hidden"
+        style={{ aspectRatio: '1 / 1' }}
+      >
         {story.coverImageUrl ? (
           <img
             src={story.coverImageUrl}
             alt={story.title}
             className="absolute inset-0 w-full h-full"
-            style={{ objectFit: 'cover', objectPosition: 'center top' }}
+            style={{ objectFit: 'fill' }}
             data-testid="img-cover"
             draggable={false}
           />
@@ -598,24 +596,21 @@ function LandscapeEndPage({ story }: { story: any }) {
   );
 }
 
-// ── Landscape cover: book centred on screen, full image visible ───────────────
-// Square AI image fits inside a height-driven square cover face — no cropping.
+// ── Landscape cover: fills the full screen like the open book spread ─────────
+// Spine at the left edge, cover face fills the remaining width. object-fit:cover
+// with top-alignment keeps the title in frame while filling the landscape space.
 function LandscapeCover({ story }: { story: any }) {
   return (
-    <div className="w-full h-full flex items-center justify-center">
-      {/* Book: spine + square cover face (height-driven) */}
-      <div className="flex h-full"
-        style={{ filter: 'drop-shadow(-5px 10px 30px rgba(0,0,0,0.9))' }}>
-        {/* Spine */}
-        <div className="flex-shrink-0 self-stretch rounded-l"
-          style={{ width: '14px', background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)', boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)' }} />
-        {/* Cover face: square, height = 100% of available height */}
-        <div className="relative self-stretch rounded-r-xl overflow-hidden"
-          style={{ aspectRatio: '1 / 1' }}>
-          {story.coverImageUrl ? (
+    <div className="w-full h-full flex" style={{ overflow: 'hidden' }}>
+      {/* Spine — left edge, full height */}
+      <div className="flex-shrink-0 self-stretch"
+        style={{ width: '14px', background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)', boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)' }} />
+      {/* Cover face — fills remaining width, full height */}
+      <div className="relative flex-1 overflow-hidden">
+        {story.coverImageUrl ? (
             <img src={story.coverImageUrl} alt={story.title}
               className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'fill' }}
+              style={{ objectFit: 'cover', objectPosition: 'center top' }}
               data-testid="img-cover-ls" draggable={false} />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
@@ -630,7 +625,6 @@ function LandscapeCover({ story }: { story: any }) {
           <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
             style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
         </div>
-      </div>
     </div>
   );
 }
