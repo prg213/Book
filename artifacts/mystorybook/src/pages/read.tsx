@@ -47,6 +47,8 @@ export default function Read() {
   const [flipDir, setFlipDir] = useState<'next' | 'prev'>('next');
   // live drag in px (negative = left/next, positive = right/prev)
   const [swipeDx, setSwipeDx] = useState(0);
+  // frozen index: keeps non-folding half showing old content during 'revealing'
+  const [frozenPageIdx, setFrozenPageIdx] = useState<number | null>(null);
   const flipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const touchStartX = useRef<number | null>(null);
@@ -77,6 +79,7 @@ export default function Read() {
     if (flipTimer.current) clearTimeout(flipTimer.current);
     setFlipPhase('idle');
     setSwipeDx(0);
+    setFrozenPageIdx(null);
     horizontalLocked.current = false;
   }, []);
 
@@ -127,6 +130,8 @@ export default function Read() {
       const canGo = flipDir === 'next' ? !isLastLocal : !isCoverLocal;
 
       if (Math.abs(swipeDx) > 55 && canGo) {
+        // Freeze the non-folding half BEFORE page changes so it doesn't jump
+        setFrozenPageIdx(currentPage);
         // Complete the flip: animate page to 90° edge-on
         setFlipPhase('completing');
         flipTimer.current = setTimeout(() => {
@@ -193,6 +198,17 @@ export default function Read() {
   const isCover = currentPage === -1;
   const isLastPage = currentPage >= totalPages - 1;
 
+  // ── Peek / frozen page data for the animation ─────────────────────────────
+  // peekPage: destination page shown as background behind the folding half
+  //   (only during tracking + completing, before currentPage changes)
+  const isPeekPhase = flipPhase === 'tracking' || flipPhase === 'completing';
+  const peekIdx = isPeekPhase ? currentPage + (flipDir === 'next' ? 1 : -1) : -1;
+  const peekPage = peekIdx >= 0 && peekIdx < totalPages ? pages[peekIdx] : null;
+
+  // staticPage: keeps the non-folding half from jumping when currentPage changes
+  const frozenData = frozenPageIdx !== null && frozenPageIdx >= 0 ? pages[frozenPageIdx] : null;
+  const staticPage = frozenData ?? currentPageData;
+
   // ── LANDSCAPE: book fills entire screen, no chrome ───────────────────────
   if (isLandscape) {
     return (
@@ -211,6 +227,8 @@ export default function Read() {
           <LandscapeBook
             story={story}
             page={currentPageData}
+            staticPage={staticPage}
+            peekPage={peekPage}
             pageNumber={currentPage + 1}
             totalPages={totalPages}
             flipPhase={flipPhase}
@@ -488,28 +506,63 @@ function LandscapeCover({ story }: { story: any }) {
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function PageIllustration({ imgPage, pageNumber, testId }: { imgPage: any; pageNumber: number; testId: string }) {
+  return imgPage?.imageUrl ? (
+    <img src={imgPage.imageUrl} alt={`Page ${pageNumber}`}
+      className="w-full h-full"
+      style={{ objectFit: 'cover', objectPosition: 'center' }}
+      data-testid={testId} draggable={false} />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center text-amber-800/30">
+      <BookOpen className="w-16 h-16" />
+    </div>
+  );
+}
+
+function PageText({ story, textPage, pageNumber }: { story: any; textPage: any; pageNumber: number }) {
+  return (
+    <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center"
+      style={{ padding: '3dvh 10%', textAlign: 'center' }}>
+      <p className="text-amber-900/40 text-xs italic mb-4 font-sans tracking-wide">{story.title}</p>
+      <div className="leading-relaxed text-[#3a1f06]"
+        style={{ fontSize: 'clamp(1.05rem, 3dvh, 1.5rem)' }}
+        data-testid={`text-page-ls-${pageNumber}`}>
+        {textPage?.text?.split('\n').map((para: string, i: number) => (
+          <p key={i} className="mb-3">{para}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Landscape open book ───────────────────────────────────────────────────────
-// Swipe-following 3D page flip:
-//   • next (swipe left)  → right (text) page rotates around its LEFT  edge (spine)
-//   • prev (swipe right) → left  (illus) page rotates around its RIGHT edge (spine)
-function LandscapeBook({ story, page, pageNumber, totalPages, flipPhase, flipDir, swipeDx }: any) {
-  // Fold angle: 0° = flat, 90° = edge-on (invisible)
+// • Swipe left  (next) → right (text) page folds around its LEFT  edge (spine)
+// • Swipe right (prev) → left (illus) page folds around its RIGHT edge (spine)
+// • peekPage: destination content shown beneath the fold as it lifts
+// • staticPage: non-folding half frozen so it doesn't jump when currentPage updates
+function LandscapeBook({ story, page, staticPage, peekPage, pageNumber, totalPages, flipPhase, flipDir, swipeDx }: any) {
   const halfWidth = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
+
+  // Fold angle 0°=flat → 90°=edge-on (invisible)
   const rawAngle = flipPhase === 'completing'
-    ? 90  // animate to fully folded
+    ? 90
     : Math.min(89, (Math.abs(swipeDx) / halfWidth) * 90);
 
-  // CSS transition only during animated phases (not while tracking finger)
+  // Use CSS transition for all animated phases; track finger with no transition
   const animated = flipPhase === 'completing' || flipPhase === 'reverting' || flipPhase === 'revealing';
   const tx = animated ? 'transform 0.26s ease-in-out' : 'none';
 
-  // Which page is folding?
-  const active = flipPhase !== 'idle';
-  const leftFolding  = active && flipDir === 'prev';
-  const rightFolding = active && flipDir === 'next';
+  const active       = flipPhase !== 'idle';
+  const leftFolding  = active && flipDir === 'prev'; // left illus page folds
+  const rightFolding = active && flipDir === 'next'; // right text page folds
 
-  // Shadow on the OPPOSITE page deepens as fold progresses (simulates the flip casting shade)
-  const shadowOpacity = rawAngle / 90 * 0.35;
+  // Shadow cast by the folding half onto the static half, grows with angle
+  const shadowOpacity = (rawAngle / 90) * 0.32;
+
+  // The non-folding halves use staticPage (frozen) so they don't jump mid-flip
+  const leftStaticPage  = rightFolding ? staticPage : page;
+  const rightStaticPage = leftFolding  ? staticPage : page;
 
   return (
     <div className="w-full h-full flex" style={{ overflow: 'hidden' }}>
@@ -520,39 +573,36 @@ function LandscapeBook({ story, page, pageNumber, totalPages, flipPhase, flipDir
           width: '10px',
           background: 'repeating-linear-gradient(to bottom, #b8966a 0px, #b8966a 1px, #e8d5a8 1px, #e8d5a8 4px)',
           boxShadow: 'inset 3px 0 6px rgba(0,0,0,0.3)',
-        }}
-      />
+        }} />
 
       {/* ── Left page: illustration ── */}
       <div className="flex-1 relative overflow-hidden" style={{ background: '#e0ceaa' }}>
-        {/* The page face — may fold around its right edge (prev swipe) */}
+
+        {/* Peek layer — prev page illustration, always flat beneath the fold */}
+        {leftFolding && peekPage && (
+          <div className="absolute inset-0">
+            <PageIllustration imgPage={peekPage} pageNumber={pageNumber - 1} testId={`img-peek-left-${pageNumber}`} />
+          </div>
+        )}
+
+        {/* Page face — folds for prev swipe, static otherwise */}
         <div className="absolute inset-0"
           style={{
             transformOrigin: '100% 50%',
             transform: leftFolding ? `perspective(1400px) rotateY(${rawAngle}deg)` : 'none',
             transition: leftFolding ? tx : 'none',
           }}>
-          {page?.imageUrl ? (
-            <img src={page.imageUrl} alt={`Page ${pageNumber}`}
-              className="w-full h-full"
-              style={{ objectFit: 'cover', objectPosition: 'center' }}
-              data-testid={`img-page-ls-${pageNumber}`} draggable={false} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-amber-800/30">
-              <BookOpen className="w-16 h-16" />
-            </div>
-          )}
-          {/* Outer-left edge shadow */}
+          <PageIllustration imgPage={leftStaticPage} pageNumber={pageNumber} testId={`img-page-ls-${pageNumber}`} />
           <div className="absolute inset-y-0 left-0 w-4 pointer-events-none"
             style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.22), transparent)' }} />
-          {/* Centre-fold shadow */}
           <div className="absolute inset-y-0 right-0 w-10 pointer-events-none"
             style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.28), transparent)' }} />
           <div className="absolute bottom-3 left-5 text-amber-900/35 text-sm italic font-serif">{pageNumber}</div>
         </div>
-        {/* Dynamic shadow cast by the folding right page onto the left page */}
+
+        {/* Shadow cast by the folding right page */}
         {rightFolding && (
-          <div className="absolute inset-0 pointer-events-none"
+          <div className="absolute inset-0 pointer-events-none z-20"
             style={{ background: `rgba(0,0,0,${shadowOpacity})` }} />
         )}
       </div>
@@ -562,44 +612,43 @@ function LandscapeBook({ story, page, pageNumber, totalPages, flipPhase, flipDir
         style={{
           width: '6px',
           background: 'linear-gradient(to right, rgba(0,0,0,0.40) 0%, rgba(140,100,50,0.3) 40%, rgba(255,240,200,0.4) 55%, rgba(140,100,50,0.2) 70%, rgba(0,0,0,0.25) 100%)',
-        }}
-      />
+          zIndex: 10,
+        }} />
 
       {/* ── Right page: text ── */}
       <div className="flex-1 relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #f5e6c0 0%, #ecddb8 100%)', fontFamily: '"Georgia", "Times New Roman", serif' }}>
-        {/* The page face — may fold around its left edge (next swipe) */}
+
+        {/* Peek layer — next page text, always flat beneath the fold */}
+        {rightFolding && peekPage && (
+          <div className="absolute inset-0 flex flex-col">
+            <PageText story={story} textPage={peekPage} pageNumber={pageNumber + 1} />
+            <div className="flex-shrink-0 pb-3 pr-5 text-right text-amber-900/35 text-sm italic font-serif">
+              {pageNumber + 2}
+            </div>
+          </div>
+        )}
+
+        {/* Page face — folds for next swipe, static otherwise */}
         <div className="absolute inset-0 flex flex-col"
           style={{
             transformOrigin: '0% 50%',
             transform: rightFolding ? `perspective(1400px) rotateY(-${rawAngle}deg)` : 'none',
             transition: rightFolding ? tx : 'none',
           }}>
-          {/* Centre-fold shadow */}
           <div className="absolute inset-y-0 left-0 w-10 pointer-events-none z-10"
             style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.20), transparent)' }} />
-          {/* Outer-right shadow */}
           <div className="absolute inset-y-0 right-0 w-4 pointer-events-none z-10"
             style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.18), transparent)' }} />
-
-          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center"
-            style={{ padding: '3dvh 10%', textAlign: 'center' }}>
-            <p className="text-amber-900/40 text-xs italic mb-4 font-sans tracking-wide">{story.title}</p>
-            <div className="leading-relaxed text-[#3a1f06]"
-              style={{ fontSize: 'clamp(1.05rem, 3dvh, 1.5rem)' }}
-              data-testid={`text-page-ls-${pageNumber}`}>
-              {page?.text?.split('\n').map((para: string, i: number) => (
-                <p key={i} className="mb-3">{para}</p>
-              ))}
-            </div>
-          </div>
+          <PageText story={story} textPage={rightStaticPage} pageNumber={pageNumber} />
           <div className="flex-shrink-0 pb-3 pr-5 text-right text-amber-900/35 text-sm italic font-serif z-10">
             {pageNumber + 1}
           </div>
         </div>
-        {/* Dynamic shadow cast by the folding left page onto the right page */}
+
+        {/* Shadow cast by the folding left page */}
         {leftFolding && (
-          <div className="absolute inset-0 pointer-events-none"
+          <div className="absolute inset-0 pointer-events-none z-20"
             style={{ background: `rgba(0,0,0,${shadowOpacity})` }} />
         )}
       </div>
@@ -610,8 +659,7 @@ function LandscapeBook({ story, page, pageNumber, totalPages, flipPhase, flipDir
           width: '10px',
           background: 'repeating-linear-gradient(to bottom, #b8966a 0px, #b8966a 1px, #e8d5a8 1px, #e8d5a8 4px)',
           boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.3)',
-        }}
-      />
+        }} />
     </div>
   );
 }
