@@ -5,14 +5,23 @@ import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 
 function useIsLandscape() {
-  const [landscape, setLandscape] = useState(() => window.innerWidth > window.innerHeight);
+  const getOrientation = () => {
+    // screen.orientation.type is most reliable on Android Chrome
+    if (window.screen?.orientation?.type) {
+      return window.screen.orientation.type.startsWith('landscape');
+    }
+    return window.innerWidth > window.innerHeight;
+  };
+  const [landscape, setLandscape] = useState(getOrientation);
   useEffect(() => {
-    const check = () => setLandscape(window.innerWidth > window.innerHeight);
-    window.addEventListener('resize', check);
-    window.addEventListener('orientationchange', check);
+    const update = () => setLandscape(getOrientation());
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    window.screen?.orientation?.addEventListener?.('change', update);
     return () => {
-      window.removeEventListener('resize', check);
-      window.removeEventListener('orientationchange', check);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+      window.screen?.orientation?.removeEventListener?.('change', update);
     };
   }, []);
   return landscape;
