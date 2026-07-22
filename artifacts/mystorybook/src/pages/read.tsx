@@ -47,8 +47,9 @@ export default function Read() {
   const [flipDir, setFlipDir] = useState<'next' | 'prev'>('next');
   // live drag in px (negative = left/next, positive = right/prev)
   const [swipeDx, setSwipeDx] = useState(0);
-  // true while the cover-open animation is completing (scale + flip)
-  const [coverTransition, setCoverTransition] = useState(false);
+  // Stage 2 of cover-open: book expands from centred to full-screen after the fold
+  const [coverExpanding, setCoverExpanding] = useState(false);
+  const [coverExpandReady, setCoverExpandReady] = useState(false);
   const flipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const touchStartX = useRef<number | null>(null);
@@ -92,7 +93,7 @@ export default function Read() {
   }, [handleNext, handlePrev]);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (flipPhase !== 'idle') return; // ignore new touches during animation
+    if (flipPhase !== 'idle' || coverExpanding) return; // ignore during animation
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
     touchStartTime.current = Date.now();
@@ -130,14 +131,19 @@ export default function Read() {
 
       if (Math.abs(swipeDx) > 55 && canGo) {
         if (isCoverLocal && flipDir === 'next') {
-          // Cover opens: expand to full screen + flip simultaneously
-          handleNext();          // currentPage → 0 immediately
-          setCoverTransition(true);
+          // Stage 1: fold cover face to 90° while book stays centred
           setFlipPhase('completing');
           flipTimer.current = setTimeout(() => {
-            setCoverTransition(false);
+            // Stage 2: change page then expand book to fill screen
+            handleNext();
             resetFlip();
-          }, 520);
+            setCoverExpanding(true);
+            requestAnimationFrame(() => requestAnimationFrame(() => setCoverExpandReady(true)));
+            setTimeout(() => {
+              setCoverExpanding(false);
+              setCoverExpandReady(false);
+            }, 440);
+          }, 340);
         } else {
           // Regular page flip
           setFlipPhase('completing');
@@ -219,19 +225,37 @@ export default function Read() {
         onClick={showOverlay}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Book fills 100% of screen */}
-        {/* Cover-open animation: runs when tracking/completing from the cover */}
-        {(isCover && flipPhase !== 'idle' && flipDir === 'next') || coverTransition ? (
-          <CoverOpenView
-            story={story}
-            firstPage={pages[0] ?? null}
-            flipPhase={flipPhase}
-            swipeDx={swipeDx}
-            coverTransition={coverTransition}
-          />
-        ) : isCover ? (
-          <LandscapeCover story={story} />
+        {/* Book content — three states */}
+        {isCover ? (
+          /* Stage 0: cover at rest, or Stage 1: cover face folding (centred) */
+          (flipPhase !== 'idle' && flipDir === 'next')
+            ? <LandscapeCoverFolding story={story} flipPhase={flipPhase} swipeDx={swipeDx} />
+            : <LandscapeCover story={story} />
+        ) : coverExpanding ? (
+          /* Stage 2: book scales from centred size to full screen */
+          <div style={{
+            position: 'absolute', inset: 0,
+            transform: coverExpandReady
+              ? 'scale(1)'
+              : `scale(${Math.min(0.95, (window.innerHeight + 14) / window.innerWidth)})`,
+            transition: coverExpandReady
+              ? 'transform 0.44s cubic-bezier(0.22, 1, 0.36, 1)'
+              : 'none',
+            transformOrigin: 'center center',
+          }}>
+            <LandscapeBook
+              story={story}
+              page={currentPageData}
+              peekPage={null}
+              pageNumber={1}
+              totalPages={totalPages}
+              flipPhase="idle"
+              flipDir="next"
+              swipeDx={0}
+            />
+          </div>
         ) : (
+          /* Normal open book */
           <LandscapeBook
             story={story}
             page={currentPageData}
@@ -543,101 +567,53 @@ function PageText({ story, textPage, pageNumber }: { story: any; textPage: any; 
   );
 }
 
-// ── Cover → open-book animation ──────────────────────────────────────────────
-// Shown while swiping the cover (tracking) and while it completes (coverTransition).
-// The book expands from ~70% scale to full-screen while the cover page flips 0°→180°,
-// revealing page 1's illustration on the back face and text on the right background.
-function CoverOpenView({ story, firstPage, flipPhase, swipeDx, coverTransition }: any) {
+// ── Cover with fold animation (stays centred, same layout as LandscapeCover) ──
+// The cover face rotates around its left edge (spine) following the swipe.
+// Fold goes 0°→90° then the page changes and the book expands in a second step.
+function LandscapeCoverFolding({ story, flipPhase, swipeDx }: any) {
   const halfWidth = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
-
-  // 0° = cover flat on right half, 180° = cover flipped, illustration on left
-  const rawAngle = flipPhase === 'completing' ? 180
+  const rawAngle  = flipPhase === 'completing' ? 90
     : flipPhase === 'reverting' ? 0
-    : Math.min(179, (Math.abs(swipeDx) / halfWidth) * 180);
-
-  // Book scale: 0.70 at start, grows toward 1 as the flip progresses or completes
-  const startScale = 0.70;
-  const trackScale = startScale + (1 - startScale) * (rawAngle / 180);
-  const animated   = flipPhase === 'completing' || flipPhase === 'reverting' || coverTransition;
-  const targetScale = (flipPhase === 'completing' || coverTransition) ? 1
-    : flipPhase === 'reverting' ? startScale
-    : trackScale;
-
-  const easeTx = 'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)';
-  const flipTx = 'transform 0.40s ease-in-out';
+    : Math.min(89, (Math.abs(swipeDx) / halfWidth) * 90);
+  const animated = flipPhase === 'completing' || flipPhase === 'reverting';
 
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#0a0401' }}>
-      {/* ── Scaling book wrapper ── */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        transform: `scale(${animated ? targetScale : trackScale})`,
-        transition: animated ? easeTx : 'none',
-        transformOrigin: 'center center',
-        display: 'flex',
-      }}>
-        {/* Left half — inner cover / will show page 1 illustration once flip completes */}
-        <div style={{ flex: 1, background: '#e0ceaa', position: 'relative' }} />
-
-        {/* Right half — page 1 text (already visible as the cover lifts) */}
-        <div style={{
-          flex: 1, position: 'relative', display: 'flex', flexDirection: 'column',
-          background: 'linear-gradient(135deg, #f5e6c0 0%, #ecddb8 100%)',
-          fontFamily: '"Georgia", "Times New Roman", serif',
-        }}>
-          {firstPage && <PageText story={story} textPage={firstPage} pageNumber={1} />}
-          <div style={{ flexShrink: 0, paddingBottom: '12px', paddingRight: '20px', textAlign: 'right' }}
-            className="text-amber-900/35 text-sm italic font-serif">2</div>
-          {/* Left-edge crease shadow */}
-          <div style={{ position: 'absolute', inset: 0, right: 'auto', width: '40px', pointerEvents: 'none',
-            background: 'linear-gradient(to right, rgba(0,0,0,0.18), transparent)' }} />
-        </div>
-      </div>
-
-      {/* ── Cover flip card — right half, rotates 0°→180° around spine ── */}
-      <div style={{
-        position: 'absolute', top: 0, bottom: 0,
-        left: '50%', width: '50%',
-        transformStyle: 'preserve-3d',
-        transformOrigin: '0% 50%',
-        transform: `perspective(1600px) rotateY(-${animated ? targetScale === startScale ? 0 : rawAngle : rawAngle}deg)`,
-        transition: animated ? flipTx : 'none',
-        zIndex: 30,
-      }}>
-        {/* Front: cover image */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
-          background: '#2a1005',
-        }}>
-          {story?.coverImageUrl && (
-            <img src={story.coverImageUrl} alt={story?.title}
-              style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="flex h-full"
+        style={{ filter: 'drop-shadow(-5px 10px 30px rgba(0,0,0,0.9))' }}>
+        {/* Spine */}
+        <div className="flex-shrink-0 self-stretch rounded-l"
+          style={{
+            width: '14px',
+            background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
+            boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
+          }} />
+        {/* Cover face — folds around its left (spine) edge */}
+        <div className="relative self-stretch rounded-r-xl overflow-hidden"
+          style={{
+            aspectRatio: '1 / 1',
+            background: '#2a1005',
+            transformOrigin: '0% 50%',
+            transform: `perspective(1200px) rotateY(-${rawAngle}deg)`,
+            transition: animated ? 'transform 0.34s ease-in-out' : 'none',
+          }}>
+          {story.coverImageUrl ? (
+            <img src={story.coverImageUrl} alt={story.title}
+              className="absolute inset-0 w-full h-full"
+              style={{ objectFit: 'fill' }}
               draggable={false} />
-          )}
-          {!story?.coverImageUrl && (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BookOpen style={{ width: 64, height: 64, color: 'rgba(245,201,122,0.3)' }} />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
+              <div className="text-center text-amber-200">
+                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p className="font-display text-2xl font-bold">{story.title}</p>
+              </div>
             </div>
           )}
-          {/* Left spine shadow */}
-          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '6px', pointerEvents: 'none',
-            background: 'linear-gradient(to right, rgba(0,0,0,0.6), transparent)' }} />
-        </div>
-
-        {/* Back: page 1 illustration — appears on the LEFT at 180° */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
-          transform: 'rotateY(180deg)',
-          background: '#e0ceaa',
-        }}>
-          <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-flip-back" />
-          {/* Right-edge crease (this is now the spine side at 180°) */}
-          <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '40px', pointerEvents: 'none',
-            background: 'linear-gradient(to left, rgba(0,0,0,0.28), transparent)' }} />
-          <div style={{ position: 'absolute', bottom: 12, right: 20 }}
-            className="text-amber-900/35 text-sm italic font-serif">1</div>
+          <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
+            style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.2), transparent)' }} />
+          <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
         </div>
       </div>
     </div>
