@@ -89,15 +89,15 @@ function buildCoverPrompt(
   const char2Line = character2Desc
     ? `\nSECOND CHARACTER: ${story.characterName2} also appears prominently — ${character2Desc}.`
     : "";
-  const occasionLine = story.occasion && story.occasion !== "none"
-    ? `\nOCCASION: Incorporate ${story.occasion} themed decorative details into the scene.`
+  const outfitLine = story.outfit
+    ? `\nOUTFIT: The character wears ${story.outfit} — reproduce this outfit exactly, overriding any default clothing.`
     : "";
   const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
 
   return `Create a vibrant, professional children's picture book COVER illustration.
 
 MAIN CHARACTER (must be prominently centered, full body visible): ${story.characterName}
-CHARACTER APPEARANCE — reproduce faithfully from this description (appearance only — hair, eyes, skin, outfit, accessories): ${characterDesc}
+CHARACTER APPEARANCE — reproduce faithfully from this description (appearance only — hair, eyes, skin, outfit, accessories): ${characterDesc}${outfitLine}
 ${char2Line}
 
 CHARACTER STYLE (MUST match the pre-generated character exactly):
@@ -111,7 +111,7 @@ CHARACTER POSE: Standing confidently, slight weight shift to one side, arms rela
 
 ${ANATOMY_RULE}
 
-SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.${occasionLine}
+SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.
 
 TITLE TEXT: The book title "${story.title}" must appear prominently at the TOP of the image in large, bold, decorative children's book lettering that is clearly readable. The title must be centered horizontally with at least 15% blank margin on BOTH the left and right sides — do not let the text touch the edges of the image.
 
@@ -129,6 +129,9 @@ function buildPagePrompt(
   const char2Line = character2Desc
     ? `\nSECOND CHARACTER (also in this scene): ${story.characterName2} — ${character2Desc}.`
     : "";
+  const outfitLine = story.outfit
+    ? `\nOUTFIT (MUST be worn in every page — override default clothing): ${story.outfit}`
+    : "";
   const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
   const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
 
@@ -138,7 +141,7 @@ SCENE: ${page.image_prompt}
 STORY TEXT FOR THIS PAGE: "${page.text}"
 
 MAIN CHARACTER — MUST APPEAR IN THIS SCENE: ${story.characterName}
-CHARACTER APPEARANCE (appearance only — hair, eyes, skin, outfit, accessories — keep 100% consistent across all pages): ${characterDesc}
+CHARACTER APPEARANCE (appearance only — hair, eyes, skin, outfit, accessories — keep 100% consistent across all pages): ${characterDesc}${outfitLine}
 ${char2Line}
 
 CHARACTER STYLE (identical across every page):
@@ -236,20 +239,18 @@ export async function runStoryGeneration(storyId: string): Promise<void> {
       ? `${story.characterName} is a ${story.petType}.` : "";
     const char2Info = story.characterName2
       ? `The story also features ${story.characterName2}, who is the storyteller's ${story.relationship2 ?? "friend"}.` : "";
-    const occasionInfo = story.occasion && story.occasion !== "none"
-      ? `The story incorporates ${story.occasion} themes.` : "";
     const userIdeas = story.userPrompt ? `User's ideas to incorporate: "${story.userPrompt}"` : "";
     const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+    const outfitInfo = story.outfit ? `The character wears: ${story.outfit}.` : "";
 
     const storyPrompt = `You are a creative children's book author. Write a ${pageCount}-page illustrated children's story.
 
 Story details:
 - Title: "${story.title}" (use exactly as written)
-- Main character: ${story.characterName}, who is the storyteller's ${story.relationship} and feels ${story.emotion}. ${petInfo}
+- Main character: ${story.characterName}, who is the storyteller's ${story.relationship} and feels ${story.emotion}. ${petInfo} ${outfitInfo}
 - ${char2Info}
 - Theme: A ${effectiveTheme} adventure
 - Audience age: ${story.age} years old
-- ${occasionInfo}
 - ${userIdeas}
 
 Requirements:
