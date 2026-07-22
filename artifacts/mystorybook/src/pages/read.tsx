@@ -447,17 +447,20 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// Aurora images are square (1:1). The book face is also square so the full
-// image — title and all — is visible with zero cropping.
+// Size the book by whichever axis is tighter — width or height — so it fills
+// the stage without dead space on tall phones.
 function PortraitCover({ story }: { story: any }) {
+  // The stage area sits between the topbar (~48px) and nav (~80px) with p-2 padding.
+  // Use min(92vw, calc(100dvh - 160px)) so the square cover fills both axes.
+  const coverSize = 'min(92vw, calc(100dvh - 160px))';
   return (
     <div
-      className="w-full flex justify-center px-2"
+      className="flex items-center justify-center"
       style={{ filter: 'drop-shadow(-5px 12px 28px rgba(0,0,0,0.85))' }}
     >
-      {/* Outer row: spine + cover. Width is 92% of screen, capped at 480px. */}
-      <div className="flex" style={{ width: '92%', maxWidth: '480px' }}>
-        {/* Spine — stretches to match cover height */}
+      {/* Outer row: spine + square cover face, sized to fill the stage */}
+      <div className="flex" style={{ height: coverSize }}>
+        {/* Spine */}
         <div
           className="self-stretch flex-shrink-0 rounded-l"
           style={{
@@ -466,10 +469,10 @@ function PortraitCover({ story }: { story: any }) {
             boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
           }}
         />
-        {/* Cover face: flex-1 fills remaining width; aspectRatio:1 makes it square */}
+        {/* Cover face: square driven by height */}
         <div
-          className="relative flex-1 overflow-hidden rounded-r-xl"
-          style={{ aspectRatio: '1 / 1' }}
+          className="relative overflow-hidden rounded-r-xl"
+          style={{ height: '100%', aspectRatio: '1 / 1' }}
         >
           {story.coverImageUrl ? (
             <img
@@ -488,10 +491,8 @@ function PortraitCover({ story }: { story: any }) {
               </div>
             </div>
           )}
-          {/* Right-edge page sheen */}
           <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
             style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.25), transparent)' }} />
-          {/* Bottom sheen */}
           <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
             style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
         </div>

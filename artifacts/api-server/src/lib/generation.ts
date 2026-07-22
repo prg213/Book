@@ -89,22 +89,31 @@ function buildCoverPrompt(
   const char2Line = character2Desc
     ? `\nSECOND CHARACTER: ${story.characterName2} also appears prominently — ${character2Desc}.`
     : "";
-  const outfitLine = story.outfit
-    ? `\nOUTFIT: The character wears ${story.outfit} — reproduce this outfit exactly, overriding any default clothing.`
-    : "";
   const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+
+  // When an outfit is chosen, make it the first thing Aurora reads and explicitly
+  // instruct it to ignore any clothing mentioned in the character description.
+  const outfitBlock = story.outfit
+    ? `OUTFIT (MANDATORY — takes absolute priority over anything else):
+The character wears EXACTLY THIS and nothing else: ${story.outfit}
+CRITICAL: The character description below may mention different clothing from the original photo — IGNORE ALL CLOTHING IN THE CHARACTER DESCRIPTION. Only use hair, eyes, skin tone, and face shape from it. The outfit above is the only valid clothing.`
+    : "";
+  const descLabel = story.outfit
+    ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
+    : `CHARACTER APPEARANCE — reproduce faithfully (hair, eyes, skin, outfit, accessories):`;
 
   return `Create a vibrant, professional children's picture book COVER illustration.
 
 MAIN CHARACTER (must be prominently centered, full body visible): ${story.characterName}
-CHARACTER APPEARANCE — reproduce faithfully from this description (appearance only — hair, eyes, skin, outfit, accessories): ${characterDesc}${outfitLine}
+${outfitBlock}
+${descLabel}
+${characterDesc}
 ${char2Line}
 
 CHARACTER STYLE (MUST match the pre-generated character exactly):
 - Oversized head, small body proportions (chibi / Pixar-style)
 - Big, round, expressive cartoon eyes matching the character's eye color
-- Same hair color, length, and style as described
-- Same outfit with exact colors and patterns as described
+- Same hair color, length, and style as described above
 - Friendly, joyful expression
 
 CHARACTER POSE: Standing confidently, slight weight shift to one side, arms relaxed, big smile.
@@ -129,11 +138,17 @@ function buildPagePrompt(
   const char2Line = character2Desc
     ? `\nSECOND CHARACTER (also in this scene): ${story.characterName2} — ${character2Desc}.`
     : "";
-  const outfitLine = story.outfit
-    ? `\nOUTFIT (MUST be worn in every page — override default clothing): ${story.outfit}`
-    : "";
   const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
   const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
+
+  const outfitBlock = story.outfit
+    ? `OUTFIT (MANDATORY on every single page — takes absolute priority over anything else):
+The character wears EXACTLY THIS and nothing else: ${story.outfit}
+CRITICAL: The character description below may mention different clothing from the original photo — IGNORE ALL CLOTHING IN THE CHARACTER DESCRIPTION. Only use hair, eyes, skin tone, and face shape from it. The outfit above is the only valid clothing for every page.`
+    : "";
+  const descLabel = story.outfit
+    ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
+    : `CHARACTER APPEARANCE (hair, eyes, skin, outfit, accessories — consistent across all pages):`;
 
   return `Create a children's picture book page illustration.
 
@@ -141,14 +156,15 @@ SCENE: ${page.image_prompt}
 STORY TEXT FOR THIS PAGE: "${page.text}"
 
 MAIN CHARACTER — MUST APPEAR IN THIS SCENE: ${story.characterName}
-CHARACTER APPEARANCE (appearance only — hair, eyes, skin, outfit, accessories — keep 100% consistent across all pages): ${characterDesc}${outfitLine}
+${outfitBlock}
+${descLabel}
+${characterDesc}
 ${char2Line}
 
 CHARACTER STYLE (identical across every page):
 - Oversized head, small body (chibi / Pixar-style)
 - Big round expressive cartoon eyes — same eye color as character description
 - Same hair color, length, and exact style every time
-- Same outfit with exact colors and patterns on every page
 
 CHARACTER POSE FOR THIS PAGE (match the scene action — this pose is unique to this page):
 ${poseInstruction}
