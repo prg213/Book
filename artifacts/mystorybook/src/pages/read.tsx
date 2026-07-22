@@ -229,7 +229,7 @@ export default function Read() {
         {isCover ? (
           /* Stage 0: cover at rest, or Stage 1: cover face folding (centred) */
           (flipPhase !== 'idle' && flipDir === 'next')
-            ? <LandscapeCoverFolding story={story} flipPhase={flipPhase} swipeDx={swipeDx} />
+            ? <LandscapeCoverFolding story={story} firstPage={pages[0] ?? null} flipPhase={flipPhase} swipeDx={swipeDx} />
             : <LandscapeCover story={story} />
         ) : coverExpanding ? (
           /* Stage 2: book scales from centred size to full screen */
@@ -568,9 +568,9 @@ function PageText({ story, textPage, pageNumber }: { story: any; textPage: any; 
 }
 
 // ── Cover with fold animation (stays centred, same layout as LandscapeCover) ──
-// The cover face rotates around its left edge (spine) following the swipe.
-// Fold goes 0°→90° then the page changes and the book expands in a second step.
-function LandscapeCoverFolding({ story, flipPhase, swipeDx }: any) {
+// Page 1 illustration sits flat behind the cover face.
+// As the cover folds away, the illustration is progressively revealed.
+function LandscapeCoverFolding({ story, firstPage, flipPhase, swipeDx }: any) {
   const halfWidth = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
   const rawAngle  = flipPhase === 'completing' ? 90
     : flipPhase === 'reverting' ? 0
@@ -588,32 +588,47 @@ function LandscapeCoverFolding({ story, flipPhase, swipeDx }: any) {
             background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
             boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
           }} />
-        {/* Cover face — folds around its left (spine) edge */}
+
+        {/* Book face area — static container with rounded corner + overflow clip */}
         <div className="relative self-stretch rounded-r-xl overflow-hidden"
-          style={{
-            aspectRatio: '1 / 1',
-            background: '#2a1005',
-            transformOrigin: '0% 50%',
-            transform: `perspective(1200px) rotateY(-${rawAngle}deg)`,
-            transition: animated ? 'transform 0.34s ease-in-out' : 'none',
-          }}>
-          {story.coverImageUrl ? (
-            <img src={story.coverImageUrl} alt={story.title}
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'fill' }}
-              draggable={false} />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-              <div className="text-center text-amber-200">
-                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="font-display text-2xl font-bold">{story.title}</p>
+          style={{ aspectRatio: '1 / 1', background: '#e0ceaa' }}>
+
+          {/* Background: page 1 illustration, always flat */}
+          <div className="absolute inset-0">
+            <PageIllustration
+              imgPage={firstPage}
+              pageNumber={1}
+              testId="img-cover-peek" />
+          </div>
+
+          {/* Cover face — folds around its left (spine) edge, revealing illustration */}
+          <div className="absolute inset-0"
+            style={{
+              background: '#2a1005',
+              transformOrigin: '0% 50%',
+              transform: `perspective(1200px) rotateY(-${rawAngle}deg)`,
+              transition: animated ? 'transform 0.34s ease-in-out' : 'none',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}>
+            {story.coverImageUrl ? (
+              <img src={story.coverImageUrl} alt={story.title}
+                className="absolute inset-0 w-full h-full"
+                style={{ objectFit: 'fill' }}
+                draggable={false} />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
+                <div className="text-center text-amber-200">
+                  <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="font-display text-2xl font-bold">{story.title}</p>
+                </div>
               </div>
-            </div>
-          )}
-          <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
-            style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.2), transparent)' }} />
-          <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
+            )}
+            <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
+              style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.2), transparent)' }} />
+            <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
+              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
+          </div>
         </div>
       </div>
     </div>
