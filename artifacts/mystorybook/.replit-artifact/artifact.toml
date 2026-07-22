@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "MyStoryBook"
+version = "1.0.0"
+id = "artifacts/mystorybook"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24276
+
+[services.development]
+run = "pnpm --filter @workspace/mystorybook run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mystorybook", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/mystorybook/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24276"
+BASE_PATH = "/"

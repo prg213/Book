@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: MyStoryBook API - AI-powered children's storybook generator
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: stories
+    description: Story operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,128 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /stories:
+    get:
+      operationId: listStories
+      tags: [stories]
+      summary: List all stories in the user's library
+      responses:
+        "200":
+          description: List of stories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Story"
+    post:
+      operationId: createStory
+      tags: [stories]
+      summary: Create a new story record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoryInput"
+      responses:
+        "201":
+          description: Created story
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Story"
+
+  /stories/stats:
+    get:
+      operationId: getLibraryStats
+      tags: [stories]
+      summary: Get library statistics
+      responses:
+        "200":
+          description: Library stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryStats"
+
+  /stories/{id}:
+    delete:
+      operationId: deleteStory
+      tags: [stories]
+      summary: Delete a story
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+
+  /stories/{id}/status:
+    get:
+      operationId: getStoryStatus
+      tags: [stories]
+      summary: Get story generation status (for polling)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Story status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoryStatus"
+
+  /stories/{id}/generate:
+    post:
+      operationId: generateStory
+      tags: [stories]
+      summary: Start async story generation (text + illustrations via Grok)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateResult"
+
+  /stories/{id}/reading:
+    get:
+      operationId: getStoryForReading
+      tags: [stories]
+      summary: Get a complete story with all pages for the reader
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Story with pages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoryReading"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +158,163 @@ components:
       required:
         - status
 
+    Story:
+      type: object
+      required: [id, title, characterName, status, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        characterName:
+          type: string
+        characterName2:
+          type: ["string", "null"]
+        relationship:
+          type: string
+        relationship2:
+          type: ["string", "null"]
+        theme:
+          type: string
+        age:
+          type: string
+        emotion:
+          type: string
+        outfit:
+          type: ["string", "null"]
+        pageCount:
+          type: integer
+        userPrompt:
+          type: ["string", "null"]
+        originalPhotoUrl:
+          type: ["string", "null"]
+        characterImageUrl:
+          type: ["string", "null"]
+        coverImageUrl:
+          type: ["string", "null"]
+        status:
+          type: string
+          description: "pending | generating | complete | error"
+        generationProgress:
+          type: integer
+        generationStatusMessage:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    StoryInput:
+      type: object
+      required: [title, characterName, relationship, theme, age, emotion, pageCount, originalPhotoPath]
+      properties:
+        title:
+          type: string
+        characterName:
+          type: string
+        characterName2:
+          type: ["string", "null"]
+        relationship:
+          type: string
+        relationship2:
+          type: ["string", "null"]
+        petType:
+          type: ["string", "null"]
+        petType2:
+          type: ["string", "null"]
+        theme:
+          type: string
+        customTheme:
+          type: ["string", "null"]
+        age:
+          type: string
+        emotion:
+          type: string
+        outfit:
+          type: ["string", "null"]
+        occasion:
+          type: ["string", "null"]
+        pageCount:
+          type: integer
+        userPrompt:
+          type: ["string", "null"]
+        originalPhotoPath:
+          type: string
+        originalPhotoPath2:
+          type: ["string", "null"]
+
+    StoryStatus:
+      type: object
+      required: [id, status, generationProgress]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        generationProgress:
+          type: integer
+        generationStatusMessage:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        coverImageUrl:
+          type: ["string", "null"]
+
+    StoryPage:
+      type: object
+      required: [id, storyId, pageNumber]
+      properties:
+        id:
+          type: string
+        storyId:
+          type: string
+        pageNumber:
+          type: integer
+        text:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        imagePrompt:
+          type: ["string", "null"]
+
+    StoryReading:
+      type: object
+      required: [story, pages]
+      properties:
+        story:
+          $ref: "#/components/schemas/Story"
+        pages:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoryPage"
+
+    LibraryStats:
+      type: object
+      required: [totalStories, completedStories, inProgressStories]
+      properties:
+        totalStories:
+          type: integer
+        completedStories:
+          type: integer
+        inProgressStories:
+          type: integer
+        recentStories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Story"
+
+    GenerateResult:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        message:
+          type: ["string", "null"]
+
+    DeleteResult:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
