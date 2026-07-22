@@ -104,8 +104,12 @@ router.post("/stories", async (req, res): Promise<void> => {
     userPrompt: body.userPrompt ? String(body.userPrompt) : null,
     originalPhotoPath: String(body.originalPhotoPath),
     originalPhotoPath2: body.originalPhotoPath2 ? String(body.originalPhotoPath2) : null,
+    // Pre-generated character data from the create wizard (optional)
+    characterImagePath: body.characterImagePath ? String(body.characterImagePath) : null,
+    characterDescription: body.characterDescription ? String(body.characterDescription) : null,
     status: "pending",
-    generationProgress: 0,
+    generationProgress: body.characterImagePath ? 30 : 0,
+    generationStatusMessage: body.characterImagePath ? "Character ready! Writing your story..." : null,
   };
 
   await db.insert(storiesTable).values(newStory);
