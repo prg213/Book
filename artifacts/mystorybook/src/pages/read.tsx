@@ -601,33 +601,32 @@ function LandscapeEndPage({ story }: { story: any }) {
 function LandscapeCover({ story }: { story: any }) {
   return (
     <div className="w-full h-full flex items-center justify-center">
-      {/* Book: spine + square cover face (height-driven) */}
-      <div className="flex h-full"
-        style={{ filter: 'drop-shadow(-5px 10px 30px rgba(0,0,0,0.9))' }}>
-        {/* Spine */}
-        <div className="flex-shrink-0 self-stretch rounded-l"
-          style={{ width: '14px', background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)', boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)' }} />
-        {/* Cover face: square, height = 100% of available height */}
-        <div className="relative self-stretch rounded-r-xl overflow-hidden"
-          style={{ aspectRatio: '1 / 1' }}>
-          {story.coverImageUrl ? (
-            <img src={story.coverImageUrl} alt={story.title}
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'fill' }}
-              data-testid="img-cover-ls" draggable={false} />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-              <div className="text-center text-amber-200">
-                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="font-display text-2xl font-bold">{story.title}</p>
-              </div>
+      {/* Single square unit — spine is an overlay so book & AI image share the same 1:1 ratio */}
+      <div className="relative h-full rounded-xl overflow-hidden"
+        style={{ aspectRatio: '1 / 1', filter: 'drop-shadow(-5px 10px 30px rgba(0,0,0,0.9))' }}>
+        {/* AI cover image fills the entire square */}
+        {story.coverImageUrl ? (
+          <img src={story.coverImageUrl} alt={story.title}
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: 'fill' }}
+            data-testid="img-cover-ls" draggable={false} />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
+            <div className="text-center text-amber-200">
+              <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="font-display text-2xl font-bold">{story.title}</p>
             </div>
-          )}
-          <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
-            style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.2), transparent)' }} />
-          <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
-        </div>
+          </div>
+        )}
+        {/* Spine effect — dark gradient overlay on the left edge */}
+        <div className="absolute inset-y-0 left-0 pointer-events-none"
+          style={{ width: '18px', background: 'linear-gradient(to right, #0a0401 0%, #3d1f0c 60%, transparent 100%)' }} />
+        {/* Page-turn highlight on right */}
+        <div className="absolute inset-y-0 right-0 w-4 pointer-events-none"
+          style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.25), transparent)' }} />
+        {/* Bottom shadow */}
+        <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
       </div>
     </div>
   );
