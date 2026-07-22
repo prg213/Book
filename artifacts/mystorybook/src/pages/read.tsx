@@ -601,9 +601,15 @@ function LandscapeEndPage({ story }: { story: any }) {
 function LandscapeCover({ story }: { story: any }) {
   return (
     <div className="w-full h-full flex items-center justify-center">
-      {/* Single square unit — spine is an overlay so book & AI image share the same 1:1 ratio */}
-      <div className="relative h-full rounded-xl overflow-hidden"
-        style={{ aspectRatio: '1 / 1', filter: 'drop-shadow(-5px 10px 30px rgba(0,0,0,0.9))' }}>
+      {/* Single square — spine overlay on left. Only the right side is rounded
+          (flat left edge = spine binding, rounded right = cover edge of a real book).
+          No right/bottom highlight overlays to avoid visible white strips. */}
+      <div className="relative h-full overflow-hidden"
+        style={{
+          aspectRatio: '1 / 1',
+          borderRadius: '0 14px 14px 0',
+          filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))',
+        }}>
         {/* AI cover image fills the entire square */}
         {story.coverImageUrl ? (
           <img src={story.coverImageUrl} alt={story.title}
@@ -618,15 +624,9 @@ function LandscapeCover({ story }: { story: any }) {
             </div>
           </div>
         )}
-        {/* Spine effect — dark gradient overlay on the left edge */}
+        {/* Spine — dark gradient on the left edge only */}
         <div className="absolute inset-y-0 left-0 pointer-events-none"
-          style={{ width: '18px', background: 'linear-gradient(to right, #0a0401 0%, #3d1f0c 60%, transparent 100%)' }} />
-        {/* Page-turn highlight on right */}
-        <div className="absolute inset-y-0 right-0 w-4 pointer-events-none"
-          style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.25), transparent)' }} />
-        {/* Bottom shadow */}
-        <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
+          style={{ width: '20px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.7) 55%, transparent 100%)' }} />
       </div>
     </div>
   );
