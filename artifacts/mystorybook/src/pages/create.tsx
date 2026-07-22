@@ -9,6 +9,161 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, ArrowRight, Upload, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { Link } from 'wouter';
 
+// ── Outfit options keyed by story theme ─────────────────────────────────────
+const OUTFIT_OPTIONS: Record<string, Array<{ emoji: string; label: string; value: string }>> = {
+  adventure: [
+    { emoji: '🎒', label: 'Explorer Gear', value: 'explorer outfit with backpack, wide-brim hat, and utility belt' },
+    { emoji: '🦺', label: 'Safari Vest', value: 'khaki safari outfit with utility vest and pith helmet' },
+    { emoji: '🧗', label: 'Climber', value: 'bright mountain climber outfit with harness and climbing helmet' },
+    { emoji: '🗺️', label: 'Treasure Hunter', value: 'treasure hunter outfit with satchel bag and rolled map' },
+    { emoji: '🌿', label: 'Jungle Explorer', value: 'jungle explorer outfit with leaf accessories and binoculars' },
+    { emoji: '⛺', label: 'Ranger Vest', value: 'forest ranger vest with badges, cargo trousers, and boots' },
+  ],
+  space: [
+    { emoji: '🚀', label: 'Astronaut Suit', value: 'white NASA-style astronaut space suit with clear helmet visor' },
+    { emoji: '🌌', label: 'Galaxy Jumpsuit', value: 'shimmering midnight-blue galaxy-print jumpsuit with star accessories' },
+    { emoji: '✈️', label: 'Rocket Pilot', value: 'sleek silver rocket pilot uniform with wings badge and flight gloves' },
+    { emoji: '⭐', label: 'Star Commander', value: 'navy star commander uniform with gold epaulettes and star emblem' },
+    { emoji: '🛸', label: 'Cosmic Explorer', value: 'futuristic teal cosmic explorer suit with glowing trim and jetpack' },
+    { emoji: '🌙', label: 'Moon Walker', value: 'pearlescent silver moon-walker suit with crescent moon emblem' },
+  ],
+  ocean: [
+    { emoji: '⚓', label: 'Sailor Outfit', value: 'classic navy sailor outfit with white stripes, anchor badge, and captain hat' },
+    { emoji: '🧜', label: 'Mermaid Tail', value: 'shimmering teal and purple mermaid tail with shell crown and accessories' },
+    { emoji: '🤿', label: 'Diving Suit', value: 'bright orange diving suit with flippers, mask, and oxygen tank' },
+    { emoji: '👒', label: 'Captain Uniform', value: 'white ship captain uniform with gold buttons and captain hat' },
+    { emoji: '🐠', label: 'Sea Explorer', value: 'aqua sea explorer outfit with waterproof vest and tide chart satchel' },
+    { emoji: '🌊', label: 'Surf Gear', value: 'colourful wetsuit with surf badge and waterproof accessories' },
+  ],
+  jungle: [
+    { emoji: '🦺', label: 'Safari Vest', value: 'olive green safari vest with cargo shorts and expedition boots' },
+    { emoji: '🌿', label: 'Vine-Swinger', value: 'vine-swinger outfit with rope belt and jungle camouflage' },
+    { emoji: '🦁', label: 'Nature Explorer', value: 'tan nature explorer outfit with animal-tracker badge' },
+    { emoji: '🌴', label: 'Jungle Ranger', value: 'jungle ranger uniform with leaf insignia and machete holster' },
+    { emoji: '🐯', label: 'Tiger Costume', value: 'orange and black tiger-stripe costume with furry ear headband' },
+    { emoji: '🍃', label: 'Leaf Cloak', value: 'magical leaf cloak woven from giant tropical leaves with vine belt' },
+  ],
+  magic: [
+    { emoji: '🧙', label: 'Wizard Robe', value: 'flowing midnight-blue wizard robe with silver stars and pointed hat' },
+    { emoji: '🧹', label: 'Witch Cloak', value: 'purple witch cloak with crescent moon embroidery and tall pointy hat' },
+    { emoji: '👗', label: 'Enchanted Gown', value: 'sparkling enchanted gown with iridescent fabric and glowing trim' },
+    { emoji: '🪄', label: 'Sorcerer Cape', value: 'deep crimson sorcerer cape with magic wand holster and arcane symbols' },
+    { emoji: '🧚', label: 'Fairy Wings', value: 'pastel fairy outfit with translucent wings, flower crown, and wand' },
+    { emoji: '🎩', label: 'Apprentice', value: 'magic apprentice uniform with oversized hat and enchanted satchel' },
+  ],
+  'fairy tale': [
+    { emoji: '👸', label: 'Princess Gown', value: 'magnificent princess ball gown with tiara and royal sash' },
+    { emoji: '⚔️', label: 'Knight Armour', value: 'shining silver knight armour with royal crest shield and sword' },
+    { emoji: '👑', label: 'Royal Cape', value: 'velvet royal cape with crown and jewelled brooch' },
+    { emoji: '🐉', label: 'Dragon Rider', value: 'dragon rider outfit with scaled armour, goggles, and flame-proof gloves' },
+    { emoji: '🌈', label: 'Magic Cloak', value: 'rainbow enchanted cloak that shifts colour with magical boots' },
+    { emoji: '🧝', label: 'Elf Tunic', value: 'forest elf tunic with pointy ears, leaf belt, and enchanted bow' },
+  ],
+  sports: [
+    { emoji: '⚽', label: 'Football Kit', value: 'bright football kit with number on back, shin guards, and cleats' },
+    { emoji: '🏅', label: 'Tracksuit', value: 'sleek Olympic tracksuit with country flag badge and gold medal' },
+    { emoji: '👕', label: 'Team Jersey', value: 'personalised team jersey with name and number, shorts, and trainers' },
+    { emoji: '🏎️', label: 'Racing Suit', value: 'colourful racing driver suit with helmet, gloves, and sponsor patches' },
+    { emoji: '🤸', label: 'Gymnastics', value: 'sparkly gymnastics leotard with ribbon accessories and ballet shoes' },
+    { emoji: '🏆', label: 'Champion Cape', value: 'champion outfit with trophy-print cape and gold championship belt' },
+  ],
+  cooking: [
+    { emoji: '👨‍🍳', label: "Chef's Whites", value: "tall white chef's hat and double-breasted chef jacket with apron" },
+    { emoji: '🧁', label: 'Baker Outfit', value: 'pink baker outfit with cupcake-print apron and flour-dusted mitts' },
+    { emoji: '🍰', label: 'Pastry Chef', value: 'elegant pastry chef whites with piping bag holster and sugar decorations' },
+    { emoji: '⭐', label: 'Master Chef', value: 'black master chef uniform with gold star badge and signature apron' },
+    { emoji: '🥄', label: 'Kitchen Helper', value: 'colourful kitchen assistant outfit with utensil pockets and chef clogs' },
+    { emoji: '🍬', label: 'Candy Maker', value: 'candy-striped candy maker outfit with swirly lollipop accessories' },
+  ],
+  pirates: [
+    { emoji: '🏴‍☠️', label: 'Pirate Captain', value: 'grand pirate captain coat with tricorn hat, gold buttons, and boots' },
+    { emoji: '⚔️', label: 'Swashbuckler', value: 'swashbuckler outfit with bandana, cutlass belt, and striped shirt' },
+    { emoji: '🗺️', label: 'Sea Rogue', value: 'sea rogue outfit with treasure map satchel and weathered coat' },
+    { emoji: '🦜', label: 'Buccaneer', value: 'colourful buccaneer outfit with parrot shoulder companion and coin purse' },
+    { emoji: '🚢', label: 'First Mate', value: "first mate's uniform with spyglass, navy coat, and anchor-print scarf" },
+    { emoji: '💎', label: 'Treasure Diver', value: 'treasure diver outfit with pearl necklace, diving mask, and net bag' },
+  ],
+  dinosaurs: [
+    { emoji: '🦕', label: 'Dino Tamer', value: 'brave dino tamer outfit with dino-scale armour and taming lasso' },
+    { emoji: '🏕️', label: 'Fossil Hunter', value: 'prehistoric explorer outfit with fossil-finder kit and dino-claw cap' },
+    { emoji: '🦖', label: 'Raptor Rider', value: 'raptor rider outfit with protective vest, goggles, and riding boots' },
+    { emoji: '🔍', label: 'Bone Digger', value: 'fossil hunter outfit with magnifying glass, brush kit, and khaki vest' },
+    { emoji: '🌿', label: 'Dino Ranger', value: 'dino ranger uniform with dinosaur patches, tracker badge, and field cap' },
+    { emoji: '🪖', label: 'Jungle Suit', value: 'camouflage jungle suit with dino-bone accessories and expedition pack' },
+  ],
+  superheroes: [
+    { emoji: '🦸', label: 'Cape & Mask', value: 'bright superhero costume with swirling cape and matching eye mask' },
+    { emoji: '⚡', label: 'Power Suit', value: 'sleek armoured power suit with glowing chest emblem and power gauntlets' },
+    { emoji: '🛡️', label: 'Guardian Armour', value: 'guardian armour with personalised shield, utility belt, and emblem' },
+    { emoji: '💥', label: 'Lightning Hero', value: 'electric-yellow lightning hero suit with bolt emblem and speed boots' },
+    { emoji: '🥷', label: 'Stealth Suit', value: 'midnight stealth suit with utility pouches, grapple hook, and goggles' },
+    { emoji: '🌟', label: 'Star Hero', value: 'star-print hero costume with sparkle trail cape and star badge' },
+  ],
+  'enchanted forest': [
+    { emoji: '🧚', label: 'Fairy Outfit', value: 'pastel fairy outfit with shimmering wings, flower crown, and glow wand' },
+    { emoji: '🌳', label: 'Forest Sprite', value: 'forest sprite outfit woven from leaves and moss with acorn accessories' },
+    { emoji: '🧝', label: 'Woodland Elf', value: 'woodland elf tunic with pointed ears headband, leaf cloak, and bow' },
+    { emoji: '🌿', label: 'Nature Guardian', value: 'nature guardian robe with vine belt, crystal staff, and flower wreath' },
+    { emoji: '🌲', label: 'Tree Keeper', value: 'tree keeper outfit with bark-texture vest, pinecone belt, and root boots' },
+    { emoji: '🍄', label: 'Mushroom Suit', value: 'whimsical mushroom costume with spotted cap, white tunic, and toadstool bag' },
+  ],
+  'time travel': [
+    { emoji: '⚙️', label: 'Steampunk Gear', value: 'steampunk outfit with brass goggles, gear-print coat, and pocket watch' },
+    { emoji: '✈️', label: 'Time Pilot', value: 'time pilot jumpsuit with chronometer watch, navigator goggles, and scarf' },
+    { emoji: '🎩', label: 'Victorian Explorer', value: 'Victorian explorer outfit with top hat, brass compass, and tail coat' },
+    { emoji: '🚀', label: 'Future Suit', value: 'sleek future suit with holographic display visor and neon trim' },
+    { emoji: '🏰', label: 'Medieval Knight', value: 'medieval knight armour with visor helmet and royal crest shield' },
+    { emoji: '🎭', label: '1920s Adventurer', value: '1920s adventurer outfit with driving goggles, leather jacket, and boots' },
+  ],
+  circus: [
+    { emoji: '🎪', label: 'Ringmaster', value: 'grand ringmaster outfit with tall top hat, red tail coat, and whip prop' },
+    { emoji: '🤸', label: 'Acrobat Suit', value: 'sparkly acrobat leotard with sequins, tutu skirt, and ankle ribbons' },
+    { emoji: '🤡', label: 'Clown Costume', value: 'colourful clown costume with giant bow tie, polka dots, and red nose' },
+    { emoji: '🎯', label: 'Tightrope Walker', value: 'elegant tightrope walker outfit with parasol, sequined bodysuit, and slippers' },
+    { emoji: '🎩', label: 'Magician', value: "magician's tuxedo with top hat, white gloves, and magic wand" },
+    { emoji: '🎡', label: 'Trapeze Artist', value: 'trapeze artist costume with wings, glitter bodysuit, and arm bands' },
+  ],
+  'farm animals': [
+    { emoji: '👨‍🌾', label: 'Farmer Overalls', value: 'classic denim farmer overalls with straw hat, boots, and pitchfork' },
+    { emoji: '🤠', label: 'Cowboy', value: 'cowboy outfit with wide-brim hat, boots, bandana, and lasso' },
+    { emoji: '🌾', label: 'Scarecrow', value: 'fun scarecrow costume with patched clothing, straw hat, and hay details' },
+    { emoji: '🐄', label: 'Ranch Rider', value: 'ranch rider outfit with riding boots, saddle vest, and rope coil' },
+    { emoji: '🚜', label: 'Barn Keeper', value: 'barn keeper outfit with plaid shirt, tool belt, and muddy gumboots' },
+    { emoji: '🌻', label: 'Haymaker', value: 'cheerful haymaker outfit with sunflower hat, apron, and garden gloves' },
+  ],
+  'winter wonderland': [
+    { emoji: '❄️', label: 'Snow Explorer', value: 'thick padded snow explorer suit with fur-trim hood and snowshoes' },
+    { emoji: '👸', label: 'Ice Princess', value: 'crystalline ice princess gown with snowflake crown and frost-white cape' },
+    { emoji: '🧙', label: 'Winter Wizard', value: 'silver-blue winter wizard robe with snowflake staff and icy crown' },
+    { emoji: '🐧', label: 'Polar Adventurer', value: 'polar adventurer parka with fur trim, goggles, and penguin companion' },
+    { emoji: '🧚', label: 'Frost Fairy', value: 'frost fairy outfit with icicle wings, silver dress, and ice wand' },
+    { emoji: '⛄', label: 'Snowflake Knight', value: 'snowflake knight armour with ice-crystal shield and frost-blue plume' },
+  ],
+  'desert safari': [
+    { emoji: '🏜️', label: 'Desert Explorer', value: 'desert explorer outfit with sand-dune hat, UV scarf, and canteen' },
+    { emoji: '👘', label: 'Bedouin Robe', value: 'flowing white bedouin robe with golden headscarf and silver jewellery' },
+    { emoji: '🐪', label: 'Camel Rider', value: 'camel rider outfit with riding boots, loose linen trousers, and goggles' },
+    { emoji: '🏄', label: 'Dune Surfer', value: 'cool dune surfer outfit with board shorts, sunglasses, and sand glider' },
+    { emoji: '🌴', label: 'Oasis Keeper', value: 'oasis keeper outfit with palm-leaf accessories and water jug satchel' },
+    { emoji: '🔭', label: 'Desert Ranger', value: 'desert ranger uniform with star map, compass, and cactus badge' },
+  ],
+  'robot city': [
+    { emoji: '🤖', label: 'Robot Suit', value: 'metallic silver robot suit with light-up chest panel and antenna headgear' },
+    { emoji: '✈️', label: 'Tech Pilot', value: 'tech pilot jumpsuit with heads-up display visor and jet-boot thrusters' },
+    { emoji: '🔭', label: 'Cyber Explorer', value: 'cyber explorer outfit with holographic map visor and magnetic tool belt' },
+    { emoji: '🛡️', label: 'AI Guardian', value: 'AI guardian armour with energy shield projector and circuit patterns' },
+    { emoji: '🔧', label: 'Gadget Gear', value: 'inventor gadget gear overalls with multitool belt and spark-proof gloves' },
+    { emoji: '⚡', label: 'Circuit Costume', value: 'glowing circuit-pattern costume with LED accents and power core badge' },
+  ],
+  custom: [
+    { emoji: '🦸', label: 'Hero Outfit', value: 'custom hero outfit with personalised cape and unique emblem' },
+    { emoji: '👑', label: 'Royal Gown', value: 'magnificent royal gown with crown, jewelled accessories, and royal sash' },
+    { emoji: '🎒', label: 'Adventure Gear', value: 'adventure gear with explorer backpack, utility belt, and map satchel' },
+    { emoji: '✨', label: 'Fantasy Costume', value: 'enchanted fantasy costume with magical accessories and sparkling details' },
+    { emoji: '🌍', label: 'Explorer Outfit', value: 'world explorer outfit with travel satchel, compass, and field jacket' },
+    { emoji: '🪄', label: 'Magical Attire', value: 'magical attire with shimmering fabric, arcane accessories, and enchanted boots' },
+  ],
+};
 
 interface CharacterData {
   characterImagePath: string;
@@ -44,6 +199,7 @@ export default function Create() {
   const [relationship2, setRelationship2] = useState('');
   const [theme, setTheme] = useState('');
   const [customTheme, setCustomTheme] = useState('');
+  const [outfit, setOutfit] = useState('');
   const [age, setAge] = useState('');
   const [emotion, setEmotion] = useState('');
   const [title, setTitle] = useState('');
@@ -127,6 +283,7 @@ export default function Create() {
           customTheme: theme === 'custom' ? customTheme : null,
           age,
           emotion,
+          outfit: outfit || null,
           pageCount,
           originalPhotoPath: photo1Path,
           originalPhotoPath2: photo2Path || null,
@@ -457,7 +614,7 @@ export default function Create() {
 
                 <div>
                   <Label className="text-sm font-semibold">Story Theme *</Label>
-                  <Select value={theme} onValueChange={setTheme}>
+                  <Select value={theme} onValueChange={(v) => { setTheme(v); setOutfit(''); }}>
                     <SelectTrigger className="mt-1.5" data-testid="select-theme">
                       <SelectValue placeholder="Choose a theme" />
                     </SelectTrigger>
@@ -491,6 +648,38 @@ export default function Create() {
                   <div className="sm:col-span-2">
                     <Label className="text-sm font-semibold">Describe your custom theme</Label>
                     <Input value={customTheme} onChange={(e) => setCustomTheme(e.target.value)} placeholder="e.g., dinosaur rescue mission" className="mt-1.5" data-testid="input-custom-theme" />
+                  </div>
+                )}
+
+                {theme && (
+                  <div className="sm:col-span-2">
+                    <Label className="text-sm font-semibold">
+                      Outfit <span className="font-normal text-muted-foreground">— choose what your character wears in every illustration</span>
+                    </Label>
+                    <div className="grid grid-cols-3 gap-2 mt-2" data-testid="outfit-grid">
+                      {(OUTFIT_OPTIONS[theme] ?? OUTFIT_OPTIONS['custom']).map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setOutfit(outfit === opt.value ? '' : opt.value)}
+                          data-testid={`outfit-opt-${opt.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          className={[
+                            'flex flex-col items-center gap-1 rounded-xl border-2 p-2.5 text-center transition-all',
+                            outfit === opt.value
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                              : 'border-border bg-muted/30 hover:border-primary/50 text-foreground',
+                          ].join(' ')}
+                        >
+                          <span className="text-2xl leading-none">{opt.emoji}</span>
+                          <span className="text-[11px] leading-tight">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {outfit && (
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        ✓ Your character will wear this outfit throughout the whole story.
+                      </p>
+                    )}
                   </div>
                 )}
 
