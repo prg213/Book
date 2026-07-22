@@ -59,33 +59,33 @@ router.post("/generate-character", async (req, res): Promise<void> => {
 });
 
 function buildCharacterPrompt(description: string): string {
-  return `GENERATE IMAGE: Transform this person into a 3D animated cartoon character in a friendly, child-appropriate animated style.
+  return `GENERATE IMAGE: A single 3D animated cartoon character in a Pixar / Disney animated movie style, standing on a clean white background.
 
-PERSON TO RECREATE — match these features EXACTLY:
+CHARACTER APPEARANCE — reproduce ALL of the following EXACTLY:
 ${description}
 
-CRITICAL RULES — REPRODUCE FAITHFULLY:
-- Hair: match the exact color, length, and style described above (same pigtails, braids, length, bangs, etc.)
-- Eyes: match the exact eye color described
-- Outfit: reproduce EVERY clothing item with exact colors and patterns as described (shirt, pants/skirt, shoes, outerwear, accessories)
+FAITHFULNESS RULES:
+- Hair: match exact color, length, texture, and style (pigtails, braids, bangs, length — reproduce precisely)
+- Eyes: match exact eye color
 - Skin tone: match as described
-- Do NOT change, simplify, or omit any clothing or accessory
+- Outfit: reproduce EVERY clothing item with exact colors and patterns (shirt, trousers/skirt, shoes, outerwear, accessories) — do NOT simplify or omit anything
+- Accessories: include every accessory exactly as described
 
-CHARACTER STYLE:
-- Oversized head, small body proportions (chibi / Pixar-style)
-- Big, round, expressive cartoon eyes
-- Smooth, rounded, friendly facial features
-- Professional 3D animation quality
-- Vibrant, saturated colors with soft cel-shading
+CARTOON STYLE:
+- Chibi / Pixar proportions: large expressive head, compact rounded body
+- Big round sparkly cartoon eyes
+- Smooth, soft, rounded facial features with a warm friendly expression
+- High-quality 3D render, vibrant saturated colors, soft cel-shading
+- Slight friendly smile
 
-POSE & FRAMING:
-- Full body visible, standing upright
-- Slight friendly smile, arms relaxed at sides
-- Centered perfectly in frame
-- Clean white background ONLY — no gradients, no shadows, no scenery
+FRAMING:
+- Full body visible from head to toe
+- Standing upright, arms relaxed at sides
+- Perfectly centered in frame
+- Pure white background only — no shadows, no scenery, no gradients
 
-CRITICAL: No text, no logos, no brand names, no watermarks anywhere in the image.
-CRITICAL: Perfect square 1:1 aspect ratio.`;
+CRITICAL: No text, no logos, no brand names, no watermarks.
+CRITICAL: Square 1:1 aspect ratio.`;
 }
 
 export { buildCharacterPrompt };

@@ -44,11 +44,11 @@ export async function analyzePhoto(filePath: string): Promise<string> {
               type: "text",
               text: `Analyse this photo to capture ONLY this person's physical appearance — so an AI image generator can recreate them as a 3D cartoon character across many different scenes and poses.
 
-IMPORTANT: Do NOT describe body pose, posture, stance, arm position, hand position, or what the person is doing. Only describe how they look.
+IMPORTANT: Do NOT describe body pose, posture, stance, arm position, hand position, or what the person is doing. Do NOT mention age, how old someone looks, or use words like "child", "kid", "boy", "girl", "young", "adult". Only describe physical appearance features.
 
 Write a single dense paragraph covering ALL of the following in this order:
 
-AGE & BUILD: Estimate precise age (e.g. "approximately 5-year-old girl"), body build (slender, stocky, tall for age, etc.).
+BUILD: Body build (slender, stocky, petite, tall, compact, etc.) and approximate height relative to surroundings if visible.
 
 HAIR: Exact color (e.g. "golden blonde", "dark chestnut brown", not just "blonde"), exact length (e.g. "falls just below the shoulders", "mid-back length"), texture (straight, wavy, curly, coily), and precise style (e.g. "worn in two low pigtails secured with small pink hair ties and wispy face-framing pieces", "loose with blunt cut bangs", "short pixie cut"). Note any highlights or color variations.
 
@@ -65,7 +65,7 @@ OUTFIT — list EVERY visible item:
 - Shoes: exact type and color (e.g. "white croc-style sandals with chunky sole")
 - ALL accessories: hair ties, clips, bows, glasses, necklaces, bracelets, bags, hats — describe color and position
 
-Begin the description with the person's approximate age and gender, then flow through hair, eyes, skin, outfit, and accessories in that order. Be precise, not general. Write as a single paragraph. Do NOT mention what the person is doing or their pose.`,
+Begin the description with build, then flow through hair, eyes, skin, face, outfit, and accessories in that order. Be precise, not general. Write as a single paragraph. Do NOT mention age, gender words, or what the person is doing.`,
             },
           ],
         },
