@@ -227,7 +227,7 @@ export default function Create() {
                       <img
                         src={photo1Preview}
                         alt="Character"
-                        className="w-full h-56 object-cover"
+                        className="w-full object-contain"
                         data-testid="img-photo1-preview"
                       />
                       <button
@@ -363,7 +363,7 @@ export default function Create() {
                       <div className="mt-1.5">
                         {photo2Preview ? (
                           <div className="relative rounded-xl overflow-hidden">
-                            <img src={photo2Preview} alt="Second character" className="w-full h-40 object-cover" />
+                            <img src={photo2Preview} alt="Second character" className="w-full object-contain" />
                             <button
                               className="absolute top-2 right-2 bg-card/90 text-xs px-2 py-1 rounded-lg border"
                               onClick={() => { setPhoto2(null); setPhoto2Preview(''); setPhoto2Path(''); }}
