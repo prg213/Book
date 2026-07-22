@@ -410,64 +410,87 @@ function LandscapeCover({ story }: { story: any }) {
   );
 }
 
-// ── Landscape open book: fills 100vw × 100dvh, no rounding ───────────────────
+// ── Landscape open book ───────────────────────────────────────────────────────
+// Left page: illustration (contain, full image). Right page: text (centred).
+// Outer edges show a page-stack strip so it reads as a real open book.
 function LandscapeBook({ story, page, pageNumber, totalPages }: any) {
   return (
     <div className="w-full h-full flex">
-      {/* Left page — illustration, edge-to-edge */}
+
+      {/* ── Outer left page-stack ── */}
+      <div className="flex-shrink-0 self-stretch"
+        style={{
+          width: '10px',
+          background: 'repeating-linear-gradient(to bottom, #b8966a 0px, #b8966a 1px, #e8d5a8 1px, #e8d5a8 4px)',
+          boxShadow: 'inset 3px 0 6px rgba(0,0,0,0.3), inset -1px 0 2px rgba(255,240,200,0.3)',
+        }}
+      />
+
+      {/* ── Left page: illustration ── */}
       <div className="flex-1 relative overflow-hidden" style={{ background: '#e0ceaa' }}>
-        {/* Left-edge spine shadow */}
-        <div className="absolute inset-y-0 left-0 w-6 pointer-events-none z-10"
-          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.25), transparent)' }} />
+        {/* Outer-left shadow (depth from page stack) */}
+        <div className="absolute inset-y-0 left-0 w-4 pointer-events-none z-10"
+          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.22), transparent)' }} />
+        {/* Centre-fold shadow */}
+        <div className="absolute inset-y-0 right-0 w-10 pointer-events-none z-10"
+          style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.28), transparent)' }} />
         {page?.imageUrl ? (
           <img src={page.imageUrl} alt={`Page ${pageNumber}`}
-            className="w-full h-full" style={{ objectFit: 'contain', objectPosition: 'center', background: '#e0ceaa' }}
+            className="w-full h-full"
+            style={{ objectFit: 'contain', objectPosition: 'center', background: '#e0ceaa' }}
             data-testid={`img-page-ls-${pageNumber}`} draggable={false} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-amber-800/30">
             <BookOpen className="w-16 h-16" />
           </div>
         )}
-        {/* Page number */}
-        <div className="absolute bottom-3 left-6 text-amber-900/35 text-sm italic font-serif z-10">
-          {pageNumber}
-        </div>
+        <div className="absolute bottom-3 left-5 text-amber-900/35 text-sm italic font-serif z-10">{pageNumber}</div>
       </div>
 
-      {/* Centre spine */}
+      {/* ── Centre fold/crease ── */}
       <div className="flex-shrink-0 h-full"
-        style={{ width: '14px', background: 'linear-gradient(to right, #a07830, #edd990, #c4a050, #edd990, #a07830)', boxShadow: '0 0 8px rgba(0,0,0,0.4)' }} />
+        style={{
+          width: '6px',
+          background: 'linear-gradient(to right, rgba(0,0,0,0.40) 0%, rgba(140,100,50,0.3) 40%, rgba(255,240,200,0.4) 55%, rgba(140,100,50,0.2) 70%, rgba(0,0,0,0.25) 100%)',
+        }}
+      />
 
-      {/* Right page — text, edge-to-edge */}
+      {/* ── Right page: text, centred ── */}
       <div className="flex-1 relative flex flex-col overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #f5e6c0 0%, #ecddb8 100%)', fontFamily: '"Georgia", "Times New Roman", serif' }}>
-        {/* Right-edge shadow */}
-        <div className="absolute inset-y-0 right-0 w-6 pointer-events-none z-10"
+        {/* Centre-fold shadow */}
+        <div className="absolute inset-y-0 left-0 w-10 pointer-events-none z-10"
+          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.20), transparent)' }} />
+        {/* Outer-right shadow (depth from page stack) */}
+        <div className="absolute inset-y-0 right-0 w-4 pointer-events-none z-10"
           style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.18), transparent)' }} />
-        <div className="flex-1 overflow-y-auto" style={{ padding: '4dvh 7%' }}>
-          <p className="text-amber-900/40 text-xs italic mb-3 font-sans tracking-wide">{story.title}</p>
+
+        {/* Text — vertically and horizontally centred */}
+        <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center"
+          style={{ padding: '3dvh 10%', textAlign: 'center' }}>
+          <p className="text-amber-900/40 text-xs italic mb-4 font-sans tracking-wide">{story.title}</p>
           <div className="leading-relaxed text-[#3a1f06]"
-            style={{ fontSize: 'clamp(0.8rem, 2dvh, 1.1rem)' }}
+            style={{ fontSize: 'clamp(0.78rem, 2dvh, 1.05rem)' }}
             data-testid={`text-page-ls-${pageNumber}`}>
             {page?.text?.split('\n').map((para: string, i: number) => (
-              <p key={i} className="mb-3">
-                {i === 0 && para[0] ? (
-                  <>
-                    <span style={{ float: 'left', fontSize: 'clamp(2.2rem, 5dvh, 3rem)', lineHeight: '0.8', fontWeight: 'bold', marginRight: '0.08em', marginTop: '0.06em', color: '#8b4513' }}>
-                      {para[0]}
-                    </span>
-                    {para.slice(1)}
-                  </>
-                ) : para}
-              </p>
+              <p key={i} className="mb-3">{para}</p>
             ))}
           </div>
         </div>
-        {/* Page number */}
-        <div className="flex-shrink-0 pb-3 pr-6 text-right text-amber-900/35 text-sm italic font-serif z-10">
+
+        <div className="flex-shrink-0 pb-3 pr-5 text-right text-amber-900/35 text-sm italic font-serif z-10">
           {pageNumber + 1}
         </div>
       </div>
+
+      {/* ── Outer right page-stack ── */}
+      <div className="flex-shrink-0 self-stretch"
+        style={{
+          width: '10px',
+          background: 'repeating-linear-gradient(to bottom, #b8966a 0px, #b8966a 1px, #e8d5a8 1px, #e8d5a8 4px)',
+          boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.3), inset 1px 0 2px rgba(255,240,200,0.3)',
+        }}
+      />
     </div>
   );
 }
