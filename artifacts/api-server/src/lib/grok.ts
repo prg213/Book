@@ -102,7 +102,7 @@ export async function generateImage(prompt: string): Promise<Buffer> {
       Authorization: `Bearer ${apiKey()}`,
     },
     body: JSON.stringify({
-      model: "grok-2-image-1212",
+      model: "grok-imagine-image",
       prompt,
       n: 1,
       response_format: "b64_json",
