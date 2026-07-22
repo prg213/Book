@@ -421,7 +421,7 @@ function LandscapeBook({ story, page, pageNumber, totalPages }: any) {
           style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.25), transparent)' }} />
         {page?.imageUrl ? (
           <img src={page.imageUrl} alt={`Page ${pageNumber}`}
-            className="w-full h-full" style={{ objectFit: 'cover' }}
+            className="w-full h-full" style={{ objectFit: 'contain', objectPosition: 'center', background: '#e0ceaa' }}
             data-testid={`img-page-ls-${pageNumber}`} draggable={false} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-amber-800/30">
