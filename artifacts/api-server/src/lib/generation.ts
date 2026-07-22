@@ -20,55 +20,104 @@ async function updateStory(storyId: string, updates: Partial<typeof storiesTable
   await db.update(storiesTable).set(updates as Record<string, unknown>).where(eq(storiesTable.id, storyId));
 }
 
-function buildCoverPrompt(story: typeof storiesTable.$inferSelect, characterDesc: string, character2Desc?: string): string {
-  const char2 = character2Desc
-    ? `A second character is ${story.characterName2}, described as: ${character2Desc}.`
-    : "";
-  const occasion = story.occasion ? `Include ${story.occasion} themed decorative elements.` : "";
-  const outfit = story.outfit ? `The main character wears: ${story.outfit}.` : "";
+/** Build the character illustration prompt using the user's template + vision description */
+function buildCharacterPrompt(desc: string, outfit?: string | null): string {
+  const outfitLine = outfit
+    ? `OUTFIT: The character wears ${outfit}. Preserve this outfit exactly.`
+    : "CRITICAL: Maintain their exact clothing, colors, and style from the original photo.";
 
-  return `Create a vibrant, professional children's picture book cover illustration.
-  
-STYLE: 3D animated style, warm vibrant colors, soft cel-shading, smooth rounded shapes, bold outlines, child-friendly and magical.
+  return `GENERATE IMAGE: Transform this person into a 3D animated cartoon character in a friendly, animated style.
 
-MAIN CHARACTER: ${story.characterName} — ${characterDesc}. ${outfit} The character should appear joyful and expressive, shown in a full-body pose in the center of the image.
+CHARACTER DESCRIPTION (from photo analysis): ${desc}
 
-${char2}
+${outfitLine}
 
-SCENE: A whimsical ${story.theme} adventure setting, richly detailed background, golden-hour lighting.
+Keep their hairstyle and hair color accurate.
+Preserve all clothing items (shirts, pants, dresses, accessories, etc.).
+Maintain the same color palette from their outfit.
+Keep any visible accessories (glasses, jewelry, hats, etc.).
 
-TITLE TEXT: Display the title "${story.title}" in large, bold, decorative lettering prominently at the top of the image.
+Character style:
+- Oversized head, small body proportions
+- Big expressive cartoon eyes
+- Friendly, child-appropriate appearance
+- Professional 3D animation quality
+- Clean white background
+- Full body view, centered in frame
 
-${occasion}
-
-COMPOSITION: Square 1:1 aspect ratio. No borders. Edge-to-edge illustration. Professional children's book quality.`;
+Style: 3D animation, vibrant colors, high-quality rendering.
+CRITICAL: The final image must not contain any text, logos, or brand names.
+CRITICAL: Generate as a perfect square image with an exact 1:1 aspect ratio.`;
 }
 
+/** Build the cover prompt — character prominently in center, title text in the image */
+function buildCoverPrompt(
+  story: typeof storiesTable.$inferSelect,
+  characterDesc: string,
+  outfit: string | null | undefined,
+  character2Desc?: string,
+): string {
+  const outfitLine = outfit ? `OUTFIT: The character wears ${outfit}.` : "";
+  const char2Line = character2Desc
+    ? `\nSECOND CHARACTER: ${story.characterName2} also appears prominently — ${character2Desc}.`
+    : "";
+  const occasionLine = story.occasion ? `\nOCCASION ELEMENTS: Incorporate ${story.occasion} themed decorative details.` : "";
+  const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+
+  return `Create a vibrant, professional children's picture book COVER illustration.
+
+CHARACTER (must be prominently centered, full-body): ${story.characterName}
+CHARACTER APPEARANCE: ${characterDesc}
+${outfitLine}${char2Line}
+
+CHARACTER STYLE:
+- Oversized head, small body proportions
+- Big expressive cartoon eyes
+- Friendly, child-appropriate 3D animated look
+- Vibrant colors, soft cel-shading, smooth rounded shapes
+- Joyful, expressive pose
+
+SCENE: A magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting.${occasionLine}
+
+TITLE TEXT: Display the title "${story.title}" in large, bold, decorative children's book lettering prominently at the TOP of the image. The title must be clearly readable.
+
+COMPOSITION: Square 1:1 aspect ratio. Edge-to-edge illustration. No blank borders. Professional picture book cover quality. No logos, no brand names, no watermarks.`;
+}
+
+/** Build a page illustration prompt — character MUST appear in every scene */
 function buildPagePrompt(
   story: typeof storiesTable.$inferSelect,
   page: { text: string; image_prompt: string },
   characterDesc: string,
+  outfit: string | null | undefined,
   character2Desc?: string,
-  outfit?: string
 ): string {
-  const char2 = character2Desc
-    ? `A second character named ${story.characterName2} also appears, described as: ${character2Desc}.`
+  const outfitLine = outfit
+    ? `OUTFIT (keep identical on every page): The character wears ${outfit}.`
+    : "Maintain the character's exact clothing from their character sheet.";
+  const char2Line = character2Desc
+    ? `\nSECOND CHARACTER (also in this scene): ${story.characterName2} — ${character2Desc}.`
     : "";
-  const outfitLock = outfit
-    ? `The main character wears exactly: ${outfit}. Keep this outfit identical across all pages.`
-    : "";
+  const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
 
-  return `Create a children's picture book illustration for this scene: ${page.image_prompt}
+  return `Create a children's picture book page illustration.
 
-STYLE: 3D animated illustration, warm vibrant colors, soft cel-shading, smooth rounded shapes, bold outlines — MUST match a consistent children's book art style throughout.
-
-MAIN CHARACTER: ${story.characterName} — ${characterDesc}. ${outfitLock} Pose the character naturally for the scene while preserving their exact appearance.
-
-${char2}
-
+SCENE TO ILLUSTRATE: ${page.image_prompt}
 SCENE CONTEXT: "${page.text}"
 
-COMPOSITION: Square 1:1 aspect ratio. No text, no letters, no watermarks. Edge-to-edge illustration, richly detailed background, professional children's book quality.`;
+CHARACTER (MUST APPEAR IN THIS SCENE — do not omit): ${story.characterName}
+CHARACTER APPEARANCE: ${characterDesc}
+${outfitLine}${char2Line}
+
+CHARACTER STYLE (keep consistent across ALL pages):
+- Oversized head, small body proportions
+- Big expressive cartoon eyes
+- Friendly, child-appropriate 3D animated look
+- Vibrant colors, soft cel-shading, smooth rounded shapes
+
+STORY THEME: ${effectiveTheme} adventure setting
+
+COMPOSITION: Square 1:1 aspect ratio. Richly detailed background. Edge-to-edge illustration. NO text, NO letters, NO watermarks, NO title. Professional children's picture book quality.`;
 }
 
 export async function runStoryGeneration(storyId: string): Promise<void> {
@@ -83,9 +132,9 @@ export async function runStoryGeneration(storyId: string): Promise<void> {
     if (!story) throw new Error("Story not found");
 
     // Step 1: Analyze photo(s) to get character descriptions
-    await updateStory(storyId, { generationProgress: 10, generationStatusMessage: "Analysing your character..." });
+    await updateStory(storyId, { generationProgress: 10, generationStatusMessage: "Analysing your character from the photo..." });
 
-    let characterDesc = "a friendly, expressive animated character";
+    let characterDesc = "a friendly, expressive animated character with warm eyes and a cheerful smile";
     let character2Desc: string | undefined;
 
     if (story.originalPhotoPath) {
@@ -108,33 +157,34 @@ export async function runStoryGeneration(storyId: string): Promise<void> {
       }
     }
 
-    await db.update(storiesTable).set({ characterDescription: characterDesc }).where(eq(storiesTable.id, storyId));
+    await updateStory(storyId, {
+      characterDescription: characterDesc,
+      generationProgress: 20,
+      generationStatusMessage: "Creating your character illustration...",
+    });
 
-    // Step 2: Generate character illustration
-    await updateStory(storyId, { generationProgress: 20, generationStatusMessage: "Creating your character illustration..." });
-
-    const charPrompt = `Create a 3D animated children's book character illustration on a clean white background.
-
-CHARACTER: ${story.characterName} — ${characterDesc}
-
-STYLE: Friendly 3D animated style, vibrant colors, oversized expressive head, smooth rounded shapes, soft cel-shading, child-appropriate.
-${story.outfit ? `OUTFIT: ${story.outfit}` : ""}
-
-Show the character in a friendly full-body pose, centered, on a plain white background. No text, no backgrounds, no watermarks. Square 1:1 format.`;
+    // Step 2: Generate character illustration using user's exact prompt template
+    const charPrompt = buildCharacterPrompt(characterDesc, story.outfit);
 
     let characterImagePath: string | undefined;
     try {
       const charBuf = await generateImage(charPrompt);
       characterImagePath = await saveImage(charBuf, "characters");
-      await updateStory(storyId, { characterImagePath });
+      await updateStory(storyId, {
+        characterImagePath,
+        generationProgress: 30,
+        generationStatusMessage: "Character created! Writing your story...",
+      });
       logger.info({ storyId }, "Character image generated");
     } catch (e) {
       logger.warn({ storyId, err: e }, "Character image generation failed, continuing without it");
+      await updateStory(storyId, {
+        generationProgress: 30,
+        generationStatusMessage: "Writing your story with Grok...",
+      });
     }
 
     // Step 3: Generate story text with Grok-3
-    await updateStory(storyId, { generationProgress: 35, generationStatusMessage: "Writing your story with Grok..." });
-
     const pageCount = story.pageCount ?? 8;
     const petInfo = story.relationship === "pet" && story.petType
       ? `${story.characterName} is a ${story.petType}.`
@@ -145,6 +195,8 @@ Show the character in a friendly full-body pose, centered, on a plain white back
     const occasionInfo = story.occasion ? `The story incorporates ${story.occasion} themes.` : "";
     const userIdeas = story.userPrompt ? `User's ideas to incorporate: "${story.userPrompt}"` : "";
     const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+
+    await updateStory(storyId, { generationProgress: 35, generationStatusMessage: "Writing your story with Grok..." });
 
     const storyPrompt = `You are a creative children's book author. Write a ${pageCount}-page illustrated children's story.
 
@@ -159,14 +211,15 @@ Story details:
 
 Requirements:
 - Each page should have approximately 40-60 words of engaging, age-appropriate text
-- Each page needs a vivid image_prompt describing the scene (what to illustrate, actions, setting) — do NOT mention the character's physical appearance in image_prompts
+- Each page needs a vivid image_prompt describing the scene (actions, setting, mood) — describe WHAT IS HAPPENING in the scene, not the character's appearance
+- The main character ${story.characterName} should actively appear and participate in every scene
 - The story should have a clear arc: beginning, middle, satisfying end
 - Language must be appropriate for age ${story.age}
 
 Respond ONLY with a JSON object with this exact structure:
 {
   "pages": [
-    { "page_number": 1, "text": "story text for page 1...", "image_prompt": "visual scene description..." },
+    { "page_number": 1, "text": "story text for page 1...", "image_prompt": "visual scene description with ${story.characterName} actively doing something..." },
     ...
   ]
 }`;
@@ -178,10 +231,10 @@ Respond ONLY with a JSON object with this exact structure:
       throw new Error("Grok returned invalid story content");
     }
 
-    await updateStory(storyId, { generationProgress: 50, generationStatusMessage: `Story written! Creating ${pages.length} illustrations...` });
+    await updateStory(storyId, { generationProgress: 50, generationStatusMessage: `Story written! Creating cover art...` });
 
-    // Step 4: Generate cover image
-    const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc);
+    // Step 4: Generate cover image (character + title in the same image)
+    const coverPrompt = buildCoverPrompt(story, characterDesc, story.outfit, character2Desc);
     let coverImagePath: string | undefined;
 
     try {
@@ -193,13 +246,13 @@ Respond ONLY with a JSON object with this exact structure:
       logger.error({ storyId, err: e }, "Cover generation failed");
     }
 
-    await updateStory(storyId, { generationProgress: 55, generationStatusMessage: "Cover created! Illustrating each page..." });
+    await updateStory(storyId, { generationProgress: 55, generationStatusMessage: `Cover created! Illustrating ${pages.length} pages...` });
 
-    // Step 5: Generate page illustrations sequentially (to respect rate limits)
+    // Step 5: Generate page illustrations sequentially (character appears in every one)
     const savedPages: typeof storyPagesTable.$inferInsert[] = [];
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
-      const progress = 55 + Math.round(((i + 1) / pages.length) * 38);
+      const progress = 55 + Math.round(((i + 1) / pages.length) * 40);
       await updateStory(storyId, {
         generationProgress: progress,
         generationStatusMessage: `Illustrating page ${i + 1} of ${pages.length}...`,
@@ -207,7 +260,7 @@ Respond ONLY with a JSON object with this exact structure:
 
       let imagePath: string | undefined;
       try {
-        const pagePrompt = buildPagePrompt(story, page, characterDesc, character2Desc, story.outfit ?? undefined);
+        const pagePrompt = buildPagePrompt(story, page, characterDesc, story.outfit, character2Desc);
         const imgBuf = await generateImage(pagePrompt);
         imagePath = await saveImage(imgBuf, "pages");
         logger.info({ storyId, pageNumber: page.page_number }, "Page image generated");

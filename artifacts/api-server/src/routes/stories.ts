@@ -182,6 +182,7 @@ router.get("/stories/:id/status", async (req, res): Promise<void> => {
     generationProgress: story.generationProgress,
     generationStatusMessage: story.generationStatusMessage ?? null,
     errorMessage: story.errorMessage ?? null,
+    characterImageUrl: story.characterImagePath ? `/api/uploads/${story.characterImagePath}` : null,
     coverImageUrl: story.coverImagePath ? `/api/uploads/${story.coverImagePath}` : null,
   });
 });
