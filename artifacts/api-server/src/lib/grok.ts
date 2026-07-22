@@ -118,11 +118,8 @@ export async function generateStoryText(prompt: string): Promise<{
 }
 
 /** Generate an image using xAI Aurora and return the image bytes */
-export async function generateImage(
-  prompt: string,
-  size: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024"
-): Promise<Buffer> {
-  logger.info({ promptLength: prompt.length, size }, "Generating image with Aurora");
+export async function generateImage(prompt: string): Promise<Buffer> {
+  logger.info({ promptLength: prompt.length }, "Generating image with Aurora");
 
   const resp = await fetch(`${XAI_BASE}/images/generations`, {
     method: "POST",
@@ -135,7 +132,6 @@ export async function generateImage(
       prompt,
       n: 1,
       response_format: "b64_json",
-      size,
     }),
   });
 
