@@ -62,7 +62,7 @@ export default function Read() {
   const totalPages = pages.length;
 
   const handleNext = useCallback(() => {
-    setCurrentPage(p => (p < totalPages - 1 ? p + 1 : p));
+    setCurrentPage(p => (p < totalPages ? p + 1 : p));
   }, [totalPages]);
 
   const handlePrev = useCallback(() => {
@@ -126,7 +126,7 @@ export default function Read() {
     // ── Landscape: animated flip ──────────────────────────────────────────
     if (isLandscape && flipPhase === 'tracking') {
       const isCoverLocal = currentPage === -1;
-      const isLastLocal = currentPage >= totalPages - 1;
+      const isLastLocal = currentPage >= totalPages;
       const canGo = flipDir === 'next' ? !isLastLocal : !isCoverLocal;
 
       if (Math.abs(swipeDx) > 55 && canGo) {
@@ -205,9 +205,10 @@ export default function Read() {
     );
   }
 
-  const currentPageData = currentPage >= 0 ? pages[currentPage] : null;
+  const currentPageData = currentPage >= 0 && currentPage < totalPages ? pages[currentPage] : null;
   const isCover = currentPage === -1;
-  const isLastPage = currentPage >= totalPages - 1;
+  const isEndPage = currentPage === totalPages;
+  const isLastPage = currentPage >= totalPages;
 
   // peekPage: adjacent page used for the flip card back face + peek background
   const flipActive = flipPhase !== 'idle';
@@ -225,12 +226,14 @@ export default function Read() {
         onClick={showOverlay}
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Book content — three states */}
+        {/* Book content — four states */}
         {isCover ? (
           /* Stage 0: cover at rest, or Stage 1: cover face folding (centred) */
           (flipPhase !== 'idle' && flipDir === 'next')
             ? <LandscapeCoverFolding story={story} firstPage={pages[0] ?? null} flipPhase={flipPhase} swipeDx={swipeDx} />
             : <LandscapeCover story={story} />
+        ) : isEndPage ? (
+          <LandscapeEndPage story={story} />
         ) : coverExpanding ? (
           /* Stage 2: book scales from centred size to full screen */
           <div style={{
@@ -289,7 +292,7 @@ export default function Read() {
             className="absolute top-3 right-3 px-3 py-2 rounded-xl text-xs font-medium tracking-wider uppercase"
             style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(245,201,122,0.7)', backdropFilter: 'blur(8px)' }}
           >
-            {isCover ? story.title : `${currentPage + 1} / ${totalPages}`}
+            {isCover ? story.title : isEndPage ? 'The End' : `${currentPage + 1} / ${totalPages}`}
           </div>
 
           {/* Bottom centre: page dots + prev/next */}
@@ -323,11 +326,17 @@ export default function Read() {
                   style={{ width: i === currentPage ? '18px' : '7px', height: '7px', background: i === currentPage ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
                 />
               ))}
+              {/* End page dot */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setCurrentPage(totalPages); showOverlay(); }}
+                className="rounded-full transition-all"
+                style={{ width: isEndPage ? '18px' : '7px', height: '7px', background: isEndPage ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
+              />
             </div>
 
             <button
               onClick={(e) => { e.stopPropagation(); handleNext(); showOverlay(); }}
-              disabled={isLastPage && !isCover}
+              disabled={isLastPage}
               className="disabled:opacity-30 transition-opacity"
               style={{ color: '#f5c97a' }}
               data-testid="button-next-page"
@@ -347,7 +356,7 @@ export default function Read() {
             className="absolute right-0 top-0 w-1/4 h-full pointer-events-auto"
             style={{ background: 'transparent' }}
             onClick={(e) => { e.stopPropagation(); handleNext(); showOverlay(); }}
-            disabled={isLastPage && !isCover}
+            disabled={isLastPage}
           />
         </div>
 
@@ -380,7 +389,7 @@ export default function Read() {
           </button>
         </Link>
         <span className="text-amber-200/50 text-xs font-medium tracking-wider uppercase truncate mx-4">
-          {isCover ? story.title : `Page ${currentPage + 1} of ${totalPages}`}
+          {isCover ? story.title : isEndPage ? 'The End' : `Page ${currentPage + 1} of ${totalPages}`}
         </span>
         <div className="w-16" />
       </div>
@@ -389,6 +398,8 @@ export default function Read() {
       <div className="flex-1 min-h-0 flex items-center justify-center p-2">
         {isCover ? (
           <PortraitCover story={story} />
+        ) : isEndPage ? (
+          <PortraitEndPage story={story} />
         ) : (
           <OpenBookPortrait story={story} page={currentPageData} pageNumber={currentPage + 1} totalPages={totalPages} />
         )}
@@ -419,6 +430,11 @@ export default function Read() {
                 style={{ width: i === currentPage ? '18px' : '7px', height: '7px', background: i === currentPage ? '#f5c97a' : 'rgba(245,201,122,0.3)' }}
               />
             ))}
+            {/* End page dot */}
+            <button onClick={() => setCurrentPage(totalPages)}
+              className="rounded-full flex-shrink-0 transition-all"
+              style={{ width: isEndPage ? '18px' : '7px', height: '7px', background: isEndPage ? '#f5c97a' : 'rgba(245,201,122,0.3)' }}
+            />
           </div>
 
           {isCover ? (
@@ -436,7 +452,7 @@ export default function Read() {
               style={{ background: isLastPage ? 'rgba(245,201,122,0.08)' : 'rgba(245,201,122,0.12)', color: '#f5c97a', border: '1px solid rgba(245,201,122,0.2)', minWidth: '80px' }}
               data-testid="button-next-page"
             >
-              <span className="truncate">{isLastPage ? 'End' : `Pg ${currentPage + 2}`}</span>
+              <span className="truncate">{isEndPage ? 'The End' : isLastPage ? 'The End' : `Pg ${currentPage + 2}`}</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0" />
             </button>
           )}
@@ -493,6 +509,91 @@ function PortraitCover({ story }: { story: any }) {
         <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
       </div>
+    </div>
+  );
+}
+
+// ── Portrait "The End" page ────────────────────────────────────────────────────
+function PortraitEndPage({ story }: { story: any }) {
+  return (
+    <div
+      className="w-full h-full flex flex-col items-center justify-center rounded-xl overflow-hidden"
+      style={{
+        maxWidth: '480px',
+        background: 'linear-gradient(160deg, #f5e6c0 0%, #ece0c2 60%, #e0ceaa 100%)',
+        filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.85))',
+        fontFamily: '"Georgia", "Times New Roman", serif',
+      }}
+    >
+      {/* Decorative top rule */}
+      <div style={{ width: '60%', height: '2px', background: 'linear-gradient(to right, transparent, #c9a96e, transparent)', marginBottom: '2rem' }} />
+      <p style={{ color: '#8b4513', fontSize: 'clamp(0.7rem, 3vw, 0.9rem)', letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: '1.2rem', opacity: 0.6 }}>
+        {story.title}
+      </p>
+      <p style={{ color: '#3a1f06', fontSize: 'clamp(2.4rem, 10vw, 3.6rem)', fontWeight: 'bold', fontStyle: 'italic', lineHeight: 1.1, textAlign: 'center' }}>
+        The End
+      </p>
+      {/* Decorative bottom rule */}
+      <div style={{ width: '60%', height: '2px', background: 'linear-gradient(to right, transparent, #c9a96e, transparent)', marginTop: '2rem' }} />
+    </div>
+  );
+}
+
+// ── Landscape "The End" spread ─────────────────────────────────────────────────
+function LandscapeEndPage({ story }: { story: any }) {
+  return (
+    <div className="w-full h-full flex" style={{ fontFamily: '"Georgia", "Times New Roman", serif' }}>
+      {/* Outer left page-stack */}
+      <div className="flex-shrink-0 self-stretch"
+        style={{
+          width: '10px',
+          background: 'repeating-linear-gradient(to bottom, #b8966a 0px, #b8966a 1px, #e8d5a8 1px, #e8d5a8 4px)',
+          boxShadow: 'inset 3px 0 6px rgba(0,0,0,0.3)',
+        }} />
+
+      {/* Left half */}
+      <div className="flex-1 flex items-center justify-center relative"
+        style={{ background: 'linear-gradient(135deg, #f5e6c0 0%, #ecddb8 100%)' }}>
+        <div className="absolute inset-y-0 left-0 w-4 pointer-events-none"
+          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.22), transparent)' }} />
+        <div className="absolute inset-y-0 right-0 w-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.28), transparent)' }} />
+        <p className="text-amber-900/25 text-sm italic select-none" style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', letterSpacing: '0.1em' }}>
+          {story.title}
+        </p>
+      </div>
+
+      {/* Centre fold */}
+      <div className="flex-shrink-0 h-full"
+        style={{
+          width: '6px',
+          background: 'linear-gradient(to right, rgba(0,0,0,0.40) 0%, rgba(140,100,50,0.3) 40%, rgba(255,240,200,0.4) 55%, rgba(140,100,50,0.2) 70%, rgba(0,0,0,0.25) 100%)',
+          zIndex: 15,
+        }} />
+
+      {/* Right half — "The End" centered */}
+      <div className="flex-1 flex flex-col items-center justify-center relative"
+        style={{ background: 'linear-gradient(135deg, #f5e6c0 0%, #ecddb8 100%)' }}>
+        <div className="absolute inset-y-0 left-0 w-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.20), transparent)' }} />
+        <div className="absolute inset-y-0 right-0 w-4 pointer-events-none"
+          style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.18), transparent)' }} />
+        {/* Decorative top rule */}
+        <div style={{ width: '55%', height: '1px', background: 'linear-gradient(to right, transparent, #c9a96e, transparent)', marginBottom: '1.8rem' }} />
+        <p style={{ color: '#3a1f06', fontSize: 'clamp(2rem, 5vw, 3.2rem)', fontWeight: 'bold', fontStyle: 'italic', lineHeight: 1.1, textAlign: 'center' }}>
+          The End
+        </p>
+        {/* Decorative bottom rule */}
+        <div style={{ width: '55%', height: '1px', background: 'linear-gradient(to right, transparent, #c9a96e, transparent)', marginTop: '1.8rem' }} />
+      </div>
+
+      {/* Outer right page-stack */}
+      <div className="flex-shrink-0 self-stretch"
+        style={{
+          width: '10px',
+          background: 'repeating-linear-gradient(to bottom, #b8966a 0px, #b8966a 1px, #e8d5a8 1px, #e8d5a8 4px)',
+          boxShadow: 'inset -3px 0 6px rgba(0,0,0,0.3)',
+        }} />
     </div>
   );
 }
