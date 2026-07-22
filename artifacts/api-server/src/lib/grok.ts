@@ -31,7 +31,7 @@ export async function analyzePhoto(filePath: string): Promise<string> {
       Authorization: `Bearer ${apiKey()}`,
     },
     body: JSON.stringify({
-      model: "grok-2-vision-1212",
+      model: "grok-4.5",
       messages: [
         {
           role: "user",
@@ -92,7 +92,7 @@ export async function generateStoryText(prompt: string): Promise<{
       Authorization: `Bearer ${apiKey()}`,
     },
     body: JSON.stringify({
-      model: "grok-3",
+      model: "grok-4.5",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.8,
