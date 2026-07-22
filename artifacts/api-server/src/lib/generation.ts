@@ -300,7 +300,8 @@ Respond ONLY with a JSON object:
       let imagePath: string | undefined;
       try {
         const pagePrompt = buildPagePrompt(story, page, characterDesc, i, character2Desc);
-        const imgBuf = await generateImage(pagePrompt);
+        // 1792×1024 landscape fills the book's left page panel without cropping
+        const imgBuf = await generateImage(pagePrompt, "1792x1024");
         imagePath = await saveImage(imgBuf, "pages");
         logger.info({ storyId, pageNumber: page.page_number }, "Page image generated");
       } catch (e) {

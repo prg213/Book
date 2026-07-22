@@ -437,7 +437,7 @@ function LandscapeBook({ story, page, pageNumber, totalPages }: any) {
         {page?.imageUrl ? (
           <img src={page.imageUrl} alt={`Page ${pageNumber}`}
             className="w-full h-full"
-            style={{ objectFit: 'contain', objectPosition: 'center', background: '#e0ceaa' }}
+            style={{ objectFit: 'cover', objectPosition: 'center' }}
             data-testid={`img-page-ls-${pageNumber}`} draggable={false} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-amber-800/30">
@@ -470,7 +470,7 @@ function LandscapeBook({ story, page, pageNumber, totalPages }: any) {
           style={{ padding: '3dvh 10%', textAlign: 'center' }}>
           <p className="text-amber-900/40 text-xs italic mb-4 font-sans tracking-wide">{story.title}</p>
           <div className="leading-relaxed text-[#3a1f06]"
-            style={{ fontSize: 'clamp(0.78rem, 2dvh, 1.05rem)' }}
+            style={{ fontSize: 'clamp(1.05rem, 3dvh, 1.5rem)' }}
             data-testid={`text-page-ls-${pageNumber}`}>
             {page?.text?.split('\n').map((para: string, i: number) => (
               <p key={i} className="mb-3">{para}</p>
