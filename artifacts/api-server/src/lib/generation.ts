@@ -170,7 +170,7 @@ ${ANATOMY_RULE}
 
 SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.
 
-TITLE TEXT: The book title "${story.title}" must appear prominently at the TOP of the image in large, bold, decorative children's book lettering that is clearly readable. The title is horizontally centred. The scene background art fills completely behind and around the title text — the background scene reaches every edge of the canvas.
+TITLE TEXT: The book title "${story.title}" must appear prominently at the TOP of the image in large, bold, decorative children's book lettering that is clearly readable. CRITICAL LAYOUT RULE: The title text must fit entirely within the CENTRAL 60% of the image width — leave at least 20% empty margin on the LEFT and 20% empty margin on the RIGHT. If the title is long, break it onto 2 lines. The title is horizontally centred within that central band. This margin rule is essential because the image will be displayed in portrait (A5) format and the outer edges will be cropped. The scene background art fills completely behind and around the title text — the background scene reaches every edge of the canvas.
 
 COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No logos, no brand names, no watermarks other than the story title.`;
 }

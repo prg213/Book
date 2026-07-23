@@ -752,11 +752,15 @@ export default function Create() {
                 <Input
                   id="title"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={`e.g. ${characterName}'s Great Adventure`}
+                  onChange={(e) => setTitle(e.target.value.slice(0, 30))}
+                  placeholder={`e.g. ${characterName}'s Adventure`}
                   className="mt-1.5"
+                  maxLength={30}
                   data-testid="input-title"
                 />
+                <p className={`text-xs mt-1 ${title.length >= 28 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                  Keep it short so it fits on the cover — {30 - title.length} characters left
+                </p>
               </div>
 
               <div>
