@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2, Printer } from 'lucide-react';
 
 type ColouringState = 'idle' | 'loading' | 'done' | 'error';
 interface ColouringEntry { status: ColouringState; url?: string }
@@ -157,6 +157,111 @@ export default function StoryView() {
   const story = storyData?.story;
   const pages = storyData?.pages || [];
 
+  // Collect all image URLs that need colouring
+  const allImageUrls: string[] = story
+    ? [
+        ...(story.coverImageUrl ? [story.coverImageUrl] : []),
+        ...pages.map(p => p.imageUrl).filter(Boolean) as string[],
+      ]
+    : [];
+
+  const allDone = allImageUrls.length > 0 && allImageUrls.every(u => colouringMap.get(u)?.status === 'done');
+  const anyLoading = allImageUrls.some(u => {
+    const s = colouringMap.get(u)?.status;
+    return !s || s === 'loading';
+  });
+
+  function handlePrint() {
+    if (!story) return;
+
+    // Gather ordered pages: cover first, then story pages (illustration + text paired)
+    const coverUrl = story.coverImageUrl ? colouringMap.get(story.coverImageUrl)?.url ?? story.coverImageUrl : null;
+    const storyPages = pages.map((p, i) => ({
+      imageUrl: p.imageUrl ? (colouringMap.get(p.imageUrl)?.url ?? p.imageUrl) : null,
+      text: p.text ?? '',
+      num: i + 1,
+    }));
+
+    const pageStyle = `
+      @page { size: A5 portrait; margin: 0; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: white; }
+      .sheet {
+        width: 148mm; height: 210mm;
+        overflow: hidden;
+        page-break-after: always;
+        break-after: page;
+        position: relative;
+        background: white;
+      }
+      .sheet:last-child { page-break-after: avoid; break-after: avoid; }
+      .sheet img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .text-sheet {
+        width: 148mm; height: 210mm;
+        padding: 12mm 12mm 10mm;
+        display: flex; flex-direction: column;
+        page-break-after: always; break-after: page;
+        background: white;
+      }
+      .text-sheet:last-child { page-break-after: avoid; break-after: avoid; }
+      .text-title {
+        font-family: Georgia, serif; font-size: 7pt; text-transform: uppercase;
+        letter-spacing: 0.12em; color: rgba(0,0,0,0.4); text-align: center;
+        border-bottom: 0.5pt solid rgba(0,0,0,0.15); padding-bottom: 4mm; margin-bottom: 6mm;
+      }
+      .text-body {
+        font-family: Georgia, serif; font-size: 13pt; line-height: 1.75;
+        color: #111; flex: 1; overflow: hidden;
+      }
+      .text-footer {
+        font-family: Georgia, serif; font-size: 8pt; color: rgba(0,0,0,0.3);
+        text-align: center; padding-top: 5mm;
+      }
+    `;
+
+    const sheets: string[] = [];
+
+    // Cover
+    if (coverUrl) {
+      sheets.push(`<div class="sheet"><img src="${coverUrl}" alt="Cover" /></div>`);
+    }
+
+    // Illustration + text pairs
+    for (const p of storyPages) {
+      if (p.imageUrl) {
+        sheets.push(`<div class="sheet"><img src="${p.imageUrl}" alt="Page ${p.num}" /></div>`);
+      }
+      if (p.text) {
+        sheets.push(`
+          <div class="text-sheet">
+            <div class="text-title">${story.title}</div>
+            <div class="text-body">${p.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            <div class="text-footer">${p.num}</div>
+          </div>`);
+      }
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>${story.title}</title><style>${pageStyle}</style></head>
+<body>${sheets.join('\n')}</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    // Wait for images to load before printing
+    win.onload = () => win.print();
+    win.document.addEventListener('DOMContentLoaded', () => {
+      const imgs = Array.from(win.document.images);
+      if (imgs.length === 0) { win.print(); return; }
+      let loaded = 0;
+      const check = () => { if (++loaded === imgs.length) win.print(); };
+      imgs.forEach(img => { img.onload = check; img.onerror = check; });
+    });
+  }
+
   // Auto-trigger coloring as soon as story data arrives
   useEffect(() => {
     if (!story) return;
@@ -238,6 +343,21 @@ export default function StoryView() {
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-base font-bold text-amber-100 truncate">{story.title}</h1>
           </div>
+          {/* Print button */}
+          {anyLoading ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400/60 bg-amber-500/10 border border-amber-500/15 flex-shrink-0">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Preparing…
+            </div>
+          ) : (
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200 flex-shrink-0"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print
+            </button>
+          )}
         </div>
       </div>
 
