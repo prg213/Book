@@ -1,10 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { ArrowLeft, BookOpen, Image, AlignLeft, Palette, Loader2 } from 'lucide-react';
-
-// A5 aspect ratio: 148mm × 210mm
-const A5_RATIO = 210 / 148;
+import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2 } from 'lucide-react';
 
 type ColouringState = 'idle' | 'loading' | 'done' | 'error';
 interface ColouringEntry { status: ColouringState; url?: string }
@@ -24,18 +21,15 @@ function A5ImageCard({
   src,
   alt,
   label,
-  colouringEntry,
-  colouringMode,
+  entry,
 }: {
   src?: string | null;
   alt: string;
   label?: string;
-  colouringEntry?: ColouringEntry;
-  colouringMode: boolean;
+  entry?: ColouringEntry;
 }) {
-  const showColouring = colouringMode && colouringEntry;
-  const isLoading = showColouring && colouringEntry.status === 'loading';
-  const displaySrc = showColouring && colouringEntry.status === 'done' ? colouringEntry.url : src;
+  const isLoading = !entry || entry.status === 'loading';
+  const displaySrc = entry?.status === 'done' ? entry.url : src;
 
   return (
     <div className="flex flex-col gap-2">
@@ -50,25 +44,19 @@ function A5ImageCard({
           <img
             src={displaySrc}
             alt={alt}
-            className="w-full h-full object-cover transition-opacity duration-300"
-            style={{ opacity: isLoading ? 0.3 : 1 }}
+            className="w-full h-full object-cover transition-opacity duration-500"
+            style={{ opacity: isLoading ? 0.25 : 1 }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-amber-50">
             <Image className="w-12 h-12 text-amber-200" />
           </div>
         )}
-        {/* Loading overlay */}
+        {/* Loading overlay — shown while coloring page is being generated */}
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70">
-            <Loader2 className="w-8 h-8 text-gray-400 animate-spin mb-2" />
+            <Loader2 className="w-7 h-7 text-gray-400 animate-spin mb-1.5" />
             <p className="text-[10px] text-gray-500 font-medium tracking-wide">Drawing lines…</p>
-          </div>
-        )}
-        {/* Error badge */}
-        {showColouring && colouringEntry.status === 'error' && (
-          <div className="absolute bottom-2 inset-x-2 bg-red-100 rounded text-red-600 text-[9px] text-center py-1 px-2">
-            Couldn't transform — showing original
           </div>
         )}
       </div>
@@ -154,9 +142,10 @@ function SectionHeading({ icon: Icon, title, count }: { icon: React.ElementType;
 export default function StoryView() {
   const params = new URLSearchParams(window.location.search);
   const storyId = params.get('storyId') || '';
-  const [colouringMode, setColouringMode] = useState(false);
+
   // key = original imageUrl, value = { status, url? }
   const [colouringMap, setColouringMap] = useState<Map<string, ColouringEntry>>(new Map());
+  const triggeredRef = useRef<Set<string>>(new Set());
 
   const { data: storyData, isLoading, isError } = useGetStoryForReading(storyId, {
     query: {
@@ -168,46 +157,41 @@ export default function StoryView() {
   const story = storyData?.story;
   const pages = storyData?.pages || [];
 
-  const triggerColouring = useCallback(async (allUrls: string[]) => {
-    // Mark all as loading (skip already done/loading)
+  // Auto-trigger coloring as soon as story data arrives
+  useEffect(() => {
+    if (!story) return;
+
+    const urls: string[] = [];
+    if (story.coverImageUrl) urls.push(story.coverImageUrl);
+    for (const p of pages) if (p.imageUrl) urls.push(p.imageUrl);
+
+    // Only trigger URLs we haven't started yet
+    const fresh = urls.filter(u => !triggeredRef.current.has(u));
+    if (fresh.length === 0) return;
+
+    // Mark as triggered immediately to prevent double-firing
+    for (const u of fresh) triggeredRef.current.add(u);
+
+    // Set all to loading
     setColouringMap(prev => {
       const next = new Map(prev);
-      for (const url of allUrls) {
-        if (!next.has(url) || next.get(url)!.status === 'error') {
-          next.set(url, { status: 'loading' });
-        }
-      }
+      for (const u of fresh) next.set(u, { status: 'loading' });
       return next;
     });
 
-    // Fire all requests in parallel
-    await Promise.all(
-      allUrls
-        .filter(url => {
-          const existing = colouringMap.get(url);
-          return !existing || existing.status === 'error';
+    // Fire all in parallel
+    for (const url of fresh) {
+      fetchColouringPage(url)
+        .then(colouringUrl => {
+          setColouringMap(prev => new Map(prev).set(url, { status: 'done', url: colouringUrl }));
         })
-        .map(async (url) => {
-          try {
-            const colouringUrl = await fetchColouringPage(url);
-            setColouringMap(prev => new Map(prev).set(url, { status: 'done', url: colouringUrl }));
-          } catch {
-            setColouringMap(prev => new Map(prev).set(url, { status: 'error' }));
-          }
-        })
-    );
-  }, [colouringMap]);
-
-  const handleToggle = useCallback(() => {
-    const next = !colouringMode;
-    setColouringMode(next);
-    if (next && story) {
-      const urls: string[] = [];
-      if (story.coverImageUrl) urls.push(story.coverImageUrl);
-      for (const p of pages) if (p.imageUrl) urls.push(p.imageUrl);
-      triggerColouring(urls);
+        .catch(() => {
+          // On error, remove from triggered set so a page refresh can retry
+          triggeredRef.current.delete(url);
+          setColouringMap(prev => new Map(prev).set(url, { status: 'error' }));
+        });
     }
-  }, [colouringMode, story, pages, triggerColouring]);
+  }, [story, pages]);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -254,19 +238,6 @@ export default function StoryView() {
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-base font-bold text-amber-100 truncate">{story.title}</h1>
           </div>
-          {/* Colouring page toggle */}
-          <button
-            onClick={handleToggle}
-            title={colouringMode ? 'Switch to full colour' : 'Switch to colouring page'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border flex-shrink-0 ${
-              colouringMode
-                ? 'bg-white text-gray-800 border-gray-300 shadow-inner'
-                : 'bg-amber-500/15 text-amber-300 border-amber-500/20 hover:bg-amber-500/25'
-            }`}
-          >
-            <Palette className="w-3.5 h-3.5" />
-            {colouringMode ? 'Full colour' : 'Colour me!'}
-          </button>
         </div>
       </div>
 
@@ -281,8 +252,7 @@ export default function StoryView() {
               <A5ImageCard
                 src={story.coverImageUrl}
                 alt={story.title}
-                colouringMode={colouringMode}
-                colouringEntry={story.coverImageUrl ? colouringMap.get(story.coverImageUrl) : undefined}
+                entry={story.coverImageUrl ? colouringMap.get(story.coverImageUrl) : undefined}
               />
             </div>
           </div>
@@ -299,8 +269,7 @@ export default function StoryView() {
                   src={page.imageUrl}
                   alt={`Page ${page.pageNumber} illustration`}
                   label={`Page ${i + 1}`}
-                  colouringMode={colouringMode}
-                  colouringEntry={page.imageUrl ? colouringMap.get(page.imageUrl) : undefined}
+                  entry={page.imageUrl ? colouringMap.get(page.imageUrl) : undefined}
                 />
               ))}
             </div>
