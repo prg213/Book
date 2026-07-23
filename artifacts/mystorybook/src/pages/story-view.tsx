@@ -177,13 +177,7 @@ export default function StoryView() {
         <section>
           <SectionHeading icon={BookOpen} title="Cover" />
           <div className="flex justify-center">
-            {/* Cover is generated as a 1:1 square — display it square so nothing is cropped */}
-            <div className="w-full max-w-[220px] sm:max-w-[260px] rounded-xl overflow-hidden shadow-lg shadow-black/40 border border-white/10 bg-white" style={{ aspectRatio: '1 / 1' }}>
-              {story.coverImageUrl
-                ? <img src={story.coverImageUrl} alt={story.title} className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center bg-amber-50"><BookOpen className="w-12 h-12 text-amber-200" /></div>
-              }
-            </div>
+            <A5ImageCard src={story.coverImageUrl} alt={story.title} />
           </div>
         </section>
 
