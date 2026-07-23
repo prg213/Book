@@ -130,21 +130,19 @@ const COLOURING_PROMPT =
 export async function generateColouringPage(imageBuffer: Buffer): Promise<Buffer> {
   logger.info({ bytes: imageBuffer.length }, "Generating coloring page with Aurora image edit");
 
-  const form = new FormData();
-  form.append("model", "grok-imagine-image");
-  form.append("prompt", COLOURING_PROMPT);
-  form.append("n", "1");
-  form.append("response_format", "b64_json");
-  form.append(
-    "image",
-    new Blob([imageBuffer], { type: "image/png" }),
-    "image.png",
-  );
-
   const resp = await fetch(`${XAI_BASE}/images/edits`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey()}` },
-    body: form,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey()}`,
+    },
+    body: JSON.stringify({
+      model: "grok-imagine-image",
+      prompt: COLOURING_PROMPT,
+      n: 1,
+      response_format: "b64_json",
+      image: imageBuffer.toString("base64"),
+    }),
   });
 
   if (!resp.ok) {
