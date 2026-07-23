@@ -466,10 +466,18 @@ export default function Read() {
 // The AI generates a square (1:1) cover image. We keep the cover face square
 // and size it by the stage height so the full image is always visible uncropped.
 function PortraitCover({ story }: { story: any }) {
+  // In portrait, WIDTH is the limiting dimension.
+  // Stage has p-2 (16px total horizontal padding) + spine is 14px.
+  // Cover face must fit in: 100vw - 16px padding - 14px spine = 100vw - 30px.
+  // Since cover face is square, book height = cover face width = 100vw - 30px.
+  // Cap at 100% of stage height so it never overflows vertically either.
   return (
     <div
-      className="h-full flex"
-      style={{ filter: 'drop-shadow(-4px 10px 28px rgba(0,0,0,0.85))' }}
+      className="flex"
+      style={{
+        height: 'min(calc(100vw - 30px), 100%)',
+        filter: 'drop-shadow(-4px 10px 28px rgba(0,0,0,0.85))',
+      }}
     >
       {/* Spine */}
       <div
@@ -480,7 +488,7 @@ function PortraitCover({ story }: { story: any }) {
           boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
         }}
       />
-      {/* Cover face — square, driven by height so image is never cropped */}
+      {/* Cover face — square, height-driven (height = 100vw - 30px) */}
       <div
         className="relative self-stretch rounded-r-xl overflow-hidden"
         style={{ aspectRatio: '1 / 1' }}
@@ -503,9 +511,9 @@ function PortraitCover({ story }: { story: any }) {
           </div>
         )}
         <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
-          style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.25), transparent)' }} />
+          style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.15), transparent)' }} />
         <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.25), transparent)' }} />
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
       </div>
     </div>
   );
