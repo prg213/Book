@@ -4,6 +4,7 @@ import storiesRouter from "./stories";
 import uploadRouter from "./upload";
 import characterRouter from "./character";
 import colouringRouter from "./colouring";
+import audioRouter from "./audio";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(uploadRouter);
 router.use(characterRouter);
 router.use(storiesRouter);
 router.use(colouringRouter);
+router.use(audioRouter);
 
 export default router;
