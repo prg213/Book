@@ -146,10 +146,11 @@ export default function Read() {
 
       if (Math.abs(swipeDx) > 55 && canGo) {
         if (isCoverLocal && flipDir === 'next') {
-          // Stage 1: fold cover face to 90° while book stays centred
+          // Cover folds (260ms). Fire the book expansion early (at 160ms) so
+          // both phases overlap — the book grows while the cover is still swinging,
+          // giving a continuous book-opening feel rather than two distinct steps.
           setFlipPhase('completing');
           flipTimer.current = setTimeout(() => {
-            // Stage 2: change page then expand book to fill screen
             handleNext();
             resetFlip();
             setCoverExpanding(true);
@@ -157,8 +158,8 @@ export default function Read() {
             setTimeout(() => {
               setCoverExpanding(false);
               setCoverExpandReady(false);
-            }, 440);
-          }, 340);
+            }, 340);
+          }, 160);
         } else {
           // Regular page flip
           setFlipPhase('completing');
@@ -243,21 +244,27 @@ export default function Read() {
       >
         {/* Book content — four states */}
         {isCover ? (
-          /* Stage 0: cover at rest, or Stage 1: cover face folding (centred) */
-          (flipPhase !== 'idle' && flipDir === 'next')
-            ? <LandscapeCoverFolding story={story} firstPage={pages[0] ?? null} flipPhase={flipPhase} swipeDx={swipeDx} />
-            : <LandscapeCover story={story} />
+          /* Cover panel — page 1 is always mounted behind the cover so it is
+             visible the instant the cover begins to move, no remount flash. */
+          <LandscapeCoverPanel
+            story={story}
+            firstPage={pages[0] ?? null}
+            flipPhase={(flipPhase !== 'idle' && flipDir === 'next') ? flipPhase : 'idle'}
+            swipeDx={swipeDx}
+          />
         ) : isEndPage ? (
           <LandscapeEndPage story={story} />
         ) : coverExpanding ? (
-          /* Stage 2: book scales from centred size to full screen */
+          /* Book scales from cover-sized square to full screen while cover is
+             still mid-swing — the two motions overlap for a natural opening. */
           <div style={{
             position: 'absolute', inset: 0,
             transform: coverExpandReady
               ? 'scale(1)'
-              : `scale(${Math.min(0.95, window.innerHeight / window.innerWidth)})`,
+              : `scale(${Math.min(0.92, window.innerHeight / window.innerWidth)})`,
+            opacity: coverExpandReady ? 1 : 0.6,
             transition: coverExpandReady
-              ? 'transform 0.44s cubic-bezier(0.22, 1, 0.36, 1)'
+              ? 'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease-out'
               : 'none',
             transformOrigin: 'center center',
           }}>
@@ -608,33 +615,74 @@ function LandscapeEndPage({ story }: { story: any }) {
   );
 }
 
-// ── Landscape cover: 1:1 square, spine as overlay — exact match to AI image ──
-// No separate spine div so the book shape IS the AI image shape (1:1).
-function LandscapeCover({ story }: { story: any }) {
+// ── Landscape cover panel — unified idle + folding component ─────────────────
+// Page 1 illustration is always rendered as a back layer so it is already in
+// the browser's cache and painted before the user lifts their finger. The
+// cover image rotates around its left edge revealing what was already there.
+function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
+  story: any; firstPage: any; flipPhase: FlipPhase; swipeDx: number;
+}) {
+  const halfWidth = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
+  const rawAngle = flipPhase === 'completing' ? 90
+    : flipPhase === 'reverting' ? 0
+    : flipPhase === 'tracking' ? Math.min(89, (Math.abs(swipeDx) / halfWidth) * 90)
+    : 0; // idle — cover fully closed
+  const animated = flipPhase === 'completing' || flipPhase === 'reverting';
+
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="relative h-full overflow-hidden"
+      {/* Perspective container — 1:1 square, same footprint as the old cover */}
+      <div className="relative h-full"
         style={{
           aspectRatio: '1 / 1',
-          borderRadius: '0 14px 14px 0',
+          perspective: '900px',
+          perspectiveOrigin: 'left center',
           filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))',
         }}>
-        {story.coverImageUrl ? (
-          <img src={story.coverImageUrl} alt={story.title}
-            className="absolute inset-0 w-full h-full"
-            style={{ objectFit: 'cover', objectPosition: 'top center' }}
-            data-testid="img-cover-ls" draggable={false} />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-            <div className="text-center text-amber-200">
-              <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="font-display text-2xl font-bold">{story.title}</p>
-            </div>
+
+        {/* ── Back layer: page 1 — always mounted, never remounted ── */}
+        <div className="absolute inset-0 overflow-hidden"
+          style={{ borderRadius: '0 14px 14px 0', background: '#e0ceaa' }}>
+          <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
+        </div>
+
+        {/* ── Cover — rotates around left edge, hides back-layer at rest ── */}
+        {/* NO overflow-hidden here; that would flatten the 3D transform */}
+        <div className="absolute inset-0"
+          style={{
+            transformOrigin: 'left center',
+            transform: `rotateY(-${rawAngle}deg)`,
+            transition: animated ? 'transform 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+          }}>
+          {/* Inner div handles border-radius + image clipping without collapsing 3D */}
+          <div className="absolute inset-0 overflow-hidden"
+            style={{ borderRadius: '0 14px 14px 0' }}>
+            {story.coverImageUrl ? (
+              <img src={story.coverImageUrl} alt={story.title}
+                className="absolute inset-0 w-full h-full"
+                style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                data-testid="img-cover-ls" draggable={false} />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
+                <div className="text-center text-amber-200">
+                  <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="font-display text-2xl font-bold">{story.title}</p>
+                </div>
+              </div>
+            )}
+            {/* Spine — rotates with cover as part of the 1:1 unit */}
+            <div className="absolute inset-y-0 left-0 pointer-events-none"
+              style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
+            {/* Cover darkens as it swings away from light */}
+            <div className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
+                transition: animated ? 'background 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
+              }} />
           </div>
-        )}
-        {/* Spine — overlay on left edge, no structural width added */}
-        <div className="absolute inset-y-0 left-0 pointer-events-none"
-          style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
+        </div>
       </div>
     </div>
   );
@@ -665,76 +713,6 @@ function PageText({ story, textPage, pageNumber }: { story: any; textPage: any; 
         {textPage?.text?.split('\n').map((para: string, i: number) => (
           <p key={i} className="mb-3">{para}</p>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Cover with fold animation ─────────────────────────────────────────────────
-// 1:1 square matches LandscapeCover exactly. The ENTIRE square (spine overlay
-// included) rotates as one piece around its left edge — no separate spine div.
-// perspective on the container lets the 3D fold project naturally.
-// NO overflow-hidden on the rotating div (would flatten 3D to 2D).
-function LandscapeCoverFolding({ story, firstPage, flipPhase, swipeDx }: any) {
-  const halfWidth = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
-  const rawAngle  = flipPhase === 'completing' ? 90
-    : flipPhase === 'reverting' ? 0
-    : Math.min(89, (Math.abs(swipeDx) / halfWidth) * 90);
-  const animated = flipPhase === 'completing' || flipPhase === 'reverting';
-
-  return (
-    <div className="w-full h-full flex items-center justify-center">
-      {/* 1:1 perspective container — same dimensions as LandscapeCover */}
-      <div className="relative h-full"
-        style={{
-          aspectRatio: '1 / 1',
-          perspective: '900px',
-          perspectiveOrigin: 'left center',
-          filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))',
-        }}>
-
-        {/* Back layer: page 1 illustration, visible as cover opens */}
-        <div className="absolute inset-0 overflow-hidden"
-          style={{ borderRadius: '0 14px 14px 0', background: '#e0ceaa' }}>
-          <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
-        </div>
-
-        {/* Entire cover square rotates around its left edge — NO overflow-hidden */}
-        <div className="absolute inset-0"
-          style={{
-            transformOrigin: 'left center',
-            transform: `rotateY(-${rawAngle}deg)`,
-            transition: animated ? 'transform 0.34s ease-in-out' : 'none',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-          }}>
-          {/* Inner clip: border-radius + image clipping, doesn't affect 3D parent */}
-          <div className="absolute inset-0 overflow-hidden"
-            style={{ borderRadius: '0 14px 14px 0' }}>
-            {story.coverImageUrl ? (
-              <img src={story.coverImageUrl} alt={story.title}
-                className="absolute inset-0 w-full h-full"
-                style={{ objectFit: 'cover', objectPosition: 'top center' }}
-                draggable={false} />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-                <div className="text-center text-amber-200">
-                  <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="font-display text-2xl font-bold">{story.title}</p>
-                </div>
-              </div>
-            )}
-            {/* Spine overlay — rotates with the cover as part of the 1:1 unit */}
-            <div className="absolute inset-y-0 left-0 pointer-events-none"
-              style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
-            {/* Darkens as cover folds away from light */}
-            <div className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
-                transition: animated ? 'background 0.34s ease-in-out' : 'none',
-              }} />
-          </div>
-        </div>
       </div>
     </div>
   );
