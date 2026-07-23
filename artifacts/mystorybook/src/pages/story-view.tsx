@@ -81,18 +81,18 @@ function A5TextCard({
         <p className="text-xs font-medium text-amber-400/70 tracking-wider uppercase">{label}</p>
       )}
       <div
-        className="w-full bg-[#fdf8f0] rounded-xl overflow-hidden shadow-lg shadow-black/40 border border-white/10 flex flex-col"
+        className="w-full bg-white rounded-xl overflow-hidden shadow-lg shadow-black/40 border border-white/10 flex flex-col"
         style={{ aspectRatio: `${148}/${210}` }}
       >
         <div className="px-5 pt-5 pb-2 border-b border-amber-900/10">
-          <p className="text-[10px] text-amber-900/40 tracking-widest uppercase text-center font-medium truncate">
+          <p className="text-[10px] text-black/40 tracking-widest uppercase text-center font-medium truncate">
             {title}
           </p>
         </div>
         <div className="flex-1 px-5 py-4 overflow-hidden flex items-start">
           {text ? (
             <p
-              className="text-amber-950/80 leading-relaxed"
+              className="text-black/80 leading-relaxed"
               style={{
                 fontFamily: "'Georgia', 'Times New Roman', serif",
                 fontSize: 'clamp(9px, 1.8vw, 13px)',
@@ -112,7 +112,7 @@ function A5TextCard({
         </div>
         <div className="px-5 pb-4 flex items-center justify-center">
           <span
-            className="text-amber-900/30"
+            className="text-black/30"
             style={{ fontFamily: "'Georgia', serif", fontSize: 'clamp(9px, 1.6vw, 11px)' }}
           >
             {pageNumber}
