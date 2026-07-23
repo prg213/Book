@@ -1,30 +1,27 @@
 /**
  * A5 PDF download for MyStoryBook.
  *
- * Layout (portrait, 148 × 210 mm):
- *   Cover page  — full-width illustration + title below
- *   Story pages — illustration (top ~53%) + story text (bottom ~47%)
- *
- * For "colouring" style stories the images are already black-and-white line
- * art from the AI, so they are embedded as-is.
- * For "colour" style stories the images are embedded in full colour so the
- * PDF is still a beautiful keepsake; users who want colouring pages should
- * create a Colouring Book story from the start.
+ * Each printable element gets its own A5 page:
+ *   1. Cover illustration  — full-bleed image
+ *   2. Title page          — title + optional subtitle, centred
+ *   3. Per story page:
+ *        a. Illustration page — full-bleed image
+ *        b. Story text page   — text centred on plain page
+ *   4. "The End" page
  */
 
 import jsPDF from 'jspdf';
 
-const A5_W = 148;   // mm
-const A5_H = 210;   // mm
-const MARGIN = 10;  // mm
+const A5_W = 148;  // mm
+const A5_H = 210;  // mm
+const MARGIN = 8;  // mm — used on text-only pages
 
-/** Convert an image URL to a base64 data-URL via an off-screen canvas. */
+/** Convert an image URL to a base64 data-URL. */
 async function urlToBase64(url: string): Promise<string | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
     const blob = await res.blob();
-
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
@@ -34,11 +31,6 @@ async function urlToBase64(url: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-/** Wrap text to fit within `maxWidth` mm at the given font size (jsPDF px≈mm). */
-function wrapText(pdf: jsPDF, text: string, maxWidth: number): string[] {
-  return pdf.splitTextToSize(text, maxWidth);
 }
 
 export async function downloadStoryPdf(story: {
@@ -54,131 +46,146 @@ export async function downloadStoryPdf(story: {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
 
   const isColouring = story.style === 'colouring';
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const bgColour = isColouring ? '#ffffff' : '#fdf6e3';
+  const bgColour    = isColouring ? '#ffffff' : '#fdf6e3';
   const textColour: [number, number, number] = isColouring ? [20, 10, 0] : [58, 31, 6];
+  const accentColour = isColouring ? '#444444' : '#c9a96e';
 
-  function fillBackground(colour: string) {
-    pdf.setFillColor(colour);
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function fillBg() {
+    pdf.setFillColor(bgColour);
     pdf.rect(0, 0, A5_W, A5_H, 'F');
   }
 
-  function drawPageFrame() {
-    // Outer border
-    pdf.setDrawColor(isColouring ? '#444444' : '#c9a96e');
-    pdf.setLineWidth(0.4);
-    pdf.rect(3, 3, A5_W - 6, A5_H - 6, 'S');
-    // Inner decorative border
+  /** Thin double-rule border on text pages. */
+  function drawBorder() {
+    pdf.setDrawColor(accentColour);
+    pdf.setLineWidth(0.5);
+    pdf.rect(4, 4, A5_W - 8, A5_H - 8, 'S');
     pdf.setLineWidth(0.2);
-    pdf.rect(4.5, 4.5, A5_W - 9, A5_H - 9, 'S');
+    pdf.rect(5.5, 5.5, A5_W - 11, A5_H - 11, 'S');
   }
 
-  // ── COVER PAGE ────────────────────────────────────────────────────────────
-  fillBackground(bgColour);
-  drawPageFrame();
+  /** Full-bleed image page — image fills the entire A5 canvas. */
+  async function addImagePage(imageUrl: string | null | undefined, isFirst = false) {
+    if (!isFirst) pdf.addPage('a5', 'portrait');
 
-  // Illustration — square, full inner width
-  const coverImgSize = A5_W - MARGIN * 2; // 128mm
-  const coverImgY    = MARGIN + 4;
+    // White/cream background behind image in case it has transparency
+    pdf.setFillColor('#ffffff');
+    pdf.rect(0, 0, A5_W, A5_H, 'F');
 
-  if (story.coverImageUrl) {
-    const b64 = await urlToBase64(story.coverImageUrl);
-    if (b64) {
-      try {
-        pdf.addImage(b64, 'PNG', MARGIN, coverImgY, coverImgSize, coverImgSize);
-      } catch { /* skip broken image */ }
-    }
-  }
-
-  // Title below image
-  const titleY = coverImgY + coverImgSize + 8;
-
-  pdf.setFont('times', 'bold');
-  pdf.setTextColor(...textColour);
-
-  // Scale title font size down if the title is long
-  const baseFontSize = story.title.length > 30 ? 14 : story.title.length > 20 ? 16 : 20;
-  pdf.setFontSize(baseFontSize);
-  const titleLines = wrapText(pdf, story.title, A5_W - MARGIN * 2 - 4);
-  pdf.text(titleLines, A5_W / 2, titleY, { align: 'center' });
-
-  // Subtitle / mode label
-  if (isColouring) {
-    const subtitleY = titleY + titleLines.length * (baseFontSize * 0.38) + 5;
-    pdf.setFont('helvetica', 'italic');
-    pdf.setFontSize(9);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text('Colouring Book Edition', A5_W / 2, subtitleY, { align: 'center' });
-  }
-
-  // ── STORY PAGES ───────────────────────────────────────────────────────────
-  const sortedPages = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
-
-  // Illustration zone: top portion of page
-  const illus_H = 112; // mm  (~53% of A5 height)
-  const illus_W = A5_W - MARGIN * 2;
-  const illus_X = MARGIN;
-  const illus_Y = MARGIN + 4;
-
-  // Text zone: below illustration
-  const text_Y_start = illus_Y + illus_H + 5;
-  const text_H       = A5_H - text_Y_start - MARGIN - 4; // remaining space
-  const text_W       = A5_W - MARGIN * 2 - 4;
-
-  for (const page of sortedPages) {
-    pdf.addPage('a5', 'portrait');
-    fillBackground(bgColour);
-    drawPageFrame();
-
-    // Illustration
-    if (page.imageUrl) {
-      const b64 = await urlToBase64(page.imageUrl);
+    if (imageUrl) {
+      const b64 = await urlToBase64(imageUrl);
       if (b64) {
         try {
-          pdf.addImage(b64, 'PNG', illus_X, illus_Y, illus_W, illus_H);
-        } catch { /* skip */ }
+          // Fit the image to fill the full page maintaining aspect ratio
+          pdf.addImage(b64, 'PNG', 0, 0, A5_W, A5_H, undefined, 'FAST');
+        } catch { /* skip broken image */ }
       }
     }
-
-    // Decorative separator line between illustration and text
-    pdf.setDrawColor(isColouring ? '#888888' : '#c9a96e');
-    pdf.setLineWidth(0.3);
-    const sepY = illus_Y + illus_H + 2;
-    pdf.line(MARGIN + 4, sepY, A5_W - MARGIN - 4, sepY);
-
-    // Story text
-    if (page.text) {
-      pdf.setFont('times', 'normal');
-      pdf.setFontSize(11);
-      pdf.setTextColor(...textColour);
-      const lines = wrapText(pdf, page.text, text_W);
-
-      // Centre the text block vertically in the remaining space
-      const lineH     = 5.5; // mm per line at 11pt
-      const blockH    = lines.length * lineH;
-      const textStartY = text_Y_start + Math.max(0, (text_H - blockH) / 2);
-      pdf.text(lines, A5_W / 2, textStartY, { align: 'center', lineHeightFactor: 1.4 });
-    }
-
-    // Page number — bottom right
-    pdf.setFont('times', 'italic');
-    pdf.setFontSize(8);
-    pdf.setTextColor(150, 130, 100);
-    pdf.text(String(page.pageNumber), A5_W - MARGIN - 2, A5_H - MARGIN, { align: 'right' });
   }
 
-  // ── THE END page ──────────────────────────────────────────────────────────
+  /** Text-only page with decorative border. */
+  function addTextPage(lines: string[], fontSize: number, fontStyle: string, isFirst = false) {
+    if (!isFirst) pdf.addPage('a5', 'portrait');
+    fillBg();
+    drawBorder();
+
+    pdf.setFont('times', fontStyle);
+    pdf.setFontSize(fontSize);
+    pdf.setTextColor(...textColour);
+
+    // Vertically centre the text block
+    const lineH    = fontSize * 0.38; // mm per line (jsPDF internal scale)
+    const blockH   = lines.length * lineH * 1.4;
+    const startY   = (A5_H - blockH) / 2 + lineH;
+
+    pdf.text(lines, A5_W / 2, startY, { align: 'center', lineHeightFactor: 1.5 });
+  }
+
+  /** Small page-number label bottom-right, on text pages only. */
+  function addPageNumber(n: number) {
+    pdf.setFont('times', 'italic');
+    pdf.setFontSize(8);
+    pdf.setTextColor(160, 140, 110);
+    pdf.text(String(n), A5_W - MARGIN - 1, A5_H - MARGIN + 1, { align: 'right' });
+  }
+
+  // ── 1. COVER ILLUSTRATION ─────────────────────────────────────────────────
+  await addImagePage(story.coverImageUrl, /* isFirst */ true);
+
+  // ── 2. TITLE PAGE ─────────────────────────────────────────────────────────
   pdf.addPage('a5', 'portrait');
-  fillBackground(bgColour);
-  drawPageFrame();
-  pdf.setFont('times', 'bolditalic');
-  pdf.setFontSize(28);
+  fillBg();
+  drawBorder();
+
+  const titleFontSize = story.title.length > 30 ? 16 : story.title.length > 20 ? 20 : 24;
+  const titleLines    = pdf.setFont('times', 'bold').setFontSize(titleFontSize)
+                           .splitTextToSize(story.title, A5_W - MARGIN * 2 - 8);
+
+  const titleBlockH   = titleLines.length * (titleFontSize * 0.38) * 1.5;
+  const titleY        = isColouring
+    ? A5_H / 2 - titleBlockH / 2 - 6
+    : A5_H / 2 - titleBlockH / 2 - 6;
+
   pdf.setTextColor(...textColour);
-  pdf.text('The End', A5_W / 2, A5_H / 2, { align: 'center' });
+  pdf.text(titleLines, A5_W / 2, titleY, { align: 'center', lineHeightFactor: 1.5 });
+
+  if (isColouring) {
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(10);
+    pdf.setTextColor(120, 120, 120);
+    pdf.text('Colouring Book Edition', A5_W / 2, titleY + titleBlockH + 10, { align: 'center' });
+  }
+
+  // Decorative rule under title
+  pdf.setDrawColor(accentColour);
+  pdf.setLineWidth(0.4);
+  const ruleY = titleY + titleBlockH + (isColouring ? 18 : 6);
+  pdf.line(A5_W / 2 - 24, ruleY, A5_W / 2 + 24, ruleY);
+
+  // ── 3. STORY PAGES — illustration then text, each on its own A5 ───────────
+  const sortedPages = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
+
+  for (const page of sortedPages) {
+    // 3a. Illustration page
+    await addImagePage(page.imageUrl);
+
+    // 3b. Text page
+    const rawText = (page.text ?? '').trim();
+    if (rawText) {
+      pdf.addPage('a5', 'portrait');
+      fillBg();
+      drawBorder();
+
+      const storyFontSize = 13;
+      pdf.setFont('times', 'normal').setFontSize(storyFontSize);
+      const storyLines = pdf.splitTextToSize(rawText, A5_W - MARGIN * 2 - 10);
+
+      const lineH   = storyFontSize * 0.38;
+      const blockH  = storyLines.length * lineH * 1.5;
+      const startY  = (A5_H - blockH) / 2 + lineH;
+
+      pdf.setTextColor(...textColour);
+      pdf.text(storyLines, A5_W / 2, startY, { align: 'center', lineHeightFactor: 1.5 });
+
+      addPageNumber(page.pageNumber);
+    }
+  }
+
+  // ── 4. THE END ────────────────────────────────────────────────────────────
+  pdf.addPage('a5', 'portrait');
+  fillBg();
+  drawBorder();
+
+  pdf.setFont('times', 'bolditalic');
+  pdf.setFontSize(32);
+  pdf.setTextColor(...textColour);
+  pdf.text('The End', A5_W / 2, A5_H / 2 - 4, { align: 'center' });
+
   pdf.setFont('times', 'italic');
   pdf.setFontSize(10);
-  pdf.setTextColor(150, 130, 100);
+  pdf.setTextColor(160, 140, 110);
   pdf.text(story.title, A5_W / 2, A5_H / 2 + 12, { align: 'center' });
 
   // ── Save ─────────────────────────────────────────────────────────────────
