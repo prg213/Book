@@ -128,29 +128,37 @@ function derivePoseFromScene(imagePrompt: string, pageIndex: number): string {
 }
 
 // ── Colouring book prompts ────────────────────────────────────────────────────
-/** Colouring book cover — clean line art with title, no colour fills */
+/**
+ * Strip colour language from a character description so Aurora doesn't
+ * render a realistic coloured render. Keeps shape/proportion info only.
+ */
+function stripColourFromDesc(desc: string): string {
+  return desc
+    .replace(/\b(blonde?|brunette|auburn|red|black|brown|grey|gray|white|golden|silver|chestnut|dark|light|fair|olive|tan|pale|pink|rosy|blue|green|hazel|amber|violet|purple|orange|yellow|teal|cyan|magenta|beige|cream|ivory|copper|strawberry|platinum)\b/gi, "")
+    .replace(/\b(colour|color|hue|shade|tint|tone)\b/gi, "")
+    .replace(/  +/g, " ")
+    .trim();
+}
+
+/** Colouring book cover — clean line art, white background */
 function buildColouringCoverPrompt(
   story: typeof storiesTable.$inferSelect,
   characterDesc: string,
 ): string {
   const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
-  const outfitNote = story.outfit ? `The character wears: ${story.outfit} (describe as outlines only).` : "";
-  return `Create a children's COLOURING BOOK COVER page — thick clean black outlines on pure white background. NO colour fills of any kind. NO shading. NO gradients. Every area must be pure white waiting to be coloured in. Bold, simple, joyful line art style suitable for children to colour.
+  const shapeDesc = stripColourFromDesc(characterDesc);
+  const outfitLine = story.outfit
+    ? `wearing ${story.outfit.replace(/\b(red|blue|green|yellow|purple|pink|orange|black|white|grey|gray|brown|gold|silver)\b/gi, "").trim()}`
+    : "";
 
-MAIN CHARACTER (prominently centred, full body visible): ${story.characterName}
-APPEARANCE OUTLINES: ${characterDesc}
-${outfitNote}
+  return `children's coloring book cover, black and white line art only, thick bold black outlines, pure white background, flat 2D cartoon, no shading, no gray tones, no color fills, no shadows, no gradients, no photorealism, no 3D rendering
 
-CHARACTER STYLE: Chibi / cartoon proportions — oversized head, small round body, large expressive eyes drawn as outlines only. Simple clean strokes. No cross-hatching, no fill, no grey tones — only black outlines on white.
+A cute chibi cartoon child character named ${story.characterName} standing prominently in the centre of a ${effectiveTheme} scene, full body visible, ${shapeDesc} ${outfitLine}. Fun ${effectiveTheme} setting — simple outline drawings of trees, objects, and scenery all around. Large bold title text "${story.title}" written at the very top of the image in thick outlined letters.
 
-SCENE: ${effectiveTheme} adventure setting rendered as thick outline illustration — trees, sky, ground, objects all drawn as clean outlines only. Richly detailed but in pure line art.
-
-TITLE TEXT: The book title "${story.title}" appears prominently at the TOP in large bold decorative children's book lettering — outlined text (no fill). Centred horizontally.
-
-COMPOSITION: Square 1:1 aspect ratio. Fills canvas completely edge-to-edge. Pure white background throughout. Professional children's colouring book quality. No logos, watermarks, or colour of any kind — only black lines on white.`;
+STYLE: professional children's coloring book page, every area pure white ready to be colored in, bold black outlines only, simple joyful cartoon illustration suitable for young children`;
 }
 
-/** Colouring book page — line art scene with character, no colour fills */
+/** Colouring book page — line art scene, white background */
 function buildColouringPagePrompt(
   story: typeof storiesTable.$inferSelect,
   page: { text: string; image_prompt: string },
@@ -159,26 +167,21 @@ function buildColouringPagePrompt(
 ): string {
   const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
   const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
-  const outfitNote = story.outfit ? `The character wears: ${story.outfit} (as outlines only).` : "";
-  return `Create a children's COLOURING BOOK PAGE — thick clean black outlines on pure white background. NO colour fills of any kind. NO shading. NO gradients. Every area must be pure white waiting to be coloured in. Bold, simple, joyful line art style.
+  const shapeDesc = stripColourFromDesc(characterDesc);
+  const outfitLine = story.outfit
+    ? `wearing ${story.outfit.replace(/\b(red|blue|green|yellow|purple|pink|orange|black|white|grey|gray|brown|gold|silver)\b/gi, "").trim()}`
+    : "";
 
-SCENE: ${page.image_prompt}
+  // Boil the image_prompt down to a short action description
+  const sceneAction = page.image_prompt.length > 200
+    ? page.image_prompt.slice(0, 200)
+    : page.image_prompt;
 
-MAIN CHARACTER — MUST APPEAR IN THIS SCENE: ${story.characterName}
-APPEARANCE OUTLINES: ${characterDesc}
-${outfitNote}
+  return `children's coloring book page, black and white line art only, thick bold black outlines, pure white background, flat 2D cartoon, no shading, no gray tones, no color fills, no shadows, no gradients, no photorealism, no 3D rendering
 
-CHARACTER STYLE: Chibi / cartoon proportions. Simple clean outlines only — no cross-hatching, no fill, no grey tones.
+A cute chibi cartoon child named ${story.characterName} (${shapeDesc} ${outfitLine}, ${poseInstruction}) in a ${effectiveTheme} scene: ${sceneAction}. Simple outline drawings of the setting around the character.
 
-CHARACTER POSE FOR THIS PAGE: ${poseInstruction}
-
-${ANATOMY_RULE}
-
-SETTING: ${effectiveTheme} adventure scene rendered as detailed outline illustration — all objects, background, and setting drawn as clean thick outlines on pure white. Richly detailed line art.
-
-CRITICAL — NO TEXT WHATSOEVER: No letters, words, numbers, speech bubbles, or any written characters anywhere.
-
-COMPOSITION: Square 1:1 aspect ratio. Fills canvas completely edge-to-edge. Pure white background throughout. Professional children's colouring book quality — only black lines on white.`;
+STYLE: professional children's coloring book page, every area pure white ready to be colored in, bold black outlines only, simple joyful cartoon illustration. No letters, words, or text anywhere in the image.`;
 }
 
 /** Cover prompt — character prominently in center with title text */
