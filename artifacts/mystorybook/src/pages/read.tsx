@@ -1,8 +1,83 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid, Mic, Square, Play, Pause } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
+
+// ── Audio hook — record + playback per page ───────────────────────────────────
+function usePageAudio(storyId: string, audioKey: string) {
+  const [hasRecording, setHasRecording] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const mrRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const base = `${import.meta.env.BASE_URL}api/audio/${storyId}`;
+
+  // When key changes: stop everything, check server for existing recording
+  useEffect(() => {
+    // Stop active recording
+    if (mrRef.current && mrRef.current.state !== 'inactive') {
+      mrRef.current.stop();
+    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setIsRecording(false);
+    // Stop playback
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+    setIsPlaying(false);
+
+    fetch(`${base}/${audioKey}`, { method: 'HEAD' })
+      .then(r => setHasRecording(r.ok))
+      .catch(() => setHasRecording(false));
+  }, [base, audioKey]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mrRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        setIsRecording(false);
+        try {
+          const r = await fetch(`${base}/${audioKey}`, {
+            method: 'POST', headers: { 'Content-Type': blob.type }, body: blob,
+          });
+          if (r.ok) setHasRecording(true);
+        } catch { /* ignore */ }
+      };
+      mr.start(250);
+      setIsRecording(true);
+    } catch {
+      alert('Microphone access needed. Please allow it in your browser settings.');
+    }
+  }, [base, audioKey]);
+
+  const stopRecording = useCallback(() => {
+    mrRef.current?.stop();
+  }, []);
+
+  const togglePlay = useCallback(() => {
+    if (!audioRef.current) audioRef.current = new Audio();
+    const a = audioRef.current;
+    if (isPlaying) {
+      a.pause();
+      setIsPlaying(false);
+    } else {
+      a.src = `${base}/${audioKey}?t=${Date.now()}`;
+      a.onended = () => setIsPlaying(false);
+      a.play().then(() => setIsPlaying(true)).catch(() => {});
+    }
+  }, [base, audioKey, isPlaying]);
+
+  return { hasRecording, isRecording, isPlaying, startRecording, stopRecording, togglePlay };
+}
 
 function useIsLandscape() {
   // innerWidth > innerHeight is the ground truth — it reflects the actual
@@ -60,6 +135,15 @@ export default function Read() {
   const story = storyData?.story;
   const pages = storyData?.pages || [];
   const totalPages = pages.length;
+
+  // Audio: key changes per page so the hook resets automatically
+  const audioKey = currentPage === -1
+    ? 'cover'
+    : currentPage >= pages.length
+      ? 'end'
+      : `page-${currentPage + 1}`;
+  const { hasRecording, isRecording, isPlaying, startRecording, stopRecording, togglePlay } =
+    usePageAudio(storyId, audioKey);
   const handleNext = useCallback(() => {
     setCurrentPage(p => (p < totalPages ? p + 1 : p));
   }, [totalPages]);
@@ -329,7 +413,7 @@ export default function Read() {
           </div>
 
 
-          {/* Bottom centre: page dots + prev/next */}
+          {/* Bottom centre: page dots + prev/next + audio */}
           <div
             className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-2xl pointer-events-auto"
             style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.15)' }}
@@ -367,6 +451,37 @@ export default function Read() {
                 style={{ width: isEndPage ? '18px' : '7px', height: '7px', background: isEndPage ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
               />
             </div>
+
+            {/* Audio — record + play */}
+            {!isEndPage && (
+              <>
+                <div style={{ width: '1px', height: '20px', background: 'rgba(245,201,122,0.2)', margin: '0 2px' }} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                  style={{
+                    background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.15)',
+                    border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.3)',
+                  }}
+                  title={isRecording ? 'Stop recording' : 'Record narration'}
+                >
+                  {isRecording
+                    ? <Square className="w-3 h-3 text-white fill-white" />
+                    : <Mic className="w-3.5 h-3.5" style={{ color: '#f5c97a' }} />}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                  disabled={!hasRecording}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
+                  style={{ background: 'rgba(245,201,122,0.15)', border: '1px solid rgba(245,201,122,0.3)' }}
+                  title={isPlaying ? 'Pause' : 'Play narration'}
+                >
+                  {isPlaying
+                    ? <Pause className="w-3 h-3" style={{ color: '#f5c97a' }} />
+                    : <Play className="w-3 h-3 ml-0.5" style={{ color: '#f5c97a' }} />}
+                </button>
+              </>
+            )}
 
             <button
               onClick={(e) => { e.stopPropagation(); handleNext(); showOverlay(); }}
@@ -447,6 +562,41 @@ export default function Read() {
           <OpenBookPortrait story={story} page={currentPageData} pageNumber={currentPage + 1} totalPages={totalPages} />
         )}
       </div>
+
+      {/* Audio controls */}
+      {!isEndPage && (
+        <div className="flex-shrink-0 flex items-center justify-center gap-3 pb-1">
+          {/* Record / Stop */}
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+            style={{
+              background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.12)',
+              border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.25)',
+            }}
+            title={isRecording ? 'Stop recording' : 'Record narration'}
+          >
+            {isRecording
+              ? <Square className="w-4 h-4 text-white fill-white" />
+              : <Mic className="w-4 h-4" style={{ color: '#f5c97a' }} />}
+          </button>
+          {/* Play / Pause */}
+          <button
+            onClick={togglePlay}
+            disabled={!hasRecording}
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-25"
+            style={{
+              background: hasRecording ? 'rgba(245,201,122,0.12)' : 'transparent',
+              border: '1px solid rgba(245,201,122,0.25)',
+            }}
+            title={isPlaying ? 'Pause' : 'Play narration'}
+          >
+            {isPlaying
+              ? <Pause className="w-4 h-4" style={{ color: '#f5c97a' }} />
+              : <Play className="w-4 h-4 ml-0.5" style={{ color: '#f5c97a' }} />}
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex-shrink-0 px-3 pb-3 pt-1">
