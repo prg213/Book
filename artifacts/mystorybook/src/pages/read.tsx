@@ -92,6 +92,21 @@ export default function Read() {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleNext, handlePrev]);
 
+  // ── Preload adjacent page illustrations ───────────────────────────────────
+  // Fetch the next 2 and previous 1 page images into the browser cache so
+  // they are ready the instant the user swipes — eliminates the blank flash.
+  useEffect(() => {
+    if (!pages.length) return;
+    const indices = [currentPage + 1, currentPage + 2, currentPage - 1];
+    indices.forEach(i => {
+      const url = i >= 0 && i < totalPages ? pages[i]?.imageUrl : null;
+      if (url) {
+        const img = new window.Image();
+        img.src = url;
+      }
+    });
+  }, [currentPage, pages, totalPages]);
+
   const onTouchStart = (e: React.TouchEvent) => {
     if (flipPhase !== 'idle' || coverExpanding) return; // ignore during animation
     touchStartX.current = e.touches[0].clientX;
