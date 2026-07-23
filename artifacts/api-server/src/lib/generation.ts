@@ -48,18 +48,68 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
   }
 }
 
-async function saveImage(buf: Buffer, subdir: string): Promise<string> {
+/**
+ * Convert a colour 3D-render to coloring-book line art.
+ *
+ * Pipeline: grayscale → blur (denoise) → edge detect → negate (black lines on
+ * white) → auto-level → threshold to pure B&W → morphology erode (thicker lines).
+ *
+ * The -edge operator computes a Laplacian, producing bright pixels at contrast
+ * boundaries and black elsewhere. After -negate we get dark lines on white.
+ * Eroding the white background enlarges the black lines to a printable thickness.
+ */
+async function convertToLineArt(buf: Buffer): Promise<Buffer> {
+  const tmp = `/tmp/la-in-${Date.now()}.png`;
+  const out = `/tmp/la-out-${Date.now()}.png`;
+  try {
+    await writeFile(tmp, buf);
+    await execFileAsync("magick", [
+      tmp,
+      "-colorspace", "gray",
+      "-blur", "0x1.5",          // denoise — removes 3D render texture speckles
+      "-edge", "2",              // Laplacian edge detect → bright edges, black flat areas
+      "-negate",                 // → dark edges on white background
+      "-auto-level",             // normalise so faint edges don't disappear
+      "-threshold", "80%",       // pure B&W — strong edges only, kills noise
+      "-morphology", "Erode", "disk:1.5",  // erode white → thicker black lines
+      out,
+    ]);
+    const { readFile, unlink } = await import("fs/promises");
+    const result = await readFile(out);
+    await Promise.all([unlink(tmp).catch(() => {}), unlink(out).catch(() => {})]);
+    return result;
+  } catch (err) {
+    logger.warn({ err }, "convertToLineArt failed — falling back to greyscale");
+    const { readFile, unlink } = await import("fs/promises");
+    try {
+      const out2 = `/tmp/la-gs-${Date.now()}.png`;
+      await execFileAsync("magick", [tmp, "-colorspace", "gray", out2]);
+      const result = await readFile(out2);
+      await Promise.all([unlink(tmp).catch(() => {}), unlink(out2).catch(() => {})]);
+      return result;
+    } catch {
+      await unlink(tmp).catch(() => {});
+      return buf;
+    }
+  }
+}
+
+async function saveImage(buf: Buffer, subdir: string, toLineArt = false): Promise<string> {
   const dir = path.join(uploadsDir, subdir);
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
   const fullPath = path.join(dir, filename);
-  // Covers → trim white + crop to 1:1 square
-  // Characters/pages → trim only, preserve natural ratio
+
+  // For colouring stories, convert the 3D render to line art first.
+  const working = toLineArt ? await convertToLineArt(buf) : buf;
+
+  // Covers → trim + square-crop; characters/pages → trim only.
   const processed = subdir === "covers"
-    ? await processImage(buf, true)
+    ? await processImage(working, true)
     : (subdir === "characters" || subdir === "pages")
-      ? await processImage(buf, false)
-      : buf;
+      ? await processImage(working, false)
+      : working;
+
   await writeFile(fullPath, processed);
   return path.join(subdir, filename);
 }
@@ -125,55 +175,6 @@ function derivePoseFromScene(imagePrompt: string, pageIndex: number): string {
     "turned three-quarters away then glancing back over shoulder with a playful grin, one arm relaxed at side",
   ];
   return fallbacks[pageIndex % fallbacks.length];
-}
-
-// ── Colouring-book prompts — generate line art directly ───────────────────────
-// Style target: clean black outlines on pure white, like a professional printed
-// children's colouring book — NOT a 3D render, NOT post-processed.
-
-/** Colouring-book cover — line art generated directly by Aurora */
-function buildColouringCoverPrompt(
-  story: typeof storiesTable.$inferSelect,
-  characterDesc: string,
-): string {
-  const effectiveTheme = story.theme === "custom" && story.customTheme
-    ? story.customTheme : story.theme;
-  const outfitLine = story.outfit
-    ? `wearing ${story.outfit}`
-    : "";
-  return `children's coloring book cover illustration, black and white line art, thick clean black outlines, pure white background, no color, no shading, no gray tones, no gradients, no shadows, professional printable coloring book quality, every area white and ready to be colored in
-
-MAIN CHARACTER (full body, prominently centered): ${story.characterName} — ${characterDesc} ${outfitLine}. Friendly expression, standing upright, both arms visible.
-
-SCENE: Rich detailed ${effectiveTheme} adventure setting all around the character — plants, objects, animals, scenery, all drawn as clean bold outlines on white. The scene fills the entire background edge to edge.
-
-TITLE TEXT: The text "${story.title}" in large bold decorative outlined letters across the top of the image, no fill, black outline only.
-
-STYLE: Exactly like a professional children's coloring book page — bold outlines, no fill, no gray, pure white background, suitable for printing and coloring in. Cartoon illustration style, detailed scene, clean lines.`;
-}
-
-/** Colouring-book page — line art generated directly by Aurora */
-function buildColouringPagePrompt(
-  story: typeof storiesTable.$inferSelect,
-  page: { text: string; image_prompt: string },
-  characterDesc: string,
-  pageIndex: number,
-): string {
-  const effectiveTheme = story.theme === "custom" && story.customTheme
-    ? story.customTheme : story.theme;
-  const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
-  const outfitLine = story.outfit ? `wearing ${story.outfit}` : "";
-  return `children's coloring book page illustration, black and white line art, thick clean black outlines, pure white background, no color, no shading, no gray tones, no gradients, no shadows, professional printable coloring book quality, every area white and ready to be colored in
-
-SCENE: ${page.image_prompt}
-
-MAIN CHARACTER (full body visible, active in the scene): ${story.characterName} — ${characterDesc} ${outfitLine}. Pose: ${poseInstruction}.
-
-SETTING: Detailed ${effectiveTheme} environment drawn as bold clean outlines — all objects, plants, ground, sky rendered as outline drawings on white.
-
-${ANATOMY_RULE}
-
-STYLE: Exactly like a professional children's coloring book page — bold outlines, no fill, no gray, pure white background. Cartoon illustration style. No text, letters, numbers, or speech bubbles anywhere.`;
 }
 
 /** Cover prompt — character prominently in center with title text */
@@ -392,14 +393,15 @@ Respond ONLY with a JSON object:
 
     await updateStory(storyId, { generationProgress: 50, generationStatusMessage: "Story written! Creating cover art..." });
 
-    // Step 4: Generate cover image
+    // Step 4: Generate cover image.
+    // Colouring-book stories use the same 3D Pixar prompts as colour stories for
+    // character consistency — the render is then post-processed to line art by
+    // convertToLineArt() inside saveImage().
     const isColouring = story.style === 'colouring';
-    const coverPrompt = isColouring
-      ? buildColouringCoverPrompt(story, characterDesc)
-      : buildCoverPrompt(story, characterDesc, character2Desc);
+    const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc);
     try {
       const coverBuf = await generateImage(coverPrompt);
-      const coverImagePath = await saveImage(coverBuf, "covers");
+      const coverImagePath = await saveImage(coverBuf, "covers", isColouring);
       await updateStory(storyId, { coverImagePath });
       logger.info({ storyId }, "Cover image generated");
     } catch (e) {
@@ -420,11 +422,9 @@ Respond ONLY with a JSON object:
 
       let imagePath: string | undefined;
       try {
-        const pagePrompt = isColouring
-          ? buildColouringPagePrompt(story, page, characterDesc, i)
-          : buildPagePrompt(story, page, characterDesc, i, character2Desc);
+        const pagePrompt = buildPagePrompt(story, page, characterDesc, i, character2Desc);
         const imgBuf = await generateImage(pagePrompt);
-        imagePath = await saveImage(imgBuf, "pages");
+        imagePath = await saveImage(imgBuf, "pages", isColouring);
         logger.info({ storyId, pageNumber: page.page_number }, "Page image generated");
       } catch (e) {
         logger.warn({ storyId, pageNumber: page.page_number, err: e }, "Page image failed");
