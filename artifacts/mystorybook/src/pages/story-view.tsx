@@ -1,11 +1,25 @@
+import { useState } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { ArrowLeft, BookOpen, Image, AlignLeft } from 'lucide-react';
+import { ArrowLeft, BookOpen, Image, AlignLeft, Palette } from 'lucide-react';
 
 // A5 aspect ratio: 148mm × 210mm → height = width × (210/148) ≈ 1.4189
 const A5_RATIO = 210 / 148;
 
-function A5ImageCard({ src, alt, label }: { src?: string | null; alt: string; label?: string }) {
+// CSS filter that turns a full-colour image into a colouring-page look
+const COLOURING_FILTER = 'grayscale(1) contrast(2.8) brightness(1.25) saturate(0)';
+
+function A5ImageCard({
+  src,
+  alt,
+  label,
+  colouring = false,
+}: {
+  src?: string | null;
+  alt: string;
+  label?: string;
+  colouring?: boolean;
+}) {
   return (
     <div className="flex flex-col gap-2">
       {label && (
@@ -16,7 +30,12 @@ function A5ImageCard({ src, alt, label }: { src?: string | null; alt: string; la
         style={{ aspectRatio: `${148}/${210}` }}
       >
         {src ? (
-          <img src={src} alt={alt} className="w-full h-full object-cover" />
+          <img
+            src={src}
+            alt={alt}
+            className="w-full h-full object-cover transition-[filter] duration-500"
+            style={{ filter: colouring ? COLOURING_FILTER : 'none' }}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-amber-50">
             <Image className="w-12 h-12 text-amber-200" />
@@ -110,6 +129,7 @@ function SectionHeading({ icon: Icon, title, count }: { icon: React.ElementType;
 export default function StoryView() {
   const params = new URLSearchParams(window.location.search);
   const storyId = params.get('storyId') || '';
+  const [colouring, setColouring] = useState(false);
 
   const { data: storyData, isLoading, isError } = useGetStoryForReading(storyId, {
     query: {
@@ -167,6 +187,19 @@ export default function StoryView() {
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-base font-bold text-amber-100 truncate">{story.title}</h1>
           </div>
+          {/* Colouring page toggle */}
+          <button
+            onClick={() => setColouring(c => !c)}
+            title={colouring ? 'Switch to full colour' : 'Switch to colouring page'}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border ${
+              colouring
+                ? 'bg-white text-gray-800 border-gray-300 shadow-inner'
+                : 'bg-amber-500/15 text-amber-300 border-amber-500/20 hover:bg-amber-500/25'
+            }`}
+          >
+            <Palette className="w-3.5 h-3.5" />
+            {colouring ? 'Full colour' : 'Colour me!'}
+          </button>
         </div>
       </div>
 
@@ -177,7 +210,7 @@ export default function StoryView() {
         <section>
           <SectionHeading icon={BookOpen} title="Cover" />
           <div className="flex justify-center">
-            <A5ImageCard src={story.coverImageUrl} alt={story.title} />
+            <A5ImageCard src={story.coverImageUrl} alt={story.title} colouring={colouring} />
           </div>
         </section>
 
@@ -192,6 +225,7 @@ export default function StoryView() {
                   src={page.imageUrl}
                   alt={`Page ${page.pageNumber} illustration`}
                   label={`Page ${i + 1}`}
+                  colouring={colouring}
                 />
               ))}
             </div>
