@@ -240,7 +240,7 @@ export default function Read() {
             position: 'absolute', inset: 0,
             transform: coverExpandReady
               ? 'scale(1)'
-              : `scale(${Math.min(0.95, (window.innerHeight + 14) / window.innerWidth)})`,
+              : `scale(${Math.min(0.95, window.innerHeight / window.innerWidth)})`,
             transition: coverExpandReady
               ? 'transform 0.44s cubic-bezier(0.22, 1, 0.36, 1)'
               : 'none',
@@ -604,36 +604,33 @@ function LandscapeEndPage({ story }: { story: any }) {
   );
 }
 
-// ── Landscape cover: spine + square face (matches folding animation layout) ───
+// ── Landscape cover: 1:1 square, spine as overlay — exact match to AI image ──
+// No separate spine div so the book shape IS the AI image shape (1:1).
 function LandscapeCover({ story }: { story: any }) {
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="flex h-full"
-        style={{ filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))' }}>
-        {/* Spine */}
-        <div className="flex-shrink-0 self-stretch rounded-l"
-          style={{
-            width: '14px',
-            background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
-            boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
-          }} />
-        {/* Cover face — square, height-driven so AI image fills without cropping */}
-        <div className="relative self-stretch rounded-r-xl overflow-hidden"
-          style={{ aspectRatio: '1 / 1' }}>
-          {story.coverImageUrl ? (
-            <img src={story.coverImageUrl} alt={story.title}
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'cover', objectPosition: 'top center' }}
-              data-testid="img-cover-ls" draggable={false} />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-              <div className="text-center text-amber-200">
-                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="font-display text-2xl font-bold">{story.title}</p>
-              </div>
+      <div className="relative h-full overflow-hidden"
+        style={{
+          aspectRatio: '1 / 1',
+          borderRadius: '0 14px 14px 0',
+          filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))',
+        }}>
+        {story.coverImageUrl ? (
+          <img src={story.coverImageUrl} alt={story.title}
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: 'cover', objectPosition: 'top center' }}
+            data-testid="img-cover-ls" draggable={false} />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
+            <div className="text-center text-amber-200">
+              <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="font-display text-2xl font-bold">{story.title}</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+        {/* Spine — overlay on left edge, no structural width added */}
+        <div className="absolute inset-y-0 left-0 pointer-events-none"
+          style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
       </div>
     </div>
   );
@@ -670,10 +667,10 @@ function PageText({ story, textPage, pageNumber }: { story: any; textPage: any; 
 }
 
 // ── Cover with fold animation ─────────────────────────────────────────────────
-// Spine stays FIXED. The entire cover face rotates as ONE piece around the spine
-// hinge (left edge). perspective is set on the face container (not inline on the
-// transform) so the 3D fold projects naturally. The face container has NO
-// overflow-hidden — that would flatten the 3D into 2D. Each layer clips itself.
+// 1:1 square matches LandscapeCover exactly. The ENTIRE square (spine overlay
+// included) rotates as one piece around its left edge — no separate spine div.
+// perspective on the container lets the 3D fold project naturally.
+// NO overflow-hidden on the rotating div (would flatten 3D to 2D).
 function LandscapeCoverFolding({ story, firstPage, flipPhase, swipeDx }: any) {
   const halfWidth = typeof window !== 'undefined' ? window.innerWidth / 2 : 400;
   const rawAngle  = flipPhase === 'completing' ? 90
@@ -683,66 +680,57 @@ function LandscapeCoverFolding({ story, firstPage, flipPhase, swipeDx }: any) {
 
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="flex h-full"
-        style={{ filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))' }}>
+      {/* 1:1 perspective container — same dimensions as LandscapeCover */}
+      <div className="relative h-full"
+        style={{
+          aspectRatio: '1 / 1',
+          perspective: '900px',
+          perspectiveOrigin: 'left center',
+          filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))',
+        }}>
 
-        {/* Spine — stays fixed while the cover face folds open, like a real book */}
-        <div className="flex-shrink-0 self-stretch rounded-l"
-          style={{
-            width: '14px',
-            background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
-            boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
-          }} />
-
-        {/* Face container — perspective lives here, NO overflow-hidden so 3D is free */}
-        <div className="relative self-stretch"
-          style={{
-            aspectRatio: '1 / 1',
-            perspective: '900px',
-            perspectiveOrigin: 'left center',
-          }}>
-
-          {/* Back layer: page 1 illustration, revealed as cover opens */}
-          <div className="absolute inset-0 rounded-r-xl overflow-hidden"
-            style={{ background: '#e0ceaa' }}>
-            <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
-          </div>
-
-          {/* Cover face — rotates as one unit around its left edge (spine hinge) */}
-          {/* NO overflow-hidden here — that would collapse the 3D perspective to 2D */}
-          <div className="absolute inset-0"
-            style={{
-              transformOrigin: 'left center',
-              transform: `rotateY(-${rawAngle}deg)`,
-              transition: animated ? 'transform 0.34s ease-in-out' : 'none',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-            }}>
-            {/* Inner clip — rounded corner + image clipping without breaking 3D parent */}
-            <div className="absolute inset-0 rounded-r-xl overflow-hidden">
-              {story.coverImageUrl ? (
-                <img src={story.coverImageUrl} alt={story.title}
-                  className="absolute inset-0 w-full h-full"
-                  style={{ objectFit: 'cover', objectPosition: 'top center' }}
-                  draggable={false} />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-                  <div className="text-center text-amber-200">
-                    <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="font-display text-2xl font-bold">{story.title}</p>
-                  </div>
-                </div>
-              )}
-              {/* Cover darkens as it folds away — simulates turning away from light */}
-              <div className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
-                  transition: animated ? 'background 0.34s ease-in-out' : 'none',
-                }} />
-            </div>
-          </div>
+        {/* Back layer: page 1 illustration, visible as cover opens */}
+        <div className="absolute inset-0 overflow-hidden"
+          style={{ borderRadius: '0 14px 14px 0', background: '#e0ceaa' }}>
+          <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
         </div>
 
+        {/* Entire cover square rotates around its left edge — NO overflow-hidden */}
+        <div className="absolute inset-0"
+          style={{
+            transformOrigin: 'left center',
+            transform: `rotateY(-${rawAngle}deg)`,
+            transition: animated ? 'transform 0.34s ease-in-out' : 'none',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+          }}>
+          {/* Inner clip: border-radius + image clipping, doesn't affect 3D parent */}
+          <div className="absolute inset-0 overflow-hidden"
+            style={{ borderRadius: '0 14px 14px 0' }}>
+            {story.coverImageUrl ? (
+              <img src={story.coverImageUrl} alt={story.title}
+                className="absolute inset-0 w-full h-full"
+                style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                draggable={false} />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
+                <div className="text-center text-amber-200">
+                  <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="font-display text-2xl font-bold">{story.title}</p>
+                </div>
+              </div>
+            )}
+            {/* Spine overlay — rotates with the cover as part of the 1:1 unit */}
+            <div className="absolute inset-y-0 left-0 pointer-events-none"
+              style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
+            {/* Darkens as cover folds away from light */}
+            <div className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
+                transition: animated ? 'background 0.34s ease-in-out' : 'none',
+              }} />
+          </div>
+        </div>
       </div>
     </div>
   );

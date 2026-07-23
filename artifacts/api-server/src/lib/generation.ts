@@ -166,9 +166,9 @@ ${ANATOMY_RULE}
 
 SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.
 
-TITLE TEXT: The book title "${story.title}" must appear prominently at the TOP of the image in large, bold, decorative children's book lettering that is clearly readable. The title must be centered horizontally with at least 15% blank margin on BOTH the left and right sides — do not let the text touch the edges of the image.
+TITLE TEXT: The book title "${story.title}" must appear prominently at the TOP of the image in large, bold, decorative children's book lettering that is clearly readable. The title is horizontally centred. The scene background art fills completely behind and around the title text — the background scene reaches every edge of the canvas.
 
-COMPOSITION: Square 1:1 aspect ratio. Edge-to-edge illustration — no blank borders. Professional picture book cover quality. No logos, no brand names, no watermarks other than the story title.`;
+COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No logos, no brand names, no watermarks other than the story title.`;
 }
 
 /** Page illustration prompt — character MUST appear in every scene with a scene-specific pose */
@@ -220,7 +220,7 @@ SETTING: ${effectiveTheme} adventure scene, richly detailed, vibrant colors, sof
 
 CRITICAL — NO TEXT WHATSOEVER: Do NOT render any letters, words, numbers, speech bubbles, signs with text, book pages with text, or any written characters anywhere in the image. The image must be a purely visual scene — zero text of any kind.
 
-COMPOSITION: Square 1:1 aspect ratio. Edge-to-edge illustration. Richly detailed background. Professional 3D animated children's picture book quality.`;
+COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind. The background scene bleeds all the way to all four edges of the canvas. Richly detailed background. Professional 3D animated children's picture book quality.`;
 }
 
 export async function runStoryGeneration(storyId: string): Promise<void> {
