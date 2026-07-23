@@ -107,6 +107,8 @@ router.post("/stories", async (req, res): Promise<void> => {
     // Pre-generated character data from the create wizard (optional)
     characterImagePath: body.characterImagePath ? String(body.characterImagePath) : null,
     characterDescription: body.characterDescription ? String(body.characterDescription) : null,
+    character2ImagePath: body.character2ImagePath ? String(body.character2ImagePath) : null,
+    character2Description: body.character2Description ? String(body.character2Description) : null,
     status: "pending",
     generationProgress: body.characterImagePath ? 30 : 0,
     generationStatusMessage: body.characterImagePath ? "Character ready! Writing your story..." : null,

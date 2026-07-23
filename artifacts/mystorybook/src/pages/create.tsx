@@ -217,6 +217,8 @@ export default function Create() {
   // Character generation state
   const [generatingCharacter, setGeneratingCharacter] = useState(false);
   const [character1, setCharacter1] = useState<CharacterData | null>(null);
+  const [generatingCharacter2, setGeneratingCharacter2] = useState(false);
+  const [character2, setCharacter2] = useState<CharacterData | null>(null);
 
   // Second character
   const [showSecondChar, setShowSecondChar] = useState(false);
@@ -270,6 +272,7 @@ export default function Create() {
       const { photoPath } = await res.json();
       if (isSecond) {
         setPhoto2Path(photoPath);
+        setCharacter2(null);
         const reader = new FileReader();
         reader.onloadend = () => setPhoto2Preview(reader.result as string);
         reader.readAsDataURL(file);
@@ -315,6 +318,33 @@ export default function Create() {
     }
   };
 
+  const handleGenerateCharacter2 = async () => {
+    if (!photo2Path || !characterName2.trim()) return;
+    setGeneratingCharacter2(true);
+    setCharacter2(null);
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/generate-character`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoPath: photo2Path }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Character generation failed');
+      }
+      const data: CharacterData = await res.json();
+      setCharacter2(data);
+    } catch (err) {
+      toast({
+        title: 'Character generation failed',
+        description: err instanceof Error ? err.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingCharacter2(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!photo1Path || !characterName || !relationship || !theme || !age || !emotion || !title) {
       toast({ title: 'Missing information', description: 'Please fill in all required fields.', variant: 'destructive' });
@@ -341,6 +371,11 @@ export default function Create() {
             characterImagePath: character1.characterImagePath,
             characterDescription: character1.characterDescription,
           } : {}),
+          // Pass pre-generated character2 so story generation skips photo analysis
+          ...(character2 ? {
+            character2ImagePath: character2.characterImagePath,
+            character2Description: character2.characterDescription,
+          } : {}),
         } as any,
       });
       await generateStory.mutateAsync({ id: story.id });
@@ -351,6 +386,7 @@ export default function Create() {
   };
 
   const canGenerateCharacter = photo1Path && characterName.trim() && !uploadingPhoto;
+  const canGenerateCharacter2 = photo2Path && characterName2.trim() && !uploadingPhoto;
   const canProceedStep1 = !!character1; // must have generated character to proceed
   const canProceedStep2 = relationship && theme && age && emotion;
   const canSubmit = title;
@@ -566,7 +602,7 @@ export default function Create() {
                             <img src={photo2Preview} alt="Second character" className="w-full object-contain" />
                             <button
                               className="absolute top-2 right-2 bg-card/90 text-xs px-2 py-1 rounded-lg border"
-                              onClick={() => { setPhoto2(null); setPhoto2Preview(''); setPhoto2Path(''); }}
+                              onClick={() => { setPhoto2(null); setPhoto2Preview(''); setPhoto2Path(''); setCharacter2(null); }}
                             >
                               Change
                             </button>
@@ -590,6 +626,38 @@ export default function Create() {
                         )}
                       </div>
                     </div>
+
+                    {/* Generate Character 2 button */}
+                    {photo2Path && characterName2.trim() && (
+                      <div className="space-y-3">
+                        <Button
+                          onClick={handleGenerateCharacter2}
+                          disabled={!canGenerateCharacter2 || generatingCharacter2}
+                          className="w-full rounded-xl"
+                          variant={character2 ? 'outline' : 'default'}
+                          data-testid="button-generate-character2"
+                        >
+                          {generatingCharacter2 ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating character...</>
+                          ) : character2 ? (
+                            <><RefreshCw className="mr-2 h-4 w-4" /> Regenerate Character</>
+                          ) : (
+                            <><Sparkles className="mr-2 h-4 w-4" /> Generate Character</>
+                          )}
+                        </Button>
+
+                        {character2 && (
+                          <div className="rounded-2xl overflow-hidden border border-border bg-muted/30">
+                            <img
+                              src={character2.characterImageUrl}
+                              alt={characterName2}
+                              className="w-full object-contain"
+                            />
+                            <p className="text-center text-xs text-muted-foreground py-2 font-medium">{characterName2}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

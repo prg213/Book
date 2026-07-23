@@ -280,8 +280,11 @@ export async function runStoryGeneration(storyId: string): Promise<void> {
       }
     }
 
-    // Analyse second photo if present
-    if (story.originalPhotoPath2) {
+    // Use pre-generated character2 description if available, otherwise analyse photo
+    if (story.character2Description) {
+      character2Desc = story.character2Description;
+      logger.info({ storyId }, "Character 2 description pre-generated — skipping photo analysis");
+    } else if (story.originalPhotoPath2) {
       try {
         character2Desc = await analyzePhoto(path.join(uploadsDir, story.originalPhotoPath2));
       } catch (e) {
