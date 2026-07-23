@@ -285,7 +285,6 @@ export default function Create() {
           emotion,
           outfit: outfit || null,
           pageCount,
-          style: 'colouring',
           originalPhotoPath: photo1Path,
           originalPhotoPath2: photo2Path || null,
           // Pass pre-generated character so story generation skips that step

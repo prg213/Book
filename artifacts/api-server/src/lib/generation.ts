@@ -48,68 +48,17 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
   }
 }
 
-/**
- * Convert a colour 3D-render to coloring-book line art.
- *
- * Pipeline: grayscale → blur (denoise) → edge detect → negate (black lines on
- * white) → auto-level → threshold to pure B&W → morphology erode (thicker lines).
- *
- * The -edge operator computes a Laplacian, producing bright pixels at contrast
- * boundaries and black elsewhere. After -negate we get dark lines on white.
- * Eroding the white background enlarges the black lines to a printable thickness.
- */
-async function convertToLineArt(buf: Buffer): Promise<Buffer> {
-  const tmp = `/tmp/la-in-${Date.now()}.png`;
-  const out = `/tmp/la-out-${Date.now()}.png`;
-  try {
-    await writeFile(tmp, buf);
-    await execFileAsync("magick", [
-      tmp,
-      "-colorspace", "gray",
-      "-blur", "0x1.5",          // denoise — removes 3D render texture speckles
-      "-edge", "2",              // Laplacian edge detect → bright edges, black flat areas
-      "-negate",                 // → dark edges on white background
-      "-auto-level",             // normalise so faint edges don't disappear
-      "-threshold", "80%",       // pure B&W — strong edges only, kills noise
-      "-morphology", "Erode", "disk:1.5",  // erode white → thicker black lines
-      out,
-    ]);
-    const { readFile, unlink } = await import("fs/promises");
-    const result = await readFile(out);
-    await Promise.all([unlink(tmp).catch(() => {}), unlink(out).catch(() => {})]);
-    return result;
-  } catch (err) {
-    logger.warn({ err }, "convertToLineArt failed — falling back to greyscale");
-    const { readFile, unlink } = await import("fs/promises");
-    try {
-      const out2 = `/tmp/la-gs-${Date.now()}.png`;
-      await execFileAsync("magick", [tmp, "-colorspace", "gray", out2]);
-      const result = await readFile(out2);
-      await Promise.all([unlink(tmp).catch(() => {}), unlink(out2).catch(() => {})]);
-      return result;
-    } catch {
-      await unlink(tmp).catch(() => {});
-      return buf;
-    }
-  }
-}
-
-async function saveImage(buf: Buffer, subdir: string, toLineArt = false): Promise<string> {
+async function saveImage(buf: Buffer, subdir: string): Promise<string> {
   const dir = path.join(uploadsDir, subdir);
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
   const fullPath = path.join(dir, filename);
-
-  // For colouring stories, convert the 3D render to line art first.
-  const working = toLineArt ? await convertToLineArt(buf) : buf;
-
   // Covers → trim + square-crop; characters/pages → trim only.
   const processed = subdir === "covers"
-    ? await processImage(working, true)
+    ? await processImage(buf, true)
     : (subdir === "characters" || subdir === "pages")
-      ? await processImage(working, false)
-      : working;
-
+      ? await processImage(buf, false)
+      : buf;
   await writeFile(fullPath, processed);
   return path.join(subdir, filename);
 }
@@ -393,15 +342,11 @@ Respond ONLY with a JSON object:
 
     await updateStory(storyId, { generationProgress: 50, generationStatusMessage: "Story written! Creating cover art..." });
 
-    // Step 4: Generate cover image.
-    // Colouring-book stories use the same 3D Pixar prompts as colour stories for
-    // character consistency — the render is then post-processed to line art by
-    // convertToLineArt() inside saveImage().
-    const isColouring = story.style === 'colouring';
+    // Step 4: Generate cover image
     const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc);
     try {
       const coverBuf = await generateImage(coverPrompt);
-      const coverImagePath = await saveImage(coverBuf, "covers", isColouring);
+      const coverImagePath = await saveImage(coverBuf, "covers");
       await updateStory(storyId, { coverImagePath });
       logger.info({ storyId }, "Cover image generated");
     } catch (e) {
@@ -424,7 +369,7 @@ Respond ONLY with a JSON object:
       try {
         const pagePrompt = buildPagePrompt(story, page, characterDesc, i, character2Desc);
         const imgBuf = await generateImage(pagePrompt);
-        imagePath = await saveImage(imgBuf, "pages", isColouring);
+        imagePath = await saveImage(imgBuf, "pages");
         logger.info({ storyId, pageNumber: page.page_number }, "Page image generated");
       } catch (e) {
         logger.warn({ storyId, pageNumber: page.page_number, err: e }, "Page image failed");

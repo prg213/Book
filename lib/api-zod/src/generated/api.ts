@@ -36,7 +36,6 @@ export const ListStoriesResponseItem = zod.object({
   "originalPhotoUrl": zod.string().nullish(),
   "characterImageUrl": zod.string().nullish(),
   "coverImageUrl": zod.string().nullish(),
-  "style": zod.string().optional().describe('colour | colouring'),
   "status": zod.string().describe('pending | generating | complete | error'),
   "generationProgress": zod.number().optional(),
   "generationStatusMessage": zod.string().nullish(),
@@ -66,8 +65,7 @@ export const CreateStoryBody = zod.object({
   "pageCount": zod.number(),
   "userPrompt": zod.string().nullish(),
   "originalPhotoPath": zod.string(),
-  "originalPhotoPath2": zod.string().nullish(),
-  "style": zod.string().optional().describe('colour | colouring')
+  "originalPhotoPath2": zod.string().nullish()
 })
 
 export const CreateStoryResponse = zod.object({
@@ -86,7 +84,6 @@ export const CreateStoryResponse = zod.object({
   "originalPhotoUrl": zod.string().nullish(),
   "characterImageUrl": zod.string().nullish(),
   "coverImageUrl": zod.string().nullish(),
-  "style": zod.string().optional().describe('colour | colouring'),
   "status": zod.string().describe('pending | generating | complete | error'),
   "generationProgress": zod.number().optional(),
   "generationStatusMessage": zod.string().nullish(),
@@ -118,7 +115,6 @@ export const GetLibraryStatsResponse = zod.object({
   "originalPhotoUrl": zod.string().nullish(),
   "characterImageUrl": zod.string().nullish(),
   "coverImageUrl": zod.string().nullish(),
-  "style": zod.string().optional().describe('colour | colouring'),
   "status": zod.string().describe('pending | generating | complete | error'),
   "generationProgress": zod.number().optional(),
   "generationStatusMessage": zod.string().nullish(),
@@ -194,7 +190,6 @@ export const GetStoryForReadingResponse = zod.object({
   "originalPhotoUrl": zod.string().nullish(),
   "characterImageUrl": zod.string().nullish(),
   "coverImageUrl": zod.string().nullish(),
-  "style": zod.string().optional().describe('colour | colouring'),
   "status": zod.string().describe('pending | generating | complete | error'),
   "generationProgress": zod.number().optional(),
   "generationStatusMessage": zod.string().nullish(),

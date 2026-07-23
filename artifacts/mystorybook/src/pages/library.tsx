@@ -1,12 +1,9 @@
-import { useState } from 'react';
 import { Link } from 'wouter';
 import { useListStories, useDeleteStory, getListStoriesQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { BookOpen, Plus, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2, Download } from 'lucide-react';
-import { downloadStoryPdf } from '@/lib/download-pdf';
-import ColourBookPreviewModal from '@/components/ColourBookPreviewModal';
+import { BookOpen, Plus, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
@@ -15,38 +12,6 @@ export default function Library() {
   const deleteStory = useDeleteStory();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const [previewData, setPreviewData] = useState<{ story: any; pages: any[] } | null>(null);
-  const [downloading, setDownloading] = useState(false);
-
-  const fetchStoryData = async (storyId: string) => {
-    const res = await fetch(`${import.meta.env.BASE_URL || '/'}api/stories/${storyId}/reading`);
-    if (!res.ok) throw new Error('Failed to fetch story');
-    return res.json();
-  };
-
-  const handlePreview = async (story: any) => {
-    try {
-      const data = await fetchStoryData(story.id);
-      setPreviewData(data);
-    } catch {
-      toast({ title: 'Preview failed', description: 'Please try again.', variant: 'destructive' });
-    }
-  };
-
-  const handleDownload = async (story?: any) => {
-    const target = story ?? previewData;
-    if (!target) return;
-    setDownloading(true);
-    try {
-      const data = story ? await fetchStoryData(story.id) : previewData!;
-      await downloadStoryPdf(data.story ?? data, data.pages ?? []);
-    } catch {
-      toast({ title: 'Download failed', description: 'Please try again.', variant: 'destructive' });
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -217,26 +182,6 @@ export default function Library() {
                             Read
                           </Button>
                         </Link>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-xl flex-shrink-0"
-                          title="Preview colouring pages"
-                          onClick={() => handlePreview(story)}
-                          data-testid={`button-preview-${story.id}`}
-                        >
-                          <BookOpen className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-xl flex-shrink-0"
-                          title="Download A5 Colouring Book PDF"
-                          onClick={() => handleDownload(story)}
-                          data-testid={`button-download-${story.id}`}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
                       </>
                     )}
 
@@ -292,19 +237,6 @@ export default function Library() {
           </div>
         )}
       </div>
-
-      {/* Colouring Book Preview Modal */}
-      {previewData && (
-        <ColourBookPreviewModal
-          story={previewData.story}
-          pages={previewData.pages}
-          onClose={() => setPreviewData(null)}
-          onDownload={async () => {
-            await handleDownload();
-          }}
-          downloading={downloading}
-        />
-      )}
     </div>
   );
 }
