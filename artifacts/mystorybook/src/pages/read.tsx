@@ -413,87 +413,6 @@ export default function Read() {
           </div>
 
 
-          {/* Bottom centre: page dots + prev/next + audio */}
-          <div
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-2xl pointer-events-auto"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.15)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={(e) => { e.stopPropagation(); handlePrev(); showOverlay(); }}
-              disabled={isCover}
-              className="disabled:opacity-30 transition-opacity"
-              style={{ color: '#f5c97a' }}
-              data-testid="button-prev-page"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            {/* Dots */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={(e) => { e.stopPropagation(); setCurrentPage(-1); showOverlay(); }}
-                className="rounded-full transition-all"
-                style={{ width: isCover ? '18px' : '7px', height: '7px', background: isCover ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
-              />
-              {pages.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={(e) => { e.stopPropagation(); setCurrentPage(i); showOverlay(); }}
-                  className="rounded-full transition-all"
-                  style={{ width: i === currentPage ? '18px' : '7px', height: '7px', background: i === currentPage ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
-                />
-              ))}
-              {/* End page dot */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setCurrentPage(totalPages); showOverlay(); }}
-                className="rounded-full transition-all"
-                style={{ width: isEndPage ? '18px' : '7px', height: '7px', background: isEndPage ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
-              />
-            </div>
-
-            {/* Audio — record + play */}
-            {!isEndPage && (
-              <>
-                <div style={{ width: '1px', height: '20px', background: 'rgba(245,201,122,0.2)', margin: '0 2px' }} />
-                <button
-                  onClick={(e) => { e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }}
-                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-                  style={{
-                    background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.15)',
-                    border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.3)',
-                  }}
-                  title={isRecording ? 'Stop recording' : 'Record narration'}
-                >
-                  {isRecording
-                    ? <Square className="w-3 h-3 text-white fill-white" />
-                    : <Mic className="w-3.5 h-3.5" style={{ color: '#f5c97a' }} />}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                  disabled={!hasRecording}
-                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
-                  style={{ background: 'rgba(245,201,122,0.15)', border: '1px solid rgba(245,201,122,0.3)' }}
-                  title={isPlaying ? 'Pause' : 'Play narration'}
-                >
-                  {isPlaying
-                    ? <Pause className="w-3 h-3" style={{ color: '#f5c97a' }} />
-                    : <Play className="w-3 h-3 ml-0.5" style={{ color: '#f5c97a' }} />}
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={(e) => { e.stopPropagation(); handleNext(); showOverlay(); }}
-              disabled={isLastPage}
-              className="disabled:opacity-30 transition-opacity"
-              style={{ color: '#f5c97a' }}
-              data-testid="button-next-page"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-
           {/* Left / right tap zones for page turning */}
           <button
             className="absolute left-0 top-0 w-1/4 h-full pointer-events-auto"
@@ -509,15 +428,82 @@ export default function Read() {
           />
         </div>
 
-        {/* Hint: "Tap to show controls" — shown for 2s on load, then fades */}
-        {!overlayVisible && (
-          <div
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs pointer-events-none"
-            style={{ color: 'rgba(255,255,255,0.2)' }}
+        {/* Bottom bar — always visible */}
+        <div
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-2xl z-30"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.15)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+            disabled={isCover}
+            className="disabled:opacity-30 transition-opacity"
+            style={{ color: '#f5c97a' }}
+            data-testid="button-prev-page"
           >
-            Tap to show controls · Swipe to turn pages
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          {/* Dots */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); setCurrentPage(-1); }}
+              className="rounded-full transition-all"
+              style={{ width: isCover ? '18px' : '7px', height: '7px', background: isCover ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
+            />
+            {pages.map((_, i) => (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); setCurrentPage(i); }}
+                className="rounded-full transition-all"
+                style={{ width: i === currentPage ? '18px' : '7px', height: '7px', background: i === currentPage ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
+              />
+            ))}
+            <button
+              onClick={(e) => { e.stopPropagation(); setCurrentPage(totalPages); }}
+              className="rounded-full transition-all"
+              style={{ width: isEndPage ? '18px' : '7px', height: '7px', background: isEndPage ? '#f5c97a' : 'rgba(245,201,122,0.35)' }}
+            />
           </div>
-        )}
+
+          {/* Audio */}
+          {!isEndPage && (
+            <>
+              <div style={{ width: '1px', height: '20px', background: 'rgba(245,201,122,0.2)', margin: '0 2px' }} />
+              <button
+                onClick={(e) => { e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                style={{ background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.15)', border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.3)' }}
+                title={isRecording ? 'Stop recording' : 'Record narration'}
+              >
+                {isRecording
+                  ? <Square className="w-3 h-3 text-white fill-white" />
+                  : <Mic className="w-3.5 h-3.5" style={{ color: '#f5c97a' }} />}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                disabled={!hasRecording}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
+                style={{ background: 'rgba(245,201,122,0.15)', border: '1px solid rgba(245,201,122,0.3)' }}
+                title={isPlaying ? 'Pause' : 'Play narration'}
+              >
+                {isPlaying
+                  ? <Pause className="w-3 h-3" style={{ color: '#f5c97a' }} />
+                  : <Play className="w-3 h-3 ml-0.5" style={{ color: '#f5c97a' }} />}
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={(e) => { e.stopPropagation(); handleNext(); }}
+            disabled={isLastPage}
+            className="disabled:opacity-30 transition-opacity"
+            style={{ color: '#f5c97a' }}
+            data-testid="button-next-page"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       </>
