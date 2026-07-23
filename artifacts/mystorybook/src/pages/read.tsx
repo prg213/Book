@@ -3,6 +3,7 @@ import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, Download } from 'lucide-react';
 import { downloadStoryPdf } from '@/lib/download-pdf';
+import ColourBookPreviewModal from '@/components/ColourBookPreviewModal';
 import { Link, useLocation } from 'wouter';
 
 function useIsLandscape() {
@@ -62,6 +63,7 @@ export default function Read() {
   const pages = storyData?.pages || [];
   const totalPages = pages.length;
   const [downloading, setDownloading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const handleDownload = async () => {
     if (!story || pages.length === 0 || downloading) return;
@@ -243,6 +245,7 @@ export default function Read() {
   // ── LANDSCAPE: book fills entire screen, no chrome ───────────────────────
   if (isLandscape) {
     return (
+      <>
       <div
         className="fixed inset-0 bg-black overflow-hidden select-none"
         onTouchStart={onTouchStart}
@@ -326,17 +329,28 @@ export default function Read() {
             {isCover ? story.title : isEndPage ? 'The End' : `${currentPage + 1} / ${totalPages}`}
           </div>
 
-          {/* Bottom-right: download button */}
-          <button
-            className="absolute bottom-3 right-3 pointer-events-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50"
-            style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
-            onClick={(e) => { e.stopPropagation(); handleDownload(); }}
-            disabled={downloading}
-            title="Download A5 PDF"
-          >
-            <Download className={`w-4 h-4 ${downloading ? 'animate-pulse' : ''}`} />
-            {downloading ? 'Saving…' : 'A5 PDF'}
-          </button>
+          {/* Bottom-right: preview + download */}
+          <div className="absolute bottom-3 right-3 pointer-events-auto flex items-center gap-2">
+            <button
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+              style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
+              onClick={(e) => { e.stopPropagation(); setShowPreview(true); }}
+              title="Preview colouring pages"
+            >
+              <BookOpen className="w-4 h-4" />
+              Preview
+            </button>
+            <button
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+              style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
+              onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+              disabled={downloading}
+              title="Download A5 PDF"
+            >
+              <Download className={`w-4 h-4 ${downloading ? 'animate-pulse' : ''}`} />
+              {downloading ? 'Saving…' : 'PDF'}
+            </button>
+          </div>
 
           {/* Bottom centre: page dots + prev/next */}
           <div
@@ -413,6 +427,18 @@ export default function Read() {
           </div>
         )}
       </div>
+
+      {/* Colouring Book Preview Modal — landscape */}
+      {showPreview && story && (
+        <ColourBookPreviewModal
+          story={story as any}
+          pages={pages as any}
+          onClose={() => setShowPreview(false)}
+          onDownload={handleDownload}
+          downloading={downloading}
+        />
+      )}
+      </>
     );
   }
 
@@ -434,15 +460,25 @@ export default function Read() {
         <span className="text-amber-200/50 text-xs font-medium tracking-wider uppercase truncate mx-4">
           {isCover ? story.title : isEndPage ? 'The End' : `Page ${currentPage + 1} of ${totalPages}`}
         </span>
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs disabled:opacity-40"
-          title="Download A5 PDF"
-        >
-          <Download className={`w-4 h-4 ${downloading ? 'animate-pulse' : ''}`} />
-          <span className="hidden sm:inline">{downloading ? 'Saving…' : 'PDF'}</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowPreview(true)}
+            className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs"
+            title="Preview colouring pages"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span className="hidden sm:inline">Preview</span>
+          </button>
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs disabled:opacity-40"
+            title="Download A5 PDF"
+          >
+            <Download className={`w-4 h-4 ${downloading ? 'animate-pulse' : ''}`} />
+            <span className="hidden sm:inline">{downloading ? 'Saving…' : 'PDF'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Book stage */}
@@ -509,6 +545,17 @@ export default function Read() {
           )}
         </div>
       </div>
+
+      {/* Colouring Book Preview Modal — portrait */}
+      {showPreview && story && (
+        <ColourBookPreviewModal
+          story={story as any}
+          pages={pages as any}
+          onClose={() => setShowPreview(false)}
+          onDownload={handleDownload}
+          downloading={downloading}
+        />
+      )}
     </div>
   );
 }
