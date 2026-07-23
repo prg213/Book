@@ -7,6 +7,7 @@ import Create from '@/pages/create';
 import Generating from '@/pages/generating';
 import Library from '@/pages/library';
 import Read from '@/pages/read';
+import StoryView from '@/pages/story-view';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/generating" component={Generating} />
       <Route path="/library" component={Library} />
       <Route path="/read" component={Read} />
+      <Route path="/story-view" component={StoryView} />
       <Route component={NotFound} />
     </Switch>
   );

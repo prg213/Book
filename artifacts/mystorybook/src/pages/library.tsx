@@ -3,7 +3,7 @@ import { useListStories, useDeleteStory, getListStoriesQueryKey } from '@workspa
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { BookOpen, Plus, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2, LayoutGrid } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
@@ -180,6 +180,11 @@ export default function Library() {
                           <Button className="w-full rounded-xl" data-testid={`button-read-${story.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
                             Read
+                          </Button>
+                        </Link>
+                        <Link href={`/story-view?storyId=${story.id}`}>
+                          <Button variant="outline" size="icon" className="rounded-xl flex-shrink-0" title="View story contents" data-testid={`button-view-${story.id}`}>
+                            <LayoutGrid className="h-4 w-4" />
                           </Button>
                         </Link>
                       </>

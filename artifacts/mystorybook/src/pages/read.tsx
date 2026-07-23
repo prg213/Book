@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 
 function useIsLandscape() {
@@ -309,12 +309,23 @@ export default function Read() {
             Library
           </button>
 
-          {/* Top-right: page label */}
-          <div
-            className="absolute top-3 right-3 px-3 py-2 rounded-xl text-xs font-medium tracking-wider uppercase"
-            style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(245,201,122,0.7)', backdropFilter: 'blur(8px)' }}
-          >
-            {isCover ? story.title : isEndPage ? 'The End' : `${currentPage + 1} / ${totalPages}`}
+          {/* Top-right: page label + view contents button */}
+          <div className="absolute top-3 right-3 flex items-center gap-2 pointer-events-auto">
+            <Link href={`/story-view?storyId=${storyId}`} onClick={(e) => e.stopPropagation()}>
+              <button
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
+                title="View story contents"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </Link>
+            <div
+              className="px-3 py-2 rounded-xl text-xs font-medium tracking-wider uppercase"
+              style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(245,201,122,0.7)', backdropFilter: 'blur(8px)' }}
+            >
+              {isCover ? story.title : isEndPage ? 'The End' : `${currentPage + 1} / ${totalPages}`}
+            </div>
           </div>
 
 
@@ -416,7 +427,14 @@ export default function Read() {
         <span className="text-amber-200/50 text-xs font-medium tracking-wider uppercase truncate mx-4">
           {isCover ? story.title : isEndPage ? 'The End' : `Page ${currentPage + 1} of ${totalPages}`}
         </span>
-        <div />
+        <Link href={`/story-view?storyId=${storyId}`}>
+          <button
+            className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs"
+            title="View story contents"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </Link>
       </div>
 
       {/* Book stage */}
