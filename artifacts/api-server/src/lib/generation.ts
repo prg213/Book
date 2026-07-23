@@ -12,36 +12,38 @@ const uploadsDir = path.resolve(process.cwd(), "uploads");
 const execFileAsync = promisify(execFile);
 
 /**
- * Trim near-white borders that Aurora bakes into generated images.
- * Uses ImageMagick: detects the border colour from the image corners and
- * removes any edges within 10% colour distance of it, then re-pads to a
- * perfect square so the image ratio stays 1:1 for the cover face.
+ * Process an Aurora-generated image:
+ * 1. Trim near-white borders (-fuzz 10%).
+ * 2. For covers: crop to a 1:1 square (gravity North — keeps the title at the
+ *    top and removes excess from the bottom) so objectFit:cover in the 1:1
+ *    landscape/portrait cover container is always a perfect, zero-crop fill.
+ * 3. For other images (characters, pages): trim only, preserve natural ratio.
  */
-async function trimWhiteBorder(buf: Buffer): Promise<Buffer> {
+async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
   try {
-    // Write input to a temp file
-    const tmp = `/tmp/trim-in-${Date.now()}.png`;
-    const out = `/tmp/trim-out-${Date.now()}.png`;
+    const tmp = `/tmp/img-in-${Date.now()}.png`;
+    const out = `/tmp/img-out-${Date.now()}.png`;
     await writeFile(tmp, buf);
 
-    // Trim white border (-fuzz 10% tolerates slight off-white shades),
-    // then extent back to a square using the image's longer dimension
-    // so the output is always 1:1 and centred on a white canvas.
-    await execFileAsync("magick", [
-      tmp,
-      "-fuzz", "10%",
-      "-trim",
-      "+repage",
-      out,
-    ]);
+    const args = [tmp, "-fuzz", "10%", "-trim", "+repage"];
+
+    if (toSquare) {
+      // Crop to min(w,h) × min(w,h) from the top — keeps the title visible
+      args.push(
+        "-gravity", "North",
+        "-extent", "%[fx:min(w,h)]x%[fx:min(w,h)]",
+      );
+    }
+
+    args.push(out);
+    await execFileAsync("magick", args);
 
     const { readFile, unlink } = await import("fs/promises");
     const result = await readFile(out);
     await Promise.all([unlink(tmp).catch(() => {}), unlink(out).catch(() => {})]);
     return result;
   } catch (err) {
-    // If trimming fails for any reason, return original buffer unchanged
-    logger.warn({ err }, "trimWhiteBorder failed — using original image");
+    logger.warn({ err }, "processImage failed — using original buffer");
     return buf;
   }
 }
@@ -51,10 +53,13 @@ async function saveImage(buf: Buffer, subdir: string): Promise<string> {
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
   const fullPath = path.join(dir, filename);
-  // Trim white borders from Aurora-generated cover and character images
-  const processed = (subdir === "covers" || subdir === "characters")
-    ? await trimWhiteBorder(buf)
-    : buf;
+  // Covers → trim white + crop to 1:1 square (perfect fit in square container)
+  // Characters/pages → trim white only, keep natural ratio
+  const processed = subdir === "covers"
+    ? await processImage(buf, true)
+    : (subdir === "characters" || subdir === "pages")
+      ? await processImage(buf, false)
+      : buf;
   await writeFile(fullPath, processed);
   return path.join(subdir, filename);
 }
