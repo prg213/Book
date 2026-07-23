@@ -46,101 +46,14 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
   }
 }
 
-/**
- * Composite the story title onto the cover image using ImageMagick.
- * - Font size: ~5% of image width (small, readable)
- * - Text column: 62% of image width — safely within the A5 portrait crop zone
- *   (when a square image is displayed as A5 portrait, ~15% is cropped from each side)
- * - Dark semi-transparent strip behind the text for contrast on any background
- */
-async function addTitleToCover(coverBuf: Buffer, title: string): Promise<Buffer> {
-  const ts = Date.now();
-  const tmp        = `/tmp/cover-src-${ts}.png`;
-  const captionPng = `/tmp/cover-cap-${ts}.png`;
-  const out        = `/tmp/cover-out-${ts}.png`;
-
-  try {
-    const { readFile, unlink } = await import("fs/promises");
-    await writeFile(tmp, coverBuf);
-
-    // Get image dimensions
-    const { stdout: dimStr } = await execFileAsync("magick", ["identify", "-format", "%w %h", tmp]);
-    const [w, h] = dimStr.trim().split(" ").map(Number);
-
-    // Layout constants
-    const fontSize   = Math.max(14, Math.round(w * 0.030));   // ~3% of width (40% smaller than before)
-    const textWidth  = Math.round(w * 0.60);                   // 60% of width — safe for A5 portrait crop
-    const marginTop  = Math.round(h * 0.030);                  // 3% from top
-    const padV       = Math.round(h * 0.010);                  // vertical padding inside strip
-
-    // Step 1 — create caption image (word-wrapped, white text with black outline)
-    await execFileAsync("magick", [
-      "-size",       `${textWidth}x`,
-      "-background", "rgba(0,0,0,0)",
-      "-gravity",    "Center",
-      "-font",       "DejaVu-Sans-Bold",
-      "-pointsize",  String(fontSize),
-      "-stroke",     "rgba(0,0,0,0.95)",
-      "-strokewidth","4",
-      "-fill",       "white",
-      `caption:${title}`,
-      captionPng,
-    ]);
-
-    // Get caption height so we can size the backing strip
-    const { stdout: capStr } = await execFileAsync("magick", ["identify", "-format", "%w %h", captionPng]);
-    const [, capH] = capStr.trim().split(" ").map(Number);
-
-    const stripH = capH + padV * 2;
-
-    // Step 2 — draw dark strip at top then composite caption
-    await execFileAsync("magick", [
-      tmp,
-      // Dark semi-transparent horizontal strip
-      "-fill",  "rgba(0,0,0,0.38)",
-      "-draw",  `rectangle 0,${marginTop - padV} ${w},${marginTop - padV + stripH}`,
-      // Composite caption centred within strip
-      captionPng,
-      "-gravity",  "North",
-      "-geometry", `+0+${marginTop}`,
-      "-composite",
-      out,
-    ]);
-
-    const result = await readFile(out);
-    await Promise.all([
-      unlink(tmp).catch(() => {}),
-      unlink(captionPng).catch(() => {}),
-      unlink(out).catch(() => {}),
-    ]);
-    return result;
-  } catch (err) {
-    logger.warn({ err }, "addTitleToCover failed — saving cover without title text");
-    await Promise.allSettled([
-      import("fs/promises").then(fs => fs.unlink(tmp).catch(() => {})),
-      import("fs/promises").then(fs => fs.unlink(captionPng).catch(() => {})),
-      import("fs/promises").then(fs => fs.unlink(out).catch(() => {})),
-    ]);
-    return coverBuf;
-  }
-}
-
-async function saveImage(buf: Buffer, subdir: string, title?: string): Promise<string> {
+async function saveImage(buf: Buffer, subdir: string): Promise<string> {
   const dir = path.join(uploadsDir, subdir);
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
   const fullPath = path.join(dir, filename);
-
-  let processed: Buffer;
-  if (subdir === "covers") {
-    const squared = await processImage(buf, true);
-    processed = title ? await addTitleToCover(squared, title) : squared;
-  } else if (subdir === "characters" || subdir === "pages") {
-    processed = await processImage(buf, false);
-  } else {
-    processed = buf;
-  }
-
+  const processed = (subdir === "covers" || subdir === "characters" || subdir === "pages")
+    ? await processImage(buf, subdir === "covers")
+    : buf;
   await writeFile(fullPath, processed);
   return path.join(subdir, filename);
 }
@@ -252,7 +165,9 @@ ${ANATOMY_RULE}
 
 SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.
 
-COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No text, no logos, no brand names, no watermarks of any kind — pure illustration only.`;
+TITLE: The story title "${story.title}" must appear at the very top of the image. Use small, neat, decorative children's book lettering — the font must be significantly smaller than titles you would normally place on a cover; it should feel like a subtitle in size. Centre the text horizontally. The title text must not extend beyond the middle 60% of the image width; leave at least 20% empty space on each side edge. Render no other text anywhere on the image.
+
+COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No logos, no brand names, no watermarks — only the story title text described above.`;
 }
 
 /** Page illustration prompt — character MUST appear in every scene with a scene-specific pose */
@@ -426,7 +341,7 @@ Respond ONLY with a JSON object:
     const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc);
     try {
       const coverBuf = await generateImage(coverPrompt);
-      const coverImagePath = await saveImage(coverBuf, "covers", story.title);
+      const coverImagePath = await saveImage(coverBuf, "covers");
       await updateStory(storyId, { coverImagePath });
       logger.info({ storyId }, "Cover image generated");
     } catch (e) {
