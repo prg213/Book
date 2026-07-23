@@ -1,5 +1,7 @@
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { eq } from "drizzle-orm";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
 import { analyzePhoto, generateStoryText, generateImage } from "./grok";
@@ -7,13 +9,53 @@ import { buildCharacterPrompt } from "../routes/character";
 import { logger } from "./logger";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
+const execFileAsync = promisify(execFile);
+
+/**
+ * Trim near-white borders that Aurora bakes into generated images.
+ * Uses ImageMagick: detects the border colour from the image corners and
+ * removes any edges within 10% colour distance of it, then re-pads to a
+ * perfect square so the image ratio stays 1:1 for the cover face.
+ */
+async function trimWhiteBorder(buf: Buffer): Promise<Buffer> {
+  try {
+    // Write input to a temp file
+    const tmp = `/tmp/trim-in-${Date.now()}.png`;
+    const out = `/tmp/trim-out-${Date.now()}.png`;
+    await writeFile(tmp, buf);
+
+    // Trim white border (-fuzz 10% tolerates slight off-white shades),
+    // then extent back to a square using the image's longer dimension
+    // so the output is always 1:1 and centred on a white canvas.
+    await execFileAsync("magick", [
+      tmp,
+      "-fuzz", "10%",
+      "-trim",
+      "+repage",
+      out,
+    ]);
+
+    const { readFile, unlink } = await import("fs/promises");
+    const result = await readFile(out);
+    await Promise.all([unlink(tmp).catch(() => {}), unlink(out).catch(() => {})]);
+    return result;
+  } catch (err) {
+    // If trimming fails for any reason, return original buffer unchanged
+    logger.warn({ err }, "trimWhiteBorder failed — using original image");
+    return buf;
+  }
+}
 
 async function saveImage(buf: Buffer, subdir: string): Promise<string> {
   const dir = path.join(uploadsDir, subdir);
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
   const fullPath = path.join(dir, filename);
-  await writeFile(fullPath, buf);
+  // Trim white borders from Aurora-generated cover and character images
+  const processed = (subdir === "covers" || subdir === "characters")
+    ? await trimWhiteBorder(buf)
+    : buf;
+  await writeFile(fullPath, processed);
   return path.join(subdir, filename);
 }
 

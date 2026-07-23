@@ -498,7 +498,7 @@ function PortraitCover({ story }: { story: any }) {
             src={story.coverImageUrl}
             alt={story.title}
             className="absolute inset-0 w-full h-full"
-            style={{ objectFit: 'fill' }}
+            style={{ objectFit: 'cover', objectPosition: 'top center' }}
             data-testid="img-cover"
             draggable={false}
           />
@@ -623,7 +623,7 @@ function LandscapeCover({ story }: { story: any }) {
           {story.coverImageUrl ? (
             <img src={story.coverImageUrl} alt={story.title}
               className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'fill' }}
+              style={{ objectFit: 'cover', objectPosition: 'top center' }}
               data-testid="img-cover-ls" draggable={false} />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
@@ -723,7 +723,7 @@ function LandscapeCoverFolding({ story, firstPage, flipPhase, swipeDx }: any) {
               {story.coverImageUrl ? (
                 <img src={story.coverImageUrl} alt={story.title}
                   className="absolute inset-0 w-full h-full"
-                  style={{ objectFit: 'fill' }}
+                  style={{ objectFit: 'cover', objectPosition: 'top center' }}
                   draggable={false} />
               ) : (
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
