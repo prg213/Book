@@ -14,9 +14,8 @@ const execFileAsync = promisify(execFile);
 /**
  * Process an Aurora-generated image:
  * 1. Trim near-white borders (-fuzz 10%).
- * 2. For covers: crop to a 1:1 square (gravity North — keeps the title at the
- *    top and removes excess from the bottom) so objectFit:cover in the 1:1
- *    landscape/portrait cover container is always a perfect, zero-crop fill.
+ * 2. For covers: crop to a 1:1 square (gravity North) so the image fills any
+ *    cover container without gaps.
  * 3. For other images (characters, pages): trim only, preserve natural ratio.
  */
 async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
@@ -28,7 +27,6 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
     const args = [tmp, "-fuzz", "10%", "-trim", "+repage"];
 
     if (toSquare) {
-      // Crop to min(w,h) × min(w,h) from the top — keeps the title visible
       args.push(
         "-gravity", "North",
         "-extent", "%[fx:min(w,h)]x%[fx:min(w,h)]",
@@ -48,17 +46,101 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
   }
 }
 
-async function saveImage(buf: Buffer, subdir: string): Promise<string> {
+/**
+ * Composite the story title onto the cover image using ImageMagick.
+ * - Font size: ~5% of image width (small, readable)
+ * - Text column: 62% of image width — safely within the A5 portrait crop zone
+ *   (when a square image is displayed as A5 portrait, ~15% is cropped from each side)
+ * - Dark semi-transparent strip behind the text for contrast on any background
+ */
+async function addTitleToCover(coverBuf: Buffer, title: string): Promise<Buffer> {
+  const ts = Date.now();
+  const tmp        = `/tmp/cover-src-${ts}.png`;
+  const captionPng = `/tmp/cover-cap-${ts}.png`;
+  const out        = `/tmp/cover-out-${ts}.png`;
+
+  try {
+    const { readFile, unlink } = await import("fs/promises");
+    await writeFile(tmp, coverBuf);
+
+    // Get image dimensions
+    const { stdout: dimStr } = await execFileAsync("magick", ["identify", "-format", "%w %h", tmp]);
+    const [w, h] = dimStr.trim().split(" ").map(Number);
+
+    // Layout constants
+    const fontSize   = Math.max(22, Math.round(w * 0.050));   // ~5% of width
+    const textWidth  = Math.round(w * 0.62);                   // 62% of width
+    const marginTop  = Math.round(h * 0.028);                  // 2.8% from top
+    const padV       = Math.round(h * 0.012);                  // vertical padding inside strip
+
+    // Step 1 — create caption image (word-wrapped, white text with black outline)
+    await execFileAsync("magick", [
+      "-size",       `${textWidth}x`,
+      "-background", "rgba(0,0,0,0)",
+      "-gravity",    "Center",
+      "-font",       "DejaVu-Sans-Bold",
+      "-pointsize",  String(fontSize),
+      "-stroke",     "rgba(0,0,0,0.95)",
+      "-strokewidth","4",
+      "-fill",       "white",
+      `caption:${title}`,
+      captionPng,
+    ]);
+
+    // Get caption height so we can size the backing strip
+    const { stdout: capStr } = await execFileAsync("magick", ["identify", "-format", "%w %h", captionPng]);
+    const [, capH] = capStr.trim().split(" ").map(Number);
+
+    const stripH = capH + padV * 2;
+
+    // Step 2 — draw dark strip at top then composite caption
+    await execFileAsync("magick", [
+      tmp,
+      // Dark semi-transparent horizontal strip
+      "-fill",  "rgba(0,0,0,0.38)",
+      "-draw",  `rectangle 0,${marginTop - padV} ${w},${marginTop - padV + stripH}`,
+      // Composite caption centred within strip
+      captionPng,
+      "-gravity",  "North",
+      "-geometry", `+0+${marginTop}`,
+      "-composite",
+      out,
+    ]);
+
+    const result = await readFile(out);
+    await Promise.all([
+      unlink(tmp).catch(() => {}),
+      unlink(captionPng).catch(() => {}),
+      unlink(out).catch(() => {}),
+    ]);
+    return result;
+  } catch (err) {
+    logger.warn({ err }, "addTitleToCover failed — saving cover without title text");
+    await Promise.allSettled([
+      import("fs/promises").then(fs => fs.unlink(tmp).catch(() => {})),
+      import("fs/promises").then(fs => fs.unlink(captionPng).catch(() => {})),
+      import("fs/promises").then(fs => fs.unlink(out).catch(() => {})),
+    ]);
+    return coverBuf;
+  }
+}
+
+async function saveImage(buf: Buffer, subdir: string, title?: string): Promise<string> {
   const dir = path.join(uploadsDir, subdir);
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
   const fullPath = path.join(dir, filename);
-  // Covers → trim + square-crop; characters/pages → trim only.
-  const processed = subdir === "covers"
-    ? await processImage(buf, true)
-    : (subdir === "characters" || subdir === "pages")
-      ? await processImage(buf, false)
-      : buf;
+
+  let processed: Buffer;
+  if (subdir === "covers") {
+    const squared = await processImage(buf, true);
+    processed = title ? await addTitleToCover(squared, title) : squared;
+  } else if (subdir === "characters" || subdir === "pages") {
+    processed = await processImage(buf, false);
+  } else {
+    processed = buf;
+  }
+
   await writeFile(fullPath, processed);
   return path.join(subdir, filename);
 }
@@ -170,9 +252,7 @@ ${ANATOMY_RULE}
 
 SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.
 
-TITLE TEXT: The book title "${story.title}" must appear near the TOP of the image in a SMALL, bold, decorative children's book lettering. The font must be tiny — the entire title block must occupy NO MORE THAN 8% of the total image height. CRITICAL MARGIN RULE: The title text must be confined to the CENTRAL 50% of the image width — leave at least 25% empty space on the LEFT edge and 25% empty space on the RIGHT edge. If the title has more than 2 words, split it across 2 short lines. The title is horizontally centred within that central 50% band. These margin and size rules are mandatory because the image is cropped to portrait (A5) format and the side edges are cut off — any text near the edges will be lost. The scene background art fills the canvas behind and around the title.
-
-COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No logos, no brand names, no watermarks other than the story title.`;
+COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No text, no logos, no brand names, no watermarks of any kind — pure illustration only.`;
 }
 
 /** Page illustration prompt — character MUST appear in every scene with a scene-specific pose */
@@ -346,7 +426,7 @@ Respond ONLY with a JSON object:
     const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc);
     try {
       const coverBuf = await generateImage(coverPrompt);
-      const coverImagePath = await saveImage(coverBuf, "covers");
+      const coverImagePath = await saveImage(coverBuf, "covers", story.title);
       await updateStory(storyId, { coverImagePath });
       logger.info({ storyId }, "Cover image generated");
     } catch (e) {
