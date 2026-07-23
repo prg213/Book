@@ -463,58 +463,45 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// The AI generates a square (1:1) cover image. We keep the cover face square
-// and size it by the stage height so the full image is always visible uncropped.
+// 1:1 square, spine as overlay — mirrors the landscape treatment exactly.
+// Width is the limiting dimension in portrait: cover fills 100% of stage width,
+// maintains 1:1 ratio, and is capped by max-height so it never overflows the
+// stage vertically on short screens.
 function PortraitCover({ story }: { story: any }) {
-  // In portrait, WIDTH is the limiting dimension.
-  // Stage has p-2 (16px total horizontal padding) + spine is 14px.
-  // Cover face must fit in: 100vw - 16px padding - 14px spine = 100vw - 30px.
-  // Since cover face is square, book height = cover face width = 100vw - 30px.
-  // Cap at 100% of stage height so it never overflows vertically either.
   return (
     <div
-      className="flex"
+      className="relative overflow-hidden"
       style={{
-        height: 'min(calc(100vw - 30px), 100%)',
+        width: '100%',
+        aspectRatio: '1 / 1',
+        maxHeight: '100%',
+        borderRadius: '0 14px 14px 0',
         filter: 'drop-shadow(-4px 10px 28px rgba(0,0,0,0.85))',
       }}
     >
-      {/* Spine */}
-      <div
-        className="flex-shrink-0 self-stretch rounded-l"
-        style={{
-          width: '14px',
-          background: 'linear-gradient(to right, #0a0401, #3d1f0c, #1a0905)',
-          boxShadow: 'inset -4px 0 10px rgba(0,0,0,0.7)',
-        }}
-      />
-      {/* Cover face — square, height-driven (height = 100vw - 30px) */}
-      <div
-        className="relative self-stretch rounded-r-xl overflow-hidden"
-        style={{ aspectRatio: '1 / 1' }}
-      >
-        {story.coverImageUrl ? (
-          <img
-            src={story.coverImageUrl}
-            alt={story.title}
-            className="absolute inset-0 w-full h-full"
-            style={{ objectFit: 'cover', objectPosition: 'top center' }}
-            data-testid="img-cover"
-            draggable={false}
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
-            <div className="text-center text-amber-200">
-              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="font-display text-lg font-bold">{story.title}</p>
-            </div>
+      {story.coverImageUrl ? (
+        <img
+          src={story.coverImageUrl}
+          alt={story.title}
+          className="absolute inset-0 w-full h-full"
+          style={{ objectFit: 'cover', objectPosition: 'top center' }}
+          data-testid="img-cover"
+          draggable={false}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
+          <div className="text-center text-amber-200">
+            <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="font-display text-lg font-bold">{story.title}</p>
           </div>
-        )}
-        <div className="absolute inset-y-0 right-0 w-3 pointer-events-none"
-          style={{ background: 'linear-gradient(to left, rgba(255,240,200,0.15), transparent)' }} />
-        <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
-      </div>
+        </div>
+      )}
+      {/* Spine overlay on left edge — no structural width added */}
+      <div className="absolute inset-y-0 left-0 pointer-events-none"
+        style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
+      {/* Subtle bottom shadow */}
+      <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
     </div>
   );
 }
