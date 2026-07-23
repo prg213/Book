@@ -117,6 +117,53 @@ export async function generateStoryText(prompt: string): Promise<{
   }
 }
 
+const COLOURING_PROMPT =
+  "Transform this image into a kid-friendly black and white coloring page. " +
+  "Create bold, smooth, and clear black outlines only. Remove every color, shadow, and fill. " +
+  "Make the background completely white. Keep the same scene, characters, poses, and details " +
+  "from the original image, but simplify it into simple, thick line art perfect for children to color.";
+
+/**
+ * Transform an existing image into a children's coloring-page (black & white line art)
+ * using xAI Aurora's image-edit endpoint.
+ */
+export async function generateColouringPage(imageBuffer: Buffer): Promise<Buffer> {
+  logger.info({ bytes: imageBuffer.length }, "Generating coloring page with Aurora image edit");
+
+  const form = new FormData();
+  form.append("model", "grok-imagine-image");
+  form.append("prompt", COLOURING_PROMPT);
+  form.append("n", "1");
+  form.append("response_format", "b64_json");
+  form.append(
+    "image",
+    new Blob([imageBuffer], { type: "image/png" }),
+    "image.png",
+  );
+
+  const resp = await fetch(`${XAI_BASE}/images/edits`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey()}` },
+    body: form,
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Aurora image edit error ${resp.status}: ${err}`);
+  }
+
+  const data = (await resp.json()) as { data: Array<{ b64_json?: string; url?: string }> };
+  const item = data.data[0];
+
+  if (item.b64_json) return Buffer.from(item.b64_json, "base64");
+  if (item.url) {
+    const r = await fetch(item.url);
+    return Buffer.from(await r.arrayBuffer());
+  }
+
+  throw new Error("No image data in Aurora coloring-page response");
+}
+
 /** Generate an image using xAI Aurora and return the image bytes */
 export async function generateImage(prompt: string): Promise<Buffer> {
   logger.info({ promptLength: prompt.length }, "Generating image with Aurora");
