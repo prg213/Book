@@ -121,7 +121,8 @@ const COLOURING_PROMPT =
   "Transform this image into a kid-friendly black and white coloring page. " +
   "Create bold, smooth, and clear black outlines only. Remove every color, shadow, and fill. " +
   "Make the background completely white. Keep the same scene, characters, poses, and details " +
-  "from the original image, but simplify it into simple, thick line art perfect for children to color.";
+  "from the original image, but simplify it into simple, thick line art perfect for children to color. " +
+  "If the original image contains any text or title, preserve it exactly — same font style, same lettering shape, same size and position — but render it as a black outline only with no fill colour.";
 
 /**
  * Transform an existing image into a children's coloring-page (black & white line art)
