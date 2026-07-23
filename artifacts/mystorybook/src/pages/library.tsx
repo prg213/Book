@@ -3,7 +3,8 @@ import { useListStories, useDeleteStory, getListStoriesQueryKey } from '@workspa
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { BookOpen, Plus, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2, Download } from 'lucide-react';
+import { downloadStoryPdf } from '@/lib/download-pdf';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
@@ -12,6 +13,17 @@ export default function Library() {
   const deleteStory = useDeleteStory();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const handleDownload = async (story: any) => {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL || '/'}api/stories/${story.id}/reading`);
+      if (!res.ok) throw new Error('Failed to fetch story');
+      const data = await res.json();
+      await downloadStoryPdf(data.story, data.pages);
+    } catch {
+      toast({ title: 'Download failed', description: 'Please try again.', variant: 'destructive' });
+    }
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -175,12 +187,24 @@ export default function Library() {
                   {/* Actions */}
                   <div className="flex gap-2">
                     {story.status === 'complete' && (
-                      <Link href={`/read?storyId=${story.id}`} className="flex-1">
-                        <Button className="w-full rounded-xl" data-testid={`button-read-${story.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Read Story
+                      <>
+                        <Link href={`/read?storyId=${story.id}`} className="flex-1">
+                          <Button className="w-full rounded-xl" data-testid={`button-read-${story.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Read
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="rounded-xl flex-shrink-0"
+                          title={`Download A5 PDF${(story as any).style === 'colouring' ? ' — Colouring Book' : ''}`}
+                          onClick={() => handleDownload(story)}
+                          data-testid={`button-download-${story.id}`}
+                        >
+                          <Download className="h-4 w-4" />
                         </Button>
-                      </Link>
+                      </>
                     )}
 
                     {(story.status === 'generating' || story.status === 'pending') && (

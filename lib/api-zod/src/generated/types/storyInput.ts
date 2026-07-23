@@ -33,4 +33,6 @@ export interface StoryInput {
   originalPhotoPath: string;
   /** @nullable */
   originalPhotoPath2?: string | null;
+  /** colour | colouring */
+  style?: string;
 }

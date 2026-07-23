@@ -43,6 +43,7 @@ function storyToResponse(row: typeof storiesTable.$inferSelect) {
     originalPhotoUrl: row.originalPhotoPath ? `${base}${row.originalPhotoPath}` : null,
     characterImageUrl: row.characterImagePath ? `${base}${row.characterImagePath}` : null,
     coverImageUrl: row.coverImagePath ? `${base}${row.coverImagePath}` : null,
+    style: row.style ?? 'colour',
     status: row.status,
     generationProgress: row.generationProgress,
     generationStatusMessage: row.generationStatusMessage ?? null,
@@ -102,6 +103,7 @@ router.post("/stories", async (req, res): Promise<void> => {
     occasion: body.occasion ? String(body.occasion) : null,
     pageCount: Number(body.pageCount) || 8,
     userPrompt: body.userPrompt ? String(body.userPrompt) : null,
+    style: (body.style === 'colouring') ? 'colouring' : 'colour',
     originalPhotoPath: String(body.originalPhotoPath),
     originalPhotoPath2: body.originalPhotoPath2 ? String(body.originalPhotoPath2) : null,
     // Pre-generated character data from the create wizard (optional)

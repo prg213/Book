@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, Download } from 'lucide-react';
+import { downloadStoryPdf } from '@/lib/download-pdf';
 import { Link, useLocation } from 'wouter';
 
 function useIsLandscape() {
@@ -60,6 +61,14 @@ export default function Read() {
   const story = storyData?.story;
   const pages = storyData?.pages || [];
   const totalPages = pages.length;
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!story || pages.length === 0 || downloading) return;
+    setDownloading(true);
+    try { await downloadStoryPdf(story as any, pages as any); }
+    finally { setDownloading(false); }
+  };
 
   const handleNext = useCallback(() => {
     setCurrentPage(p => (p < totalPages ? p + 1 : p));
@@ -317,6 +326,18 @@ export default function Read() {
             {isCover ? story.title : isEndPage ? 'The End' : `${currentPage + 1} / ${totalPages}`}
           </div>
 
+          {/* Bottom-right: download button */}
+          <button
+            className="absolute bottom-3 right-3 pointer-events-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+            style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
+            onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+            disabled={downloading}
+            title="Download A5 PDF"
+          >
+            <Download className={`w-4 h-4 ${downloading ? 'animate-pulse' : ''}`} />
+            {downloading ? 'Saving…' : 'A5 PDF'}
+          </button>
+
           {/* Bottom centre: page dots + prev/next */}
           <div
             className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-2xl pointer-events-auto"
@@ -413,7 +434,15 @@ export default function Read() {
         <span className="text-amber-200/50 text-xs font-medium tracking-wider uppercase truncate mx-4">
           {isCover ? story.title : isEndPage ? 'The End' : `Page ${currentPage + 1} of ${totalPages}`}
         </span>
-        <div className="w-16" />
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs disabled:opacity-40"
+          title="Download A5 PDF"
+        >
+          <Download className={`w-4 h-4 ${downloading ? 'animate-pulse' : ''}`} />
+          <span className="hidden sm:inline">{downloading ? 'Saving…' : 'PDF'}</span>
+        </button>
       </div>
 
       {/* Book stage */}

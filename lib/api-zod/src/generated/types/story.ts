@@ -29,6 +29,8 @@ export interface Story {
   characterImageUrl?: string | null;
   /** @nullable */
   coverImageUrl?: string | null;
+  /** colour | colouring */
+  style?: string;
   /** pending | generating | complete | error */
   status: string;
   generationProgress?: number;

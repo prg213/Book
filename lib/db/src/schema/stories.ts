@@ -25,6 +25,7 @@ export const storiesTable = pgTable("stories", {
   characterImagePath: text("character_image_path"),
   characterDescription: text("character_description"),
   coverImagePath: text("cover_image_path"),
+  style: text("style").notNull().default("colour"),
   status: text("status").notNull().default("pending"),
   generationProgress: integer("generation_progress").notNull().default(0),
   generationStatusMessage: text("generation_status_message"),

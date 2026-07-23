@@ -32,6 +32,8 @@ export interface Story {
   characterImageUrl?: string | null;
   /** @nullable */
   coverImageUrl?: string | null;
+  /** colour | colouring */
+  style?: string;
   /** pending | generating | complete | error */
   status: string;
   generationProgress?: number;
@@ -69,6 +71,8 @@ export interface StoryInput {
   originalPhotoPath: string;
   /** @nullable */
   originalPhotoPath2?: string | null;
+  /** colour | colouring */
+  style?: string;
 }
 
 export interface StoryStatus {

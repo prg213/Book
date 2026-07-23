@@ -204,6 +204,7 @@ export default function Create() {
   const [emotion, setEmotion] = useState('');
   const [title, setTitle] = useState('');
   const [pageCount, setPageCount] = useState(6);
+  const [style, setStyle] = useState<'colour' | 'colouring'>('colour');
 
   const createStory = useCreateStory();
   const generateStory = useGenerateStory();
@@ -285,6 +286,7 @@ export default function Create() {
           emotion,
           outfit: outfit || null,
           pageCount,
+          style,
           originalPhotoPath: photo1Path,
           originalPhotoPath2: photo2Path || null,
           // Pass pre-generated character so story generation skips that step
@@ -774,6 +776,34 @@ export default function Create() {
                       data-testid={`button-pagecount-${count}`}
                     >
                       {count}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Illustration Style */}
+              <div>
+                <Label className="text-sm font-semibold">Illustration Style *</Label>
+                <p className="text-xs text-muted-foreground mt-0.5 mb-2">Choose how your story illustrations are created</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { value: 'colour',    emoji: '🎨', label: 'Full Colour',    desc: 'Vibrant 3D Pixar-style illustrations' },
+                    { value: 'colouring', emoji: '✏️', label: 'Colouring Book', desc: 'Black & white line art to print & colour in' },
+                  ] as const).map(({ value, emoji, label, desc }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setStyle(value)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        style === value
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border bg-muted hover:border-primary/50'
+                      }`}
+                      data-testid={`button-style-${value}`}
+                    >
+                      <div className="text-2xl mb-1.5">{emoji}</div>
+                      <div className="font-semibold text-sm leading-tight">{label}</div>
+                      <div className="text-xs text-muted-foreground mt-1 leading-snug">{desc}</div>
                     </button>
                   ))}
                 </div>

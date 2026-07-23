@@ -127,6 +127,60 @@ function derivePoseFromScene(imagePrompt: string, pageIndex: number): string {
   return fallbacks[pageIndex % fallbacks.length];
 }
 
+// ── Colouring book prompts ────────────────────────────────────────────────────
+/** Colouring book cover — clean line art with title, no colour fills */
+function buildColouringCoverPrompt(
+  story: typeof storiesTable.$inferSelect,
+  characterDesc: string,
+): string {
+  const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+  const outfitNote = story.outfit ? `The character wears: ${story.outfit} (describe as outlines only).` : "";
+  return `Create a children's COLOURING BOOK COVER page — thick clean black outlines on pure white background. NO colour fills of any kind. NO shading. NO gradients. Every area must be pure white waiting to be coloured in. Bold, simple, joyful line art style suitable for children to colour.
+
+MAIN CHARACTER (prominently centred, full body visible): ${story.characterName}
+APPEARANCE OUTLINES: ${characterDesc}
+${outfitNote}
+
+CHARACTER STYLE: Chibi / cartoon proportions — oversized head, small round body, large expressive eyes drawn as outlines only. Simple clean strokes. No cross-hatching, no fill, no grey tones — only black outlines on white.
+
+SCENE: ${effectiveTheme} adventure setting rendered as thick outline illustration — trees, sky, ground, objects all drawn as clean outlines only. Richly detailed but in pure line art.
+
+TITLE TEXT: The book title "${story.title}" appears prominently at the TOP in large bold decorative children's book lettering — outlined text (no fill). Centred horizontally.
+
+COMPOSITION: Square 1:1 aspect ratio. Fills canvas completely edge-to-edge. Pure white background throughout. Professional children's colouring book quality. No logos, watermarks, or colour of any kind — only black lines on white.`;
+}
+
+/** Colouring book page — line art scene with character, no colour fills */
+function buildColouringPagePrompt(
+  story: typeof storiesTable.$inferSelect,
+  page: { text: string; image_prompt: string },
+  characterDesc: string,
+  pageIndex: number,
+): string {
+  const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+  const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
+  const outfitNote = story.outfit ? `The character wears: ${story.outfit} (as outlines only).` : "";
+  return `Create a children's COLOURING BOOK PAGE — thick clean black outlines on pure white background. NO colour fills of any kind. NO shading. NO gradients. Every area must be pure white waiting to be coloured in. Bold, simple, joyful line art style.
+
+SCENE: ${page.image_prompt}
+
+MAIN CHARACTER — MUST APPEAR IN THIS SCENE: ${story.characterName}
+APPEARANCE OUTLINES: ${characterDesc}
+${outfitNote}
+
+CHARACTER STYLE: Chibi / cartoon proportions. Simple clean outlines only — no cross-hatching, no fill, no grey tones.
+
+CHARACTER POSE FOR THIS PAGE: ${poseInstruction}
+
+${ANATOMY_RULE}
+
+SETTING: ${effectiveTheme} adventure scene rendered as detailed outline illustration — all objects, background, and setting drawn as clean thick outlines on pure white. Richly detailed line art.
+
+CRITICAL — NO TEXT WHATSOEVER: No letters, words, numbers, speech bubbles, or any written characters anywhere.
+
+COMPOSITION: Square 1:1 aspect ratio. Fills canvas completely edge-to-edge. Pure white background throughout. Professional children's colouring book quality — only black lines on white.`;
+}
+
 /** Cover prompt — character prominently in center with title text */
 function buildCoverPrompt(
   story: typeof storiesTable.$inferSelect,
@@ -344,7 +398,10 @@ Respond ONLY with a JSON object:
     await updateStory(storyId, { generationProgress: 50, generationStatusMessage: "Story written! Creating cover art..." });
 
     // Step 4: Generate cover image (character + title in same image)
-    const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc);
+    const isColouring = story.style === 'colouring';
+    const coverPrompt = isColouring
+      ? buildColouringCoverPrompt(story, characterDesc)
+      : buildCoverPrompt(story, characterDesc, character2Desc);
     try {
       const coverBuf = await generateImage(coverPrompt);
       const coverImagePath = await saveImage(coverBuf, "covers");
@@ -368,7 +425,9 @@ Respond ONLY with a JSON object:
 
       let imagePath: string | undefined;
       try {
-        const pagePrompt = buildPagePrompt(story, page, characterDesc, i, character2Desc);
+        const pagePrompt = isColouring
+          ? buildColouringPagePrompt(story, page, characterDesc, i)
+          : buildPagePrompt(story, page, characterDesc, i, character2Desc);
         // 1792×1024 landscape fills the book's left page panel without cropping
         const imgBuf = await generateImage(pagePrompt);
         imagePath = await saveImage(imgBuf, "pages");
