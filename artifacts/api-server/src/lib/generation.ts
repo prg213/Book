@@ -68,10 +68,10 @@ async function addTitleToCover(coverBuf: Buffer, title: string): Promise<Buffer>
     const [w, h] = dimStr.trim().split(" ").map(Number);
 
     // Layout constants
-    const fontSize   = Math.max(22, Math.round(w * 0.050));   // ~5% of width
-    const textWidth  = Math.round(w * 0.62);                   // 62% of width
-    const marginTop  = Math.round(h * 0.028);                  // 2.8% from top
-    const padV       = Math.round(h * 0.012);                  // vertical padding inside strip
+    const fontSize   = Math.max(14, Math.round(w * 0.030));   // ~3% of width (40% smaller than before)
+    const textWidth  = Math.round(w * 0.60);                   // 60% of width — safe for A5 portrait crop
+    const marginTop  = Math.round(h * 0.030);                  // 3% from top
+    const padV       = Math.round(h * 0.010);                  // vertical padding inside strip
 
     // Step 1 — create caption image (word-wrapped, white text with black outline)
     await execFileAsync("magick", [
