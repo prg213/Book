@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { useCreateStory, useGenerateStory } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, ArrowRight, Upload, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { Link } from 'wouter';
+
+// ── Title suggestions keyed by theme ────────────────────────────────────────
+const TITLE_SUGGESTIONS: Record<string, (name: string) => string[]> = {
+  adventure:          (n) => [`${n}'s Adventure`, `${n} Explores`, `${n}'s Big Quest`],
+  space:              (n) => [`${n} in Space`, `${n}'s Star Quest`, `${n} & the Stars`],
+  ocean:              (n) => [`${n}'s Ocean Trip`, `${n} & the Sea`, `${n}'s Big Voyage`],
+  jungle:             (n) => [`${n}'s Jungle Quest`, `${n} in the Jungle`, `${n} & the Vines`],
+  magic:              (n) => [`${n}'s Magic Day`, `${n} the Wizard`, `${n}'s Spell`],
+  'fairy tale':       (n) => [`${n}'s Fairy Tale`, `Once Upon ${n}`, `${n} & the Castle`],
+  sports:             (n) => [`${n}'s Big Game`, `${n} the Champion`, `Go ${n}!`],
+  cooking:            (n) => [`${n}'s Kitchen Fun`, `${n} Bakes a Cake`, `Chef ${n}`],
+  pirates:            (n) => [`${n}'s Pirate Quest`, `Captain ${n}`, `${n} & the Map`],
+  dinosaurs:          (n) => [`${n} & the Dinos`, `${n}'s Dino Day`, `${n} Meets a Dino`],
+  superheroes:        (n) => [`${n} Saves the Day`, `${n}'s Super Power`, `Super ${n}`],
+  'enchanted forest': (n) => [`${n}'s Forest Quest`, `${n} & the Fairies`, `${n} in the Woods`],
+  'time travel':      (n) => [`${n}'s Time Trip`, `${n} Through Time`, `${n} & the Clock`],
+  circus:             (n) => [`${n}'s Big Show`, `${n} at the Circus`, `Amazing ${n}`],
+  'farm animals':     (n) => [`${n} on the Farm`, `${n}'s Farm Day`, `${n} & the Animals`],
+  'winter wonderland':(n) => [`${n}'s Snow Day`, `${n} & the Snowman`, `${n} in the Snow`],
+  'desert safari':    (n) => [`${n}'s Safari`, `${n} in the Desert`, `${n} & the Camel`],
+  'robot city':       (n) => [`${n} & the Robots`, `${n}'s Robot Day`, `${n} in Robot City`],
+  custom:             (n) => [`${n}'s Adventure`, `${n}'s Big Day`, `${n} Explores`],
+};
+
+function pickTitle(theme: string, name: string, suggestionIndex: number): string {
+  const fn = TITLE_SUGGESTIONS[theme] ?? TITLE_SUGGESTIONS['custom'];
+  const list = fn(name || 'My Hero');
+  return list[suggestionIndex % list.length];
+}
 
 // ── Outfit options keyed by story theme ─────────────────────────────────────
 const OUTFIT_OPTIONS: Record<string, Array<{ emoji: string; label: string; value: string }>> = {
@@ -204,6 +233,26 @@ export default function Create() {
   const [emotion, setEmotion] = useState('');
   const [title, setTitle] = useState('');
   const [pageCount, setPageCount] = useState(6);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const titleManuallyEdited = useRef(false);
+
+  // Auto-generate title whenever theme or characterName changes (unless user typed their own)
+  const autoTitle = useCallback((t: string, n: string, idx: number) => {
+    if (!t) return;
+    titleManuallyEdited.current = false;
+    setTitle(pickTitle(t, n, idx));
+  }, []);
+
+  useEffect(() => {
+    if (!titleManuallyEdited.current) {
+      autoTitle(theme, characterName, suggestionIndex);
+    }
+  }, [theme, characterName, suggestionIndex, autoTitle]);
+
+  const handleRefreshTitle = () => {
+    titleManuallyEdited.current = false;
+    setSuggestionIndex((i) => i + 1);
+  };
 
   const createStory = useCreateStory();
   const generateStory = useGenerateStory();
@@ -749,17 +798,36 @@ export default function Create() {
 
               <div>
                 <Label htmlFor="title" className="text-sm font-semibold">Story Title *</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value.slice(0, 30))}
-                  placeholder={`e.g. ${characterName}'s Adventure`}
-                  className="mt-1.5"
-                  maxLength={30}
-                  data-testid="input-title"
-                />
+                <div className="flex gap-2 mt-1.5">
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => {
+                      titleManuallyEdited.current = true;
+                      setTitle(e.target.value.slice(0, 30));
+                    }}
+                    placeholder={theme ? pickTitle(theme, characterName, 0) : "Choose a theme first"}
+                    className="flex-1"
+                    maxLength={30}
+                    data-testid="input-title"
+                  />
+                  {theme && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleRefreshTitle}
+                      title="Suggest another title"
+                      className="shrink-0"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
                 <p className={`text-xs mt-1 ${title.length >= 28 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                  Keep it short so it fits on the cover — {30 - title.length} characters left
+                  {title.length >= 28
+                    ? `Almost full — ${30 - title.length} characters left`
+                    : 'Auto-suggested from your theme — edit freely or tap ↺ for another idea'}
                 </p>
               </div>
 
