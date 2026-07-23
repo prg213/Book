@@ -141,7 +141,7 @@ export async function generateColouringPage(imageBuffer: Buffer): Promise<Buffer
       prompt: COLOURING_PROMPT,
       n: 1,
       response_format: "b64_json",
-      image: imageBuffer.toString("base64"),
+      image: { url: `data:image/png;base64,${imageBuffer.toString("base64")}` },
     }),
   });
 
