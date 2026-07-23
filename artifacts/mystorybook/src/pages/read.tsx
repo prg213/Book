@@ -463,19 +463,18 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// Display the cover at its natural image aspect ratio — no forced 1:1 square.
-// width: 100% fills the stage width; height is auto (driven by the image).
-// This ensures the full title and artwork are always visible without cropping,
-// regardless of whether the image is square (future) or portrait (current).
+// Shown as a contained book cover — 78% of stage width, natural aspect ratio,
+// fully visible (no cropping). Stage centres it with dark background visible
+// around it so it reads as a proper physical book cover display.
 function PortraitCover({ story }: { story: any }) {
   return (
     <div
       className="relative overflow-hidden"
       style={{
-        width: '100%',
-        maxHeight: '100%',
-        borderRadius: '0 14px 14px 0',
-        filter: 'drop-shadow(-4px 10px 28px rgba(0,0,0,0.85))',
+        width: '78%',
+        maxHeight: '88dvh',
+        borderRadius: '0 16px 16px 0',
+        filter: 'drop-shadow(-6px 14px 32px rgba(0,0,0,0.9))',
       }}
     >
       {story.coverImageUrl ? (
@@ -492,19 +491,19 @@ function PortraitCover({ story }: { story: any }) {
         />
       ) : (
         <div className="bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6"
-          style={{ aspectRatio: '1 / 1' }}>
+          style={{ aspectRatio: '3 / 4' }}>
           <div className="text-center text-amber-200">
             <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="font-display text-lg font-bold">{story.title}</p>
           </div>
         </div>
       )}
-      {/* Spine overlay on left edge */}
+      {/* Spine overlay — dark gradient on left edge */}
       <div className="absolute inset-y-0 left-0 pointer-events-none"
-        style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
-      {/* Subtle bottom shadow */}
-      <div className="absolute inset-x-0 bottom-0 h-4 pointer-events-none"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.2), transparent)' }} />
+        style={{ width: '24px', background: 'linear-gradient(to right, rgba(5,2,0,0.95) 0%, rgba(40,18,6,0.6) 55%, transparent 100%)' }} />
+      {/* Bottom page-edge shadow */}
+      <div className="absolute inset-x-0 bottom-0 h-5 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' }} />
     </div>
   );
 }
