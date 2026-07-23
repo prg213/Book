@@ -463,17 +463,16 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// 1:1 square, spine as overlay — mirrors the landscape treatment exactly.
-// Width is the limiting dimension in portrait: cover fills 100% of stage width,
-// maintains 1:1 ratio, and is capped by max-height so it never overflows the
-// stage vertically on short screens.
+// Display the cover at its natural image aspect ratio — no forced 1:1 square.
+// width: 100% fills the stage width; height is auto (driven by the image).
+// This ensures the full title and artwork are always visible without cropping,
+// regardless of whether the image is square (future) or portrait (current).
 function PortraitCover({ story }: { story: any }) {
   return (
     <div
       className="relative overflow-hidden"
       style={{
         width: '100%',
-        aspectRatio: '1 / 1',
         maxHeight: '100%',
         borderRadius: '0 14px 14px 0',
         filter: 'drop-shadow(-4px 10px 28px rgba(0,0,0,0.85))',
@@ -483,20 +482,24 @@ function PortraitCover({ story }: { story: any }) {
         <img
           src={story.coverImageUrl}
           alt={story.title}
-          className="absolute inset-0 w-full h-full"
-          style={{ objectFit: 'cover', objectPosition: 'top center' }}
+          style={{
+            display: 'block',
+            width: '100%',
+            height: 'auto',
+          }}
           data-testid="img-cover"
           draggable={false}
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6">
+        <div className="bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6"
+          style={{ aspectRatio: '1 / 1' }}>
           <div className="text-center text-amber-200">
             <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="font-display text-lg font-bold">{story.title}</p>
           </div>
         </div>
       )}
-      {/* Spine overlay on left edge — no structural width added */}
+      {/* Spine overlay on left edge */}
       <div className="absolute inset-y-0 left-0 pointer-events-none"
         style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
       {/* Subtle bottom shadow */}
