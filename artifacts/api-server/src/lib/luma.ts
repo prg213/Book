@@ -25,7 +25,7 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
       model: "ray-3.2",
       type: "video",
       prompt:
-        "The cartoon character in the scene waves cheerfully at the camera with a warm friendly smile. The background, other characters, and all other scene elements remain completely still.",
+        "The cartoon character waves cheerfully at the camera with a warm friendly smile. The title text and all lettering on the cover remain completely static and fully visible for the entire duration — no fading, no dissolving, no movement of any text whatsoever. The background, sky, and all other scene elements remain completely still. Only the character's arm and hand move.",
       aspect_ratio: "1:1",
       video: {
         resolution: "540p",
