@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // production URL (e.g. https://abc123.replit.app).
 // Then push to GitHub — Actions will build a new APK automatically.
 // ─────────────────────────────────────────────────────────────────────────────
-const PRODUCTION_URL = 'https://REPLACE_WITH_YOUR_REPLIT_APP_URL.replit.app';
+const PRODUCTION_URL = 'https://grok-canvas-copy--prgriffiths123.replit.app';
 
 const config: CapacitorConfig = {
   appId: 'com.mystorybook.app',
