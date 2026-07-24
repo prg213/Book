@@ -25,7 +25,7 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
       model: "ray-3.2",
       type: "video",
       prompt:
-        "The cute 3D cartoon character raises one arm and waves cheerfully at the camera with a big warm friendly smile, smooth wave motion, white background",
+        "The cartoon character in the scene waves cheerfully at the camera with a warm friendly smile. The background, other characters, and all other scene elements remain completely still.",
       aspect_ratio: "1:1",
       video: {
         resolution: "540p",

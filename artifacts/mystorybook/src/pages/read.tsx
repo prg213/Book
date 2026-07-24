@@ -659,54 +659,12 @@ function PortraitCover({ story }: { story: any }) {
       }}
     >
       {story.characterVideoUrl ? (
-        /* ── Animated cover: blurred scene bg + waving character video ── */
-        <>
-          {/* Blurred cover art fills the background */}
-          {story.coverImageUrl && (
-            <img
-              src={story.coverImageUrl}
-              alt=""
-              aria-hidden
-              style={{
-                position: 'absolute', inset: 0,
-                width: '100%', height: '100%',
-                objectFit: 'cover',
-                filter: 'blur(12px) brightness(0.55)',
-                transform: 'scale(1.08)',
-              }}
-              draggable={false}
-            />
-          )}
-          {/* Character video centred, fills the frame */}
-          <video
-            src={story.characterVideoUrl}
-            autoPlay loop muted playsInline
-            data-testid="img-cover"
-            style={{
-              position: 'relative',
-              display: 'block',
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-            }}
-          />
-          {/* Title bar at the bottom */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            padding: '1rem 1rem 1.2rem',
-            background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)',
-          }}>
-            <p style={{
-              margin: 0,
-              fontFamily: '"Bubblegum Sans", cursive',
-              fontSize: 'clamp(1rem, 5vw, 1.6rem)',
-              fontWeight: 700,
-              color: '#fff',
-              textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-              textAlign: 'center',
-            }}>{story.title}</p>
-          </div>
-        </>
+        <video
+          src={story.characterVideoUrl}
+          autoPlay loop muted playsInline
+          data-testid="img-cover"
+          style={{ display: 'block', width: '100%', height: 'auto' }}
+        />
       ) : story.coverImageUrl ? (
         <img
           src={story.coverImageUrl}
@@ -865,39 +823,13 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
           <div className="absolute inset-0 overflow-hidden"
             style={{ borderRadius: '0 14px 14px 0' }}>
             {story.characterVideoUrl ? (
-              <>
-                {/* Blurred cover art as background */}
-                {story.coverImageUrl && (
-                  <img src={story.coverImageUrl} alt="" aria-hidden
-                    className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: 'cover', filter: 'blur(12px) brightness(0.55)', transform: 'scale(1.08)' }}
-                    draggable={false} />
-                )}
-                {/* Character video centred */}
-                <video
-                  src={story.characterVideoUrl}
-                  autoPlay loop muted playsInline
-                  data-testid="img-cover-ls"
-                  className="absolute inset-0 w-full h-full"
-                  style={{ objectFit: 'contain' }}
-                />
-                {/* Title bar */}
-                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0,
-                  padding: '0.75rem 1rem 1rem',
-                  background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)',
-                }}>
-                  <p style={{
-                    margin: 0,
-                    fontFamily: '"Bubblegum Sans", cursive',
-                    fontSize: 'clamp(0.9rem, 3vw, 1.4rem)',
-                    fontWeight: 700,
-                    color: '#fff',
-                    textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-                    textAlign: 'center',
-                  }}>{story.title}</p>
-                </div>
-              </>
+              <video
+                src={story.characterVideoUrl}
+                autoPlay loop muted playsInline
+                data-testid="img-cover-ls"
+                className="absolute inset-0 w-full h-full"
+                style={{ objectFit: 'cover', objectPosition: 'top center' }}
+              />
             ) : story.coverImageUrl ? (
               <img src={story.coverImageUrl} alt={story.title}
                 className="absolute inset-0 w-full h-full"
