@@ -22,9 +22,9 @@ async function fetchColouringPage(imageUrl: string): Promise<string> {
 // ─── A5 Image card ────────────────────────────────────────────────────────────
 
 function A5ImageCard({
-  src, alt, label, entry, aspectRatio,
+  src, alt, label, entry,
 }: {
-  src?: string | null; alt: string; label?: string; entry?: ColouringEntry; aspectRatio?: string;
+  src?: string | null; alt: string; label?: string; entry?: ColouringEntry;
 }) {
   const isLoading = !entry || entry.status === 'loading';
   const displaySrc = entry?.status === 'done' ? entry.url : src;
@@ -33,7 +33,7 @@ function A5ImageCard({
       {label && <p className="text-xs font-medium text-amber-400/70 tracking-wider uppercase">{label}</p>}
       <div
         className="w-full bg-white rounded-xl overflow-hidden shadow-lg shadow-black/40 border border-white/10 relative"
-        style={{ aspectRatio: aspectRatio ?? `${148}/${210}` }}
+        style={{ aspectRatio: `${148}/${210}` }}
       >
         {displaySrc ? (
           <img src={displaySrc} alt={alt} className="w-full h-full object-cover transition-opacity duration-500"
@@ -246,7 +246,6 @@ export default function StoryView() {
           <div className="flex justify-center">
             <div className="w-full max-w-[220px] sm:max-w-[260px]">
               <A5ImageCard src={story.coverImageUrl} alt={story.title}
-                aspectRatio="1/1"
                 entry={story.coverImageUrl ? colouringMap.get(story.coverImageUrl) : undefined} />
             </div>
           </div>

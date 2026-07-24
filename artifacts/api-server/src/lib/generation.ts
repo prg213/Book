@@ -166,7 +166,7 @@ ${ANATOMY_RULE}
 
 SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.
 
-TITLE: The story title "${story.title}" must appear at the very top of the image. Use small, neat, decorative children's book lettering — the font must be significantly smaller than titles you would normally place on a cover; it should feel like a subtitle in size. Centre the text horizontally. The title text must not extend beyond the middle 60% of the image width; leave at least 20% empty space on each side edge. Render no other text anywhere on the image.
+TITLE: The story title "${story.title}" appears centered at the very top of the image. STRICT SIZE RULE — the font must be tiny: no taller than 4% of the image height, and the entire title must fit comfortably within the central 50% of the image width (25% blank margin on every left and right side). Use neat, rounded children's book lettering in a single line. If the title is long, reduce the font size further until it fits on one line within that 50% width limit. Render NO other text anywhere in the image.
 
 COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No logos, no brand names, no watermarks — only the story title text described above.`;
 }
