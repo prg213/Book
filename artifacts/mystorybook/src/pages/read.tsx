@@ -666,18 +666,11 @@ function PortraitCover({ story }: { story: any }) {
         filter: 'drop-shadow(-6px 14px 32px rgba(0,0,0,0.9))',
       }}
     >
-      {story.characterVideoUrl ? (
-        <video
-          src={story.characterVideoUrl}
-          autoPlay loop muted playsInline
-          data-testid="img-cover"
-          style={{ display: 'block', width: '100%', height: 'auto' }}
-        />
-      ) : story.coverImageUrl ? (
+      {story.coverImageUrl ? (
         <img
           src={story.coverImageUrl}
           alt={story.title}
-          style={{ display: 'block', width: '100%', height: 'auto' }}
+          style={{ display: 'block', width: '100%', height: 'auto', animation: 'float 4s ease-in-out infinite' }}
           data-testid="img-cover"
           draggable={false}
         />
@@ -830,18 +823,10 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
           {/* Inner div handles border-radius + image clipping without collapsing 3D */}
           <div className="absolute inset-0 overflow-hidden"
             style={{ borderRadius: '0 14px 14px 0' }}>
-            {story.characterVideoUrl ? (
-              <video
-                src={story.characterVideoUrl}
-                autoPlay loop muted playsInline
-                data-testid="img-cover-ls"
-                className="absolute inset-0 w-full h-full"
-                style={{ objectFit: 'cover', objectPosition: 'top center' }}
-              />
-            ) : story.coverImageUrl ? (
+            {story.coverImageUrl ? (
               <img src={story.coverImageUrl} alt={story.title}
                 className="absolute inset-0 w-full h-full"
-                style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                style={{ objectFit: 'cover', objectPosition: 'top center', animation: 'float 4s ease-in-out infinite' }}
                 data-testid="img-cover-ls" draggable={false} />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">

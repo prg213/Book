@@ -403,7 +403,9 @@ Respond ONLY with a JSON object:
 
     await db.insert(storyPagesTable).values(savedPages);
 
-    // Step 6: Generate waving character video via Luma (non-blocking if it fails)
+    // Step 6: Luma video generation disabled — CSS animation used instead
+    // eslint-disable-next-line no-constant-condition
+    if (false) // Step 6: Generate waving character video via Luma (non-blocking if it fails)
     const latestStory = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, storyId) });
     if (latestStory?.coverImagePath && process.env.LUMALABS_API_KEY) {
       try {
