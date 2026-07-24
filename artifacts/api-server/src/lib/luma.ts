@@ -25,7 +25,7 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
       model: "ray-3.2",
       type: "video",
       prompt:
-        "MOUTH COMPLETELY CLOSED the entire video — frozen in a gentle smile, zero lip movement, zero jaw movement, no speaking, no talking, no mouthing words. The face is completely still except for the smile expression which does not change at all. The character raises one arm and waves slowly at the camera. The background, text, and all other elements are completely static. ONLY the waving arm moves. Mouth stays sealed shut for every single frame.",
+        "A still cartoon illustration gently animates. The image is like a painting coming to life — the only thing that moves is one arm waving slowly and gently side to side. The character's face is completely frozen like a painted mask: eyes stay wide open looking directly forward the entire time, no blinking at any point, eyelids do not move. The mouth is sealed shut in a gentle closed-lip smile and does not move a single pixel — no lip movement, no jaw drop, no talking, no mouthing. The expression on the face does not change at all from the first frame to the last. Think of it as animating only the arm of a flat 2D cartoon drawing. Everything else — face, background, text, body — is perfectly still.",
       aspect_ratio: "1:1",
       video: {
         resolution: "540p",
