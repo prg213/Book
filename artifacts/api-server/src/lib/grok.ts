@@ -131,36 +131,51 @@ const COLOURING_PROMPT =
 export async function generateColouringPage(imageBuffer: Buffer): Promise<Buffer> {
   logger.info({ bytes: imageBuffer.length }, "Generating coloring page with Aurora image edit");
 
-  const resp = await fetch(`${XAI_BASE}/images/edits`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey()}`,
-    },
-    body: JSON.stringify({
-      model: "grok-imagine-image",
-      prompt: COLOURING_PROMPT,
-      n: 1,
-      response_format: "b64_json",
-      image: { url: `data:image/png;base64,${imageBuffer.toString("base64")}` },
-    }),
-  });
+  const MAX_ATTEMPTS = 5;
+  let lastErr: Error | null = null;
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Aurora image edit error ${resp.status}: ${err}`);
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const resp = await fetch(`${XAI_BASE}/images/edits`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey()}`,
+      },
+      body: JSON.stringify({
+        model: "grok-imagine-image",
+        prompt: COLOURING_PROMPT,
+        n: 1,
+        response_format: "b64_json",
+        image: { url: `data:image/png;base64,${imageBuffer.toString("base64")}` },
+      }),
+    });
+
+    if (resp.status === 429) {
+      const retryAfterMs = attempt * 3000;
+      logger.warn({ attempt, retryAfterMs }, "Coloring page rate-limited (429), retrying");
+      await new Promise(r => setTimeout(r, retryAfterMs));
+      lastErr = new Error(`Aurora image edit rate limited after ${attempt} attempts`);
+      continue;
+    }
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`Aurora image edit error ${resp.status}: ${err}`);
+    }
+
+    const data = (await resp.json()) as { data: Array<{ b64_json?: string; url?: string }> };
+    const item = data.data[0];
+
+    if (item.b64_json) return Buffer.from(item.b64_json, "base64");
+    if (item.url) {
+      const r = await fetch(item.url);
+      return Buffer.from(await r.arrayBuffer());
+    }
+
+    throw new Error("No image data in Aurora coloring-page response");
   }
 
-  const data = (await resp.json()) as { data: Array<{ b64_json?: string; url?: string }> };
-  const item = data.data[0];
-
-  if (item.b64_json) return Buffer.from(item.b64_json, "base64");
-  if (item.url) {
-    const r = await fetch(item.url);
-    return Buffer.from(await r.arrayBuffer());
-  }
-
-  throw new Error("No image data in Aurora coloring-page response");
+  throw lastErr ?? new Error("Coloring page generation failed after max retries");
 }
 
 /** Generate an image using xAI Aurora and return the image bytes */

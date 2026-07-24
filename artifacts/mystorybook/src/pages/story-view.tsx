@@ -181,11 +181,14 @@ export default function StoryView() {
     if (!fresh.length) return;
     for (const u of fresh) triggeredRef.current.add(u);
     setColouringMap(prev => { const next = new Map(prev); for (const u of fresh) next.set(u, { status: 'loading' }); return next; });
-    for (const url of fresh) {
-      fetchColouringPage(url)
-        .then(colouringUrl => setColouringMap(prev => new Map(prev).set(url, { status: 'done', url: colouringUrl })))
-        .catch(() => { triggeredRef.current.delete(url); setColouringMap(prev => new Map(prev).set(url, { status: 'error' })); });
-    }
+    // Stagger requests 400 ms apart to stay within xAI's 5 req/s rate limit
+    fresh.forEach((url, i) => {
+      setTimeout(() => {
+        fetchColouringPage(url)
+          .then(colouringUrl => setColouringMap(prev => new Map(prev).set(url, { status: 'done', url: colouringUrl })))
+          .catch(() => { triggeredRef.current.delete(url); setColouringMap(prev => new Map(prev).set(url, { status: 'error' })); });
+      }, i * 400);
+    });
   }, [story, pages]);
 
   if (isLoading) {
