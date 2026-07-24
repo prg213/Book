@@ -1096,7 +1096,7 @@ function OpenBookPortrait({ story, page, pageNumber, totalPages }: any) {
         style={{ background: 'linear-gradient(to bottom, #f0e3c8, #ece0c2)', fontFamily: '"Georgia", "Times New Roman", serif', padding: '5% 8%' }}>
         <p className="text-amber-900/40 text-xs italic mb-3 font-sans">{story.title}</p>
         <div className="leading-relaxed text-[#3a1f06]"
-          style={{ fontSize: 'clamp(1.05rem, 4.8vw, 1.3rem)' }}
+          style={{ fontSize: 'clamp(0.88rem, 3.8vw, 1.08rem)' }}
           data-testid={`text-page-${pageNumber}`}>
           {page?.text?.split('\n').map((para: string, i: number) => (
             <p key={i} className="mb-3">
