@@ -4,7 +4,6 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { eq } from "drizzle-orm";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
-import { generateWavingVideoKling } from "./kling";
 import { analyzePhoto, extractOutfitFromDescription, generateStoryText, generateImage } from "./grok";
 import { buildCharacterPrompt } from "../routes/character";
 import { logger } from "./logger";
@@ -382,23 +381,6 @@ Respond ONLY with a JSON object:
       logger.error({ storyId, err: e }, "Cover generation failed");
     }
 
-    // Step 4b: Kick off Kling video immediately in the background — runs in
-    // parallel with page illustration so it is ready when the user opens the book.
-    let klingVideoPromise: Promise<void> | null = null;
-    if (coverImagePath && process.env.KLING_API_KEY) {
-      const domain = process.env.REPLIT_DEV_DOMAIN;
-      const publicCoverUrl = `https://${domain}/api/uploads/${coverImagePath}`;
-      klingVideoPromise = generateWavingVideoKling(publicCoverUrl)
-        .then(async (videoPath) => {
-          await updateStory(storyId, { characterVideoPath: videoPath });
-          logger.info({ storyId, videoPath }, "Kling waving video saved");
-        })
-        .catch((e) => {
-          logger.warn({ storyId, err: e }, "Kling video generation failed — continuing without it");
-        });
-      logger.info({ storyId }, "Kling video generation started in background");
-    }
-
     await updateStory(storyId, { generationProgress: 55, generationStatusMessage: `Cover created! Illustrating ${pages.length} pages...` });
 
     // Step 5: Generate page illustrations
@@ -433,15 +415,12 @@ Respond ONLY with a JSON object:
 
     await db.insert(storyPagesTable).values(savedPages);
 
-    // Step 6: Mark complete, then wait for Kling if it's still running
+    // Step 6: Mark complete
     await updateStory(storyId, {
       status: "complete",
       generationProgress: 100,
       generationStatusMessage: `Your story is ready! ${savedPages.length} pages illustrated.`,
     });
-
-    // Await remaining Kling time (non-blocking to the user — story is already "complete")
-    if (klingVideoPromise) await klingVideoPromise;
 
     logger.info({ storyId }, "Story generation complete");
   } catch (e) {

@@ -106,19 +106,10 @@ export default function Read() {
   const isLandscape = useIsLandscape();
   const [, setLocation] = useLocation();
 
-  const [videoPollingStart] = useState(() => Date.now());
   const { data: storyData, isLoading, isError } = useGetStoryForReading(storyId, {
     query: {
       enabled: !!storyId,
       queryKey: getGetStoryForReadingQueryKey(storyId),
-      // Keep polling until the animated cover video arrives (Luma runs after story completes).
-      // Stop after 3 minutes to avoid polling forever if Luma failed.
-      refetchInterval: (query) => {
-        const data = query.state.data as any;
-        if (data?.characterVideoUrl) return false;
-        if (Date.now() - videoPollingStart > 3 * 60 * 1000) return false;
-        return 4000;
-      },
     },
   });
 
@@ -666,14 +657,7 @@ function PortraitCover({ story }: { story: any }) {
         filter: 'drop-shadow(-6px 14px 32px rgba(0,0,0,0.9))',
       }}
     >
-      {story.characterVideoUrl ? (
-        <video
-          src={story.characterVideoUrl}
-          autoPlay loop muted playsInline
-          data-testid="img-cover"
-          style={{ display: 'block', width: '100%', height: 'auto' }}
-        />
-      ) : story.coverImageUrl ? (
+      {story.coverImageUrl ? (
         <img
           src={story.coverImageUrl}
           alt={story.title}
@@ -830,15 +814,7 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
           {/* Inner div handles border-radius + image clipping without collapsing 3D */}
           <div className="absolute inset-0 overflow-hidden"
             style={{ borderRadius: '0 14px 14px 0' }}>
-            {story.characterVideoUrl ? (
-              <video
-                src={story.characterVideoUrl}
-                autoPlay loop muted playsInline
-                data-testid="img-cover-ls"
-                className="absolute inset-0 w-full h-full"
-                style={{ objectFit: 'cover', objectPosition: 'top center' }}
-              />
-            ) : story.coverImageUrl ? (
+            {story.coverImageUrl ? (
               <img src={story.coverImageUrl} alt={story.title}
                 className="absolute inset-0 w-full h-full"
                 style={{ objectFit: 'cover', objectPosition: 'top center' }}

@@ -110,6 +110,7 @@ interface StoryCardProps {
     title: string;
     status: string;
     coverImageUrl?: string | null;
+    characterImageUrl?: string | null;
     generationProgress?: number | null;
     errorMessage?: string | null;
     createdAt: string;
@@ -127,6 +128,7 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
   const status       = liveStatus?.status       ?? story.status;
   const progress     = liveStatus?.generationProgress ?? story.generationProgress ?? 0;
   const coverUrl     = (liveStatus as any)?.coverImageUrl ?? story.coverImageUrl;
+  const charUrl      = (liveStatus as any)?.characterImageUrl ?? story.characterImageUrl;
   const stillActive  = status === 'pending' || status === 'generating';
 
   const statusBadge = () => {
@@ -161,23 +163,46 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
       data-testid={`card-story-${story.id}`}
     >
       {/* Cover image */}
-      <div className="relative h-48 bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 overflow-hidden">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={story.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-            data-testid={`img-cover-${story.id}`}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            {stillActive
-              ? <Loader2 className="w-12 h-12 text-primary/40 animate-spin" />
-              : <BookOpen className="w-16 h-16 text-primary/40" />
-            }
+      <div className="relative h-48 bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 overflow-visible">
+        <div className="w-full h-full overflow-hidden rounded-t-3xl">
+          {coverUrl ? (
+            <img
+              src={coverUrl}
+              alt={story.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+              data-testid={`img-cover-${story.id}`}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              {stillActive
+                ? <Loader2 className="w-12 h-12 text-primary/40 animate-spin" />
+                : <BookOpen className="w-16 h-16 text-primary/40" />
+              }
+            </div>
+          )}
+        </div>
+        <div className="absolute top-3 left-4">{statusBadge()}</div>
+        {/* Waving character — peeks out of the card bottom-right */}
+        {charUrl && status === 'complete' && (
+          <div
+            className="absolute pointer-events-none"
+            style={{ bottom: '-28px', right: '12px', width: '88px', height: '110px', zIndex: 10 }}
+          >
+            <img
+              src={charUrl}
+              alt="character"
+              className="character-waving"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'bottom',
+                mixBlendMode: 'multiply',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))',
+              }}
+            />
           </div>
         )}
-        <div className="absolute top-4 right-4">{statusBadge()}</div>
       </div>
 
       {/* Content */}
