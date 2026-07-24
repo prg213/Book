@@ -175,7 +175,7 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
 
   return (
     <div
-      className="bg-card rounded-3xl shadow-lg border border-card-border overflow-hidden hover:shadow-xl transition-all group"
+      className="bg-white rounded-3xl shadow-lg border border-card-border overflow-hidden hover:shadow-xl transition-all group"
       data-testid={`card-story-${story.id}`}
     >
       {/* Cover image */}
