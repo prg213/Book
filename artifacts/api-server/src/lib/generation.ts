@@ -5,7 +5,7 @@ import { promisify } from "util";
 import { eq } from "drizzle-orm";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
 import { generateWavingVideo } from "./luma";
-import { analyzePhoto, generateStoryText, generateImage } from "./grok";
+import { analyzePhoto, extractOutfitFromDescription, generateStoryText, generateImage } from "./grok";
 import { buildCharacterPrompt } from "../routes/character";
 import { logger } from "./logger";
 
@@ -128,6 +128,7 @@ function buildCoverPrompt(
   story: typeof storiesTable.$inferSelect,
   characterDesc: string,
   character2Desc?: string,
+  lockedOutfitDesc?: string | null,
 ): string {
   const char2Line = character2Desc
     ? `\nSECOND CHARACTER: ${story.characterName2} also appears prominently — ${character2Desc}.`
@@ -136,12 +137,13 @@ function buildCoverPrompt(
 
   // When an outfit is chosen, make it the first thing Aurora reads and explicitly
   // instruct it to ignore any clothing mentioned in the character description.
-  const outfitBlock = story.outfit
-    ? `OUTFIT (MANDATORY — takes absolute priority over anything else):
-The character wears EXACTLY THIS and nothing else: ${story.outfit}
-CRITICAL: The character description below may mention different clothing from the original photo — IGNORE ALL CLOTHING IN THE CHARACTER DESCRIPTION. Only use hair, eyes, skin tone, and face shape from it. The outfit above is the only valid clothing.`
+  const effectiveOutfit = story.outfit ?? lockedOutfitDesc;
+  const outfitBlock = effectiveOutfit
+    ? `OUTFIT LOCK (MANDATORY on every page — identical colour, style, and items every time — takes absolute priority):
+The character wears EXACTLY THIS and nothing else: ${effectiveOutfit}
+CRITICAL: IGNORE any clothing mentioned in the character description below. Use only hair, eyes, skin tone, and face shape from it.`
     : "";
-  const descLabel = story.outfit
+  const descLabel = effectiveOutfit
     ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
     : `CHARACTER APPEARANCE — reproduce faithfully (hair, eyes, skin, outfit, accessories):`;
 
@@ -179,6 +181,7 @@ function buildPagePrompt(
   characterDesc: string,
   pageIndex: number,
   character2Desc?: string,
+  lockedOutfitDesc?: string | null,
 ): string {
   const char2Line = character2Desc
     ? `\nSECOND CHARACTER (also in this scene): ${story.characterName2} — ${character2Desc}.`
@@ -186,12 +189,13 @@ function buildPagePrompt(
   const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
   const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
 
-  const outfitBlock = story.outfit
-    ? `OUTFIT (MANDATORY on every single page — takes absolute priority over anything else):
-The character wears EXACTLY THIS and nothing else: ${story.outfit}
-CRITICAL: The character description below may mention different clothing from the original photo — IGNORE ALL CLOTHING IN THE CHARACTER DESCRIPTION. Only use hair, eyes, skin tone, and face shape from it. The outfit above is the only valid clothing for every page.`
+  const effectiveOutfit = story.outfit ?? lockedOutfitDesc;
+  const outfitBlock = effectiveOutfit
+    ? `OUTFIT LOCK (MANDATORY on every page — identical colour, style, and items every time — takes absolute priority):
+The character wears EXACTLY THIS and nothing else: ${effectiveOutfit}
+CRITICAL: IGNORE any clothing mentioned in the character description below. Use only hair, eyes, skin tone, and face shape from it.`
     : "";
-  const descLabel = story.outfit
+  const descLabel = effectiveOutfit
     ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
     : `CHARACTER APPEARANCE (hair, eyes, skin, outfit, accessories — consistent across all pages):`;
 
@@ -298,6 +302,18 @@ export async function runStoryGeneration(storyId: string): Promise<void> {
     const updatedStory = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, storyId) });
     if (updatedStory?.characterDescription) characterDesc = updatedStory.characterDescription;
 
+    // Extract and lock the outfit from the character description (skip if user chose an explicit outfit)
+    let lockedOutfitDesc: string | null = updatedStory?.lockedOutfitDesc ?? null;
+    if (!story.outfit && !lockedOutfitDesc && characterDesc) {
+      try {
+        lockedOutfitDesc = await extractOutfitFromDescription(characterDesc);
+        await updateStory(storyId, { lockedOutfitDesc });
+        logger.info({ storyId, lockedOutfitDesc }, "Outfit locked for consistency");
+      } catch (e) {
+        logger.warn({ storyId, err: e }, "Outfit extraction failed — illustrations may vary");
+      }
+    }
+
     // Step 3: Generate story text with Grok-3
     await updateStory(storyId, { generationProgress: 35, generationStatusMessage: "Writing your story with Grok..." });
 
@@ -343,7 +359,7 @@ Respond ONLY with a JSON object:
     await updateStory(storyId, { generationProgress: 50, generationStatusMessage: "Story written! Creating cover art..." });
 
     // Step 4: Generate cover image
-    const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc);
+    const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc, lockedOutfitDesc);
     try {
       const coverBuf = await generateImage(coverPrompt);
       const coverImagePath = await saveImage(coverBuf, "covers");
@@ -367,7 +383,7 @@ Respond ONLY with a JSON object:
 
       let imagePath: string | undefined;
       try {
-        const pagePrompt = buildPagePrompt(story, page, characterDesc, i, character2Desc);
+        const pagePrompt = buildPagePrompt(story, page, characterDesc, i, character2Desc, lockedOutfitDesc);
         const imgBuf = await generateImage(pagePrompt);
         imagePath = await saveImage(imgBuf, "pages");
         logger.info({ storyId, pageNumber: page.page_number }, "Page image generated");

@@ -83,6 +83,46 @@ Begin the description with build, then flow through hair, eyes, skin, face, outf
   return data.choices[0].message.content;
 }
 
+/**
+ * Extract a precise outfit specification from a character description paragraph.
+ * Returns a short, locked list of clothing items with exact colours and styles.
+ */
+export async function extractOutfitFromDescription(characterDesc: string): Promise<string> {
+  const resp = await fetch(`${XAI_BASE}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey()}`,
+    },
+    body: JSON.stringify({
+      model: "grok-4.5",
+      messages: [
+        {
+          role: "user",
+          content: `From the character description below, extract ONLY the clothing and accessories worn on the body. List each item on its own line with its exact colour(s), pattern, and style — nothing else. Do NOT include hair, eyes, skin, or face features. Do NOT include objects held in hands. If no clothing is described, write "casual everyday clothes".
+
+Character description:
+${characterDesc}
+
+Respond with a concise bullet list, e.g.:
+- Teal board shorts with white drawstring
+- No top / bare chest
+- Black sunglasses`,
+        },
+      ],
+      max_tokens: 200,
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Grok outfit extraction error ${resp.status}: ${err}`);
+  }
+
+  const data = (await resp.json()) as { choices: Array<{ message: { content: string } }> };
+  return data.choices[0].message.content.trim();
+}
+
 /** Generate story text using Grok-3 */
 export async function generateStoryText(prompt: string): Promise<{
   pages: Array<{ page_number: number; text: string; image_prompt: string }>;
