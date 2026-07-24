@@ -655,7 +655,6 @@ function PortraitCover({ story }: { story: any }) {
         maxHeight: '88dvh',
         borderRadius: '0 16px 16px 0',
         filter: 'drop-shadow(-6px 14px 32px rgba(0,0,0,0.9))',
-        aspectRatio: story.characterVideoUrl ? '3 / 4' : undefined,
       }}
     >
       {story.characterVideoUrl ? (
