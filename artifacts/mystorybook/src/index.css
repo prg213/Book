@@ -326,20 +326,6 @@
   50% { transform: translateY(-10px); }
 }
 
-@keyframes cover-wave {
-  0%         { transform: scale(1.06) rotate(0deg); }
-  10%        { transform: scale(1.06) rotate(-4deg); }
-  24%        { transform: scale(1.06) rotate(4deg); }
-  36%        { transform: scale(1.06) rotate(-3deg); }
-  48%        { transform: scale(1.06) rotate(3deg); }
-  60%        { transform: scale(1.06) rotate(-1deg); }
-  70%, 100%  { transform: scale(1.06) rotate(0deg); }
-}
-
-.animate-cover-wave {
-  transform-origin: bottom center;
-  animation: cover-wave 3.5s ease-in-out infinite;
-}
 
 @keyframes shimmer {
   0% { background-position: -200% center; }
