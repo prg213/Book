@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   useListStories, useDeleteStory, useGetStoryStatus,
@@ -110,7 +110,7 @@ interface StoryCardProps {
     title: string;
     status: string;
     coverImageUrl?: string | null;
-    characterImageUrl?: string | null;
+    characterVideoUrl?: string | null;
     generationProgress?: number | null;
     errorMessage?: string | null;
     createdAt: string;
@@ -128,8 +128,24 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
   const status       = liveStatus?.status       ?? story.status;
   const progress     = liveStatus?.generationProgress ?? story.generationProgress ?? 0;
   const coverUrl     = (liveStatus as any)?.coverImageUrl ?? story.coverImageUrl;
-  const charUrl      = (liveStatus as any)?.characterImageUrl ?? story.characterImageUrl;
   const stillActive  = status === 'pending' || status === 'generating';
+
+  // Poll for character video after story completes (Kling runs in background).
+  // Stop polling once we have a URL or after 5 minutes.
+  const [videoPollingStart] = useState(() => story.status === 'complete' && !story.characterVideoUrl ? Date.now() : 0);
+  const { data: statusData } = useGetStoryStatus(story.id, {
+    query: {
+      enabled: status === 'complete',
+      queryKey: [...getGetStoryStatusQueryKey(story.id), 'video-poll'],
+      refetchInterval: (query) => {
+        const d = query.state.data as any;
+        if (d?.characterVideoUrl) return false;
+        if (videoPollingStart && Date.now() - videoPollingStart > 5 * 60 * 1000) return false;
+        return 5000;
+      },
+    },
+  });
+  const videoUrl = (statusData as any)?.characterVideoUrl ?? story.characterVideoUrl ?? null;
 
   const statusBadge = () => {
     switch (status) {
@@ -182,23 +198,27 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
           )}
         </div>
         <div className="absolute top-3 left-4">{statusBadge()}</div>
-        {/* Waving character — peeks out of the card bottom-right */}
-        {charUrl && status === 'complete' && (
+        {/* Waving character video — white box peeks out of the card bottom-right */}
+        {videoUrl && status === 'complete' && (
           <div
             className="absolute pointer-events-none"
-            style={{ bottom: '-28px', right: '12px', width: '88px', height: '110px', zIndex: 10 }}
+            style={{
+              bottom: '-36px', right: '10px',
+              width: '100px', height: '124px',
+              background: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+              overflow: 'hidden',
+              zIndex: 10,
+            }}
           >
-            <img
-              src={charUrl}
-              alt="character"
-              className="character-waving"
+            <video
+              src={videoUrl}
+              autoPlay loop muted playsInline
               style={{
                 width: '100%',
                 height: '100%',
                 objectFit: 'contain',
-                objectPosition: 'bottom',
-                mixBlendMode: 'multiply',
-                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.25))',
               }}
             />
           </div>

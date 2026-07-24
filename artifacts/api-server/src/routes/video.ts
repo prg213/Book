@@ -13,7 +13,8 @@ router.post("/stories/:id/generate-video", async (req, res) => {
   const { id } = req.params;
   const story = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, id) });
   if (!story) return res.status(404).json({ error: "Story not found" });
-  if (!story.coverImagePath) return res.status(400).json({ error: "Story has no cover image" });
+  const imagePath = (story as any).characterImagePath || story.coverImagePath;
+  if (!imagePath) return res.status(400).json({ error: "Story has no character or cover image" });
 
   res.json({ ok: true, message: "Video generation started" });
 
@@ -21,7 +22,7 @@ router.post("/stories/:id/generate-video", async (req, res) => {
   (async () => {
     try {
       const domain = process.env.REPLIT_DEV_DOMAIN;
-      const publicUrl = `https://${domain}/api/uploads/${story.coverImagePath}`;
+      const publicUrl = `https://${domain}/api/uploads/${imagePath}`;
       logger.info({ storyId: id, publicUrl }, "Manual waving video trigger");
       const videoPath = await generateWavingVideoKling(publicUrl);
       await db.update(storiesTable).set({ characterVideoPath: videoPath }).where(eq(storiesTable.id, id));

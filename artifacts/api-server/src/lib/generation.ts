@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
 import { analyzePhoto, extractOutfitFromDescription, generateStoryText, generateImage } from "./grok";
 import { buildCharacterPrompt } from "../routes/character";
+import { generateWavingVideoKling } from "./kling";
 import { logger } from "./logger";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
@@ -291,6 +292,22 @@ export async function runStoryGeneration(storyId: string): Promise<void> {
           generationStatusMessage: "Character created! Writing your story...",
         });
         logger.info({ storyId }, "Character image generated");
+
+        // Step 2b: Fire Kling waving video from the character image (white bg)
+        // Runs in background — story continues while Kling generates.
+        if (process.env.KLING_API_KEY) {
+          const domain = process.env.REPLIT_DEV_DOMAIN;
+          const publicCharUrl = `https://${domain}/api/uploads/${characterImagePath}`;
+          generateWavingVideoKling(publicCharUrl)
+            .then(async (videoPath) => {
+              await updateStory(storyId, { characterVideoPath: videoPath });
+              logger.info({ storyId, videoPath }, "Kling character waving video saved");
+            })
+            .catch((e) => {
+              logger.warn({ storyId, err: e }, "Kling video failed — continuing without it");
+            });
+          logger.info({ storyId }, "Kling waving video started in background");
+        }
       } catch (e) {
         logger.warn({ storyId, err: e }, "Character image generation failed, continuing");
         await updateStory(storyId, { generationProgress: 30, generationStatusMessage: "Writing your story..." });

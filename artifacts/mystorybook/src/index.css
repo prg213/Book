@@ -465,17 +465,3 @@
   }
 }
 
-/* Character waving animation for story cards */
-@keyframes character-wave {
-  0%   { transform: rotate(0deg) translateY(0px);   }
-  15%  { transform: rotate(-10deg) translateY(-6px); }
-  30%  { transform: rotate(6deg)  translateY(-3px);  }
-  45%  { transform: rotate(-8deg) translateY(-5px);  }
-  60%  { transform: rotate(4deg)  translateY(-2px);  }
-  75%  { transform: rotate(-6deg) translateY(-4px);  }
-  100% { transform: rotate(0deg) translateY(0px);   }
-}
-.character-waving {
-  animation: character-wave 2.4s ease-in-out infinite;
-  transform-origin: bottom center;
-}
