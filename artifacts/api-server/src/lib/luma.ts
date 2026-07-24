@@ -25,7 +25,6 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
       prompt:
         "The cute 3D cartoon character raises one arm and waves cheerfully at the camera with a big warm friendly smile, smooth looping wave motion, white background",
       keyframes: { frame0: { type: "image", url: publicCharacterImageUrl } },
-      duration: "short", // ~3 seconds
       loop: true,
       aspect_ratio: "1:1",
     }),
