@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, storiesTable } from "@workspace/db";
-import { generateWavingVideo } from "../lib/luma";
+import { generateWavingVideoKling } from "../lib/kling";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -21,7 +21,7 @@ router.post("/stories/:id/generate-video", async (req, res) => {
       const domain = process.env.REPLIT_DEV_DOMAIN;
       const publicUrl = `https://${domain}/api/uploads/${story.coverImagePath}`;
       logger.info({ storyId: id, publicUrl }, "Manual waving video trigger");
-      const videoPath = await generateWavingVideo(publicUrl);
+      const videoPath = await generateWavingVideoKling(publicUrl);
       await db.update(storiesTable).set({ characterVideoPath: videoPath }).where(eq(storiesTable.id, id));
       logger.info({ storyId: id, videoPath }, "Manual waving video saved");
     } catch (e) {

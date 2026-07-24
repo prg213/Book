@@ -4,7 +4,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { eq } from "drizzle-orm";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
-import { generateWavingVideo } from "./luma";
+import { generateWavingVideoKling } from "./kling";
 import { analyzePhoto, extractOutfitFromDescription, generateStoryText, generateImage } from "./grok";
 import { buildCharacterPrompt } from "../routes/character";
 import { logger } from "./logger";
@@ -403,9 +403,7 @@ Respond ONLY with a JSON object:
 
     await db.insert(storyPagesTable).values(savedPages);
 
-    // Step 6: Luma video generation disabled — CSS animation used instead
-    // eslint-disable-next-line no-constant-condition
-    if (false) // Step 6: Generate waving character video via Luma (non-blocking if it fails)
+    // Step 6: Generate waving character video via Kling (non-blocking if it fails)
     const latestStory = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, storyId) });
     if (latestStory?.coverImagePath && process.env.LUMALABS_API_KEY) {
       try {
@@ -416,7 +414,7 @@ Respond ONLY with a JSON object:
         });
         const domain = process.env.REPLIT_DEV_DOMAIN;
         const publicUrl = `https://${domain}/api/uploads/${latestStory.coverImagePath}`;
-        const videoPath = await generateWavingVideo(publicUrl);
+        const videoPath = await generateWavingVideoKling(publicUrl);
         await updateStory(storyId, { characterVideoPath: videoPath });
         logger.info({ storyId, videoPath }, "Waving video saved");
       } catch (e) {
