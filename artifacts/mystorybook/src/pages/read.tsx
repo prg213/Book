@@ -1068,10 +1068,10 @@ function LandscapeBook({ story, page, peekPage, pageNumber, totalPages, flipPhas
 function OpenBookPortrait({ story, page, pageNumber, totalPages }: any) {
   return (
     <div className="w-full h-full flex flex-col rounded-xl overflow-hidden"
-      style={{ background: '#f0e3c8', filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.7))', maxWidth: '480px' }}>
+      style={{ background: '#f0e3c8', filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.7))' }}>
 
-      {/* Illustration — top 55% */}
-      <div className="relative flex-shrink-0 overflow-hidden" style={{ height: '55%', background: '#e8d8b0' }}>
+      {/* Illustration — top 52% */}
+      <div className="relative flex-shrink-0 overflow-hidden" style={{ height: '52%', background: '#e8d8b0' }}>
         <div className="absolute inset-x-0 top-0 h-4 z-10 pointer-events-none"
           style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15), transparent)' }} />
         {page?.imageUrl ? (
@@ -1091,18 +1091,18 @@ function OpenBookPortrait({ story, page, pageNumber, totalPages }: any) {
         </div>
       </div>
 
-      {/* Text — bottom 45% */}
-      <div className="flex-1 min-h-0 overflow-y-auto relative"
-        style={{ background: 'linear-gradient(to bottom, #f0e3c8, #ece0c2)', fontFamily: '"Georgia", "Times New Roman", serif', padding: '5% 7%' }}>
+      {/* Text — bottom 48% */}
+      <div className="flex-1 min-h-0 overflow-y-auto relative flex flex-col justify-center"
+        style={{ background: 'linear-gradient(to bottom, #f0e3c8, #ece0c2)', fontFamily: '"Georgia", "Times New Roman", serif', padding: '5% 8%' }}>
         <p className="text-amber-900/40 text-xs italic mb-3 font-sans">{story.title}</p>
-        <div className="leading-snug text-[#3a1f06]"
-          style={{ fontSize: 'clamp(0.85rem, 3.5vw, 1.05rem)' }}
+        <div className="leading-relaxed text-[#3a1f06]"
+          style={{ fontSize: 'clamp(1.05rem, 4.8vw, 1.3rem)' }}
           data-testid={`text-page-${pageNumber}`}>
           {page?.text?.split('\n').map((para: string, i: number) => (
-            <p key={i} className="mb-2">
+            <p key={i} className="mb-3">
               {i === 0 && para[0] ? (
                 <>
-                  <span style={{ float: 'left', fontSize: 'clamp(2rem, 8vw, 2.8rem)', lineHeight: '0.8', fontWeight: 'bold', marginRight: '0.08em', marginTop: '0.08em', color: '#8b4513' }}>
+                  <span style={{ float: 'left', fontSize: 'clamp(2.4rem, 10vw, 3.2rem)', lineHeight: '0.8', fontWeight: 'bold', marginRight: '0.1em', marginTop: '0.1em', color: '#8b4513' }}>
                     {para[0]}
                   </span>
                   {para.slice(1)}
