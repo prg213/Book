@@ -1,17 +1,51 @@
 import { Router } from "express";
 import { eq, desc, and, count, or, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import cookieParser from "cookie-parser";
 import { getAuth } from "@clerk/express";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
 import { runStoryGeneration } from "../lib/generation";
 import { logger } from "../lib/logger";
 
 const router = Router();
+router.use(cookieParser());
+
+const SESSION_COOKIE = "story_session";
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
 
 /** Resolve the current user's identifier — Clerk userId when signed in, else null */
 function getUserId(req: any): string | null {
   const auth = getAuth(req);
   return auth?.userId ?? null;
+}
+
+/** Read or mint an anonymous session cookie (for unauthenticated users only) */
+function getSessionId(req: any, res: any): string {
+  let sessionId = req.cookies?.[SESSION_COOKIE];
+  if (!sessionId) {
+    sessionId = randomUUID();
+    res.cookie(SESSION_COOKIE, sessionId, {
+      httpOnly: true,
+      maxAge: COOKIE_MAX_AGE,
+      sameSite: "lax",
+    });
+  }
+  return sessionId;
+}
+
+/**
+ * Silently migrate legacy anonymous stories to the signed-in user.
+ * Called whenever a userId is resolved alongside a sessionId cookie.
+ */
+async function migrateLegacyStories(userId: string, sessionId: string) {
+  try {
+    await db
+      .update(storiesTable)
+      .set({ userId })
+      .where(and(eq(storiesTable.sessionId, sessionId), isNull(storiesTable.userId)));
+  } catch (e) {
+    logger.warn({ err: e }, "Legacy story migration failed (non-fatal)");
+  }
 }
 
 function storyToResponse(row: typeof storiesTable.$inferSelect) {
@@ -51,10 +85,9 @@ function pageToResponse(row: typeof storyPagesTable.$inferSelect) {
   };
 }
 
-/** Build a where clause matching stories owned by this user (Clerk userId or sessionId fallback) */
+/** Build a where clause matching stories owned by this user */
 function ownerFilter(userId: string | null, sessionId?: string) {
   if (userId) return eq(storiesTable.userId, userId);
-  // Legacy: anonymous stories are tied to sessionId column
   if (sessionId) return eq(storiesTable.sessionId, sessionId);
   return eq(storiesTable.sessionId, "__no_match__");
 }
@@ -62,10 +95,12 @@ function ownerFilter(userId: string | null, sessionId?: string) {
 // GET /api/stories
 router.get("/stories", async (req: any, res: any): Promise<void> => {
   const userId = getUserId(req);
+  const sessionId = getSessionId(req, res);
+  if (userId) await migrateLegacyStories(userId, sessionId);
   const rows = await db
     .select()
     .from(storiesTable)
-    .where(ownerFilter(userId))
+    .where(ownerFilter(userId, sessionId))
     .orderBy(desc(storiesTable.createdAt));
   res.json(rows.map(storyToResponse));
 });
@@ -124,7 +159,9 @@ router.post("/stories", async (req: any, res: any): Promise<void> => {
 // GET /api/stories/stats
 router.get("/stories/stats", async (req: any, res: any): Promise<void> => {
   const userId = getUserId(req);
-  const filter = ownerFilter(userId);
+  const sessionId = getSessionId(req, res);
+  if (userId) await migrateLegacyStories(userId, sessionId);
+  const filter = ownerFilter(userId, sessionId);
 
   const [totals] = await db.select({ total: count() }).from(storiesTable).where(filter);
   const [completed] = await db.select({ total: count() }).from(storiesTable).where(and(filter, eq(storiesTable.status, "complete")));
@@ -142,10 +179,11 @@ router.get("/stories/stats", async (req: any, res: any): Promise<void> => {
 // DELETE /api/stories/:id
 router.delete("/stories/:id", async (req: any, res: any): Promise<void> => {
   const userId = getUserId(req);
+  const sessionId = getSessionId(req, res);
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   const existing = await db.query.storiesTable.findFirst({
-    where: and(eq(storiesTable.id, id), ownerFilter(userId)),
+    where: and(eq(storiesTable.id, id), ownerFilter(userId, sessionId)),
   });
 
   if (!existing) {
