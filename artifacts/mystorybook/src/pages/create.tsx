@@ -627,8 +627,8 @@ export default function Create() {
                       </div>
                     </div>
 
-                    {/* Generate Character 2 button */}
-                    {photo2Path && characterName2.trim() && (
+                    {/* Generate Character 2 button — shown as soon as a name is entered */}
+                    {characterName2.trim() && (
                       <div className="space-y-3">
                         <Button
                           onClick={handleGenerateCharacter2}
@@ -645,6 +645,10 @@ export default function Create() {
                             <><Sparkles className="mr-2 h-4 w-4" /> Generate Character</>
                           )}
                         </Button>
+
+                        {!photo2Path && !character2 && (
+                          <p className="text-xs text-muted-foreground text-center">Upload a photo above to generate a character</p>
+                        )}
 
                         {character2 && (
                           <div className="rounded-2xl overflow-hidden border border-border bg-muted/30">
