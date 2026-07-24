@@ -3,7 +3,7 @@ import path from "path";
 import { logger } from "./logger";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
-const LUMA_BASE = "https://api.lumalabs.ai/dream-machine/v1";
+const LUMA_BASE = "https://agents.lumalabs.ai/v1";
 
 function lumaHeaders() {
   const key = process.env.LUMALABS_API_KEY;
@@ -13,21 +13,25 @@ function lumaHeaders() {
 
 /**
  * Takes a publicly-accessible character image URL and generates a short
- * looping video of the character waving at the camera via Luma Dream Machine.
+ * video of the character waving via Luma Ray 3.2 (Agents API).
  * Returns the saved relative path (e.g. "videos/xxx.mp4").
  */
 export async function generateWavingVideo(publicCharacterImageUrl: string): Promise<string> {
   // 1. Submit generation request
-  const submitRes = await fetch(`${LUMA_BASE}/generations/video`, {
+  const submitRes = await fetch(`${LUMA_BASE}/generations`, {
     method: "POST",
     headers: lumaHeaders(),
     body: JSON.stringify({
-      model: "ray-2",
+      model: "ray-3.2",
+      type: "video",
       prompt:
-        "The cute 3D cartoon character raises one arm and waves cheerfully at the camera with a big warm friendly smile, smooth looping wave motion, white background",
-      keyframes: { frame0: { type: "image", url: publicCharacterImageUrl } },
-      loop: true,
+        "The cute 3D cartoon character raises one arm and waves cheerfully at the camera with a big warm friendly smile, smooth wave motion, white background",
       aspect_ratio: "1:1",
+      video: {
+        resolution: "540p",
+        duration: "5s",
+        start_frame: { url: publicCharacterImageUrl },
+      },
     }),
   });
 
@@ -39,9 +43,9 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
   const gen = (await submitRes.json()) as { id: string };
   logger.info({ id: gen.id }, "Luma waving video submitted");
 
-  // 2. Poll until complete (up to ~4 minutes, 4-second intervals)
+  // 2. Poll until complete (up to ~5 minutes, 5-second intervals)
   for (let attempt = 0; attempt < 60; attempt++) {
-    await new Promise((r) => setTimeout(r, 4000));
+    await new Promise((r) => setTimeout(r, 5000));
 
     const pollRes = await fetch(`${LUMA_BASE}/generations/${gen.id}`, {
       headers: lumaHeaders(),
@@ -50,15 +54,16 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
 
     const status = (await pollRes.json()) as {
       state: string;
-      assets?: { video?: string };
+      output?: Array<{ url: string }>;
       failure_reason?: string;
+      failure_code?: string;
     };
 
     logger.info({ id: gen.id, state: status.state, attempt }, "Luma poll");
 
-    if (status.state === "completed" && status.assets?.video) {
+    if (status.state === "completed" && status.output?.[0]?.url) {
       // 3. Download the video
-      const videoRes = await fetch(status.assets.video);
+      const videoRes = await fetch(status.output[0].url);
       if (!videoRes.ok) throw new Error("Failed to download Luma video");
       const buf = Buffer.from(await videoRes.arrayBuffer());
 
@@ -73,9 +78,11 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
     }
 
     if (status.state === "failed") {
-      throw new Error(`Luma generation failed: ${status.failure_reason ?? "unknown"}`);
+      throw new Error(
+        `Luma generation failed: ${status.failure_reason ?? status.failure_code ?? "unknown"}`
+      );
     }
   }
 
-  throw new Error("Luma video generation timed out after 4 minutes");
+  throw new Error("Luma video generation timed out after 5 minutes");
 }

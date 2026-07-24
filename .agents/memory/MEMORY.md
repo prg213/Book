@@ -1,1 +1,2 @@
 - [xAI model names](xai-models.md) — grok-2-vision-1212 and grok-3 are deprecated; use grok-4.5 for text+vision, grok-imagine-image for images
+- [Luma Agents API](luma-agents-api.md) — platform.lumalabs.ai keys need agents.lumalabs.ai/v1, NOT the old dream-machine endpoint
