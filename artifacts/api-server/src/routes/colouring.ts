@@ -11,35 +11,16 @@ const A5_W = 1240;
 const A5_H = 1754; // 1240 × (210/148)
 
 /**
- * Letterbox a square (or any) image onto a white A5 canvas.
- * Image is scaled to fill the full width and centred vertically,
- * leaving white margins top and bottom.
+ * Scale and crop an image to exactly A5 portrait dimensions (cover mode).
+ * The image is scaled so it fills the full A5 canvas edge-to-edge,
+ * cropping the shorter axis from the centre — no white bars, no margins.
  */
 async function toA5(inputBuf: Buffer): Promise<Buffer> {
-  const meta = await sharp(inputBuf).metadata();
-  const srcW = meta.width ?? 1024;
-  const srcH = meta.height ?? 1024;
-
-  // Scale to fit full width of A5 canvas
-  const scale = A5_W / srcW;
-  const scaledW = A5_W;
-  const scaledH = Math.round(srcH * scale);
-
-  const resized = await sharp(inputBuf)
-    .resize(scaledW, scaledH, { fit: "fill" })
-    .toBuffer();
-
-  const top = Math.max(0, Math.round((A5_H - scaledH) / 2));
-
-  return sharp({
-    create: {
-      width: A5_W,
-      height: A5_H,
-      channels: 4,
-      background: { r: 255, g: 255, b: 255, alpha: 1 },
-    },
-  })
-    .composite([{ input: resized, top, left: 0 }])
+  return sharp(inputBuf)
+    .resize(A5_W, A5_H, {
+      fit: "cover",        // fill entire canvas, crop overflow
+      position: "centre",  // crop symmetrically
+    })
     .png({ compressionLevel: 8 })
     .toBuffer();
 }
