@@ -675,21 +675,26 @@ function PortraitCover({ story }: { story: any }) {
         </div>
       )}
 
-      {/* Waving character video — overlaid at bottom, blend removes white bg */}
+      {/* Waving character video — badge in bottom-right corner */}
       {story.characterVideoUrl && (
-        <video
-          src={story.characterVideoUrl}
-          autoPlay loop muted playsInline
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '70%',
-            mixBlendMode: 'multiply',
-            pointerEvents: 'none',
-          }}
-        />
+        <div style={{
+          position: 'absolute',
+          bottom: '8%',
+          right: '6%',
+          width: '38%',
+          aspectRatio: '1 / 1',
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: '3px solid rgba(255,255,255,0.6)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          pointerEvents: 'none',
+        }}>
+          <video
+            src={story.characterVideoUrl}
+            autoPlay loop muted playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        </div>
       )}
 
       {/* Spine overlay */}
@@ -844,21 +849,26 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
                 </div>
               </div>
             )}
-            {/* Waving character video overlay */}
+            {/* Waving character video — badge in bottom-right corner */}
             {story.characterVideoUrl && (
-              <video
-                src={story.characterVideoUrl}
-                autoPlay loop muted playsInline
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: '65%',
-                  mixBlendMode: 'multiply',
-                  pointerEvents: 'none',
-                }}
-              />
+              <div style={{
+                position: 'absolute',
+                bottom: '8%',
+                right: '6%',
+                width: '32%',
+                aspectRatio: '1 / 1',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                border: '3px solid rgba(255,255,255,0.6)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                pointerEvents: 'none',
+              }}>
+                <video
+                  src={story.characterVideoUrl}
+                  autoPlay loop muted playsInline
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
             )}
             {/* Spine — rotates with cover as part of the 1:1 unit */}
             <div className="absolute inset-y-0 left-0 pointer-events-none"
