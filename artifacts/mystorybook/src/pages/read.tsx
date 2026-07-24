@@ -106,10 +106,19 @@ export default function Read() {
   const isLandscape = useIsLandscape();
   const [, setLocation] = useLocation();
 
+  const [videoPollingStart] = useState(() => Date.now());
   const { data: storyData, isLoading, isError } = useGetStoryForReading(storyId, {
     query: {
       enabled: !!storyId,
       queryKey: getGetStoryForReadingQueryKey(storyId),
+      // Keep polling until the animated cover video arrives (Luma runs after story completes).
+      // Stop after 3 minutes to avoid polling forever if Luma failed.
+      refetchInterval: (query) => {
+        const data = query.state.data as any;
+        if (data?.characterVideoUrl) return false;
+        if (Date.now() - videoPollingStart > 3 * 60 * 1000) return false;
+        return 4000;
+      },
     },
   });
 
