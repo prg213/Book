@@ -655,9 +655,59 @@ function PortraitCover({ story }: { story: any }) {
         maxHeight: '88dvh',
         borderRadius: '0 16px 16px 0',
         filter: 'drop-shadow(-6px 14px 32px rgba(0,0,0,0.9))',
+        aspectRatio: story.characterVideoUrl ? '3 / 4' : undefined,
       }}
     >
-      {story.coverImageUrl ? (
+      {story.characterVideoUrl ? (
+        /* ── Animated cover: blurred scene bg + waving character video ── */
+        <>
+          {/* Blurred cover art fills the background */}
+          {story.coverImageUrl && (
+            <img
+              src={story.coverImageUrl}
+              alt=""
+              aria-hidden
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover',
+                filter: 'blur(12px) brightness(0.55)',
+                transform: 'scale(1.08)',
+              }}
+              draggable={false}
+            />
+          )}
+          {/* Character video centred, fills the frame */}
+          <video
+            src={story.characterVideoUrl}
+            autoPlay loop muted playsInline
+            data-testid="img-cover"
+            style={{
+              position: 'relative',
+              display: 'block',
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+            }}
+          />
+          {/* Title bar at the bottom */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            padding: '1rem 1rem 1.2rem',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)',
+          }}>
+            <p style={{
+              margin: 0,
+              fontFamily: '"Bubblegum Sans", cursive',
+              fontSize: 'clamp(1rem, 5vw, 1.6rem)',
+              fontWeight: 700,
+              color: '#fff',
+              textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+              textAlign: 'center',
+            }}>{story.title}</p>
+          </div>
+        </>
+      ) : story.coverImageUrl ? (
         <img
           src={story.coverImageUrl}
           alt={story.title}
@@ -672,28 +722,6 @@ function PortraitCover({ story }: { story: any }) {
             <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="font-display text-lg font-bold">{story.title}</p>
           </div>
-        </div>
-      )}
-
-      {/* Waving character video — badge in bottom-right corner */}
-      {story.characterVideoUrl && (
-        <div style={{
-          position: 'absolute',
-          bottom: '8%',
-          right: '6%',
-          width: '38%',
-          aspectRatio: '1 / 1',
-          borderRadius: '50%',
-          overflow: 'hidden',
-          border: '3px solid rgba(255,255,255,0.6)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-          pointerEvents: 'none',
-        }}>
-          <video
-            src={story.characterVideoUrl}
-            autoPlay loop muted playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
         </div>
       )}
 
@@ -836,7 +864,41 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
           {/* Inner div handles border-radius + image clipping without collapsing 3D */}
           <div className="absolute inset-0 overflow-hidden"
             style={{ borderRadius: '0 14px 14px 0' }}>
-            {story.coverImageUrl ? (
+            {story.characterVideoUrl ? (
+              <>
+                {/* Blurred cover art as background */}
+                {story.coverImageUrl && (
+                  <img src={story.coverImageUrl} alt="" aria-hidden
+                    className="absolute inset-0 w-full h-full"
+                    style={{ objectFit: 'cover', filter: 'blur(12px) brightness(0.55)', transform: 'scale(1.08)' }}
+                    draggable={false} />
+                )}
+                {/* Character video centred */}
+                <video
+                  src={story.characterVideoUrl}
+                  autoPlay loop muted playsInline
+                  data-testid="img-cover-ls"
+                  className="absolute inset-0 w-full h-full"
+                  style={{ objectFit: 'contain' }}
+                />
+                {/* Title bar */}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  padding: '0.75rem 1rem 1rem',
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)',
+                }}>
+                  <p style={{
+                    margin: 0,
+                    fontFamily: '"Bubblegum Sans", cursive',
+                    fontSize: 'clamp(0.9rem, 3vw, 1.4rem)',
+                    fontWeight: 700,
+                    color: '#fff',
+                    textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                    textAlign: 'center',
+                  }}>{story.title}</p>
+                </div>
+              </>
+            ) : story.coverImageUrl ? (
               <img src={story.coverImageUrl} alt={story.title}
                 className="absolute inset-0 w-full h-full"
                 style={{ objectFit: 'cover', objectPosition: 'top center' }}
@@ -847,27 +909,6 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
                   <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <p className="font-display text-2xl font-bold">{story.title}</p>
                 </div>
-              </div>
-            )}
-            {/* Waving character video — badge in bottom-right corner */}
-            {story.characterVideoUrl && (
-              <div style={{
-                position: 'absolute',
-                bottom: '8%',
-                right: '6%',
-                width: '32%',
-                aspectRatio: '1 / 1',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                border: '3px solid rgba(255,255,255,0.6)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-                pointerEvents: 'none',
-              }}>
-                <video
-                  src={story.characterVideoUrl}
-                  autoPlay loop muted playsInline
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
               </div>
             )}
             {/* Spine — rotates with cover as part of the 1:1 unit */}
