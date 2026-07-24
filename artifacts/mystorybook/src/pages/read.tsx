@@ -661,6 +661,7 @@ function PortraitCover({ story }: { story: any }) {
         <img
           src={story.coverImageUrl}
           alt={story.title}
+          className="animate-cover-wave"
           style={{
             display: 'block',
             width: '100%',
@@ -819,7 +820,7 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
             style={{ borderRadius: '0 14px 14px 0' }}>
             {story.coverImageUrl ? (
               <img src={story.coverImageUrl} alt={story.title}
-                className="absolute inset-0 w-full h-full"
+                className="absolute inset-0 w-full h-full animate-cover-wave"
                 style={{ objectFit: 'cover', objectPosition: 'top center' }}
                 data-testid="img-cover-ls" draggable={false} />
             ) : (
