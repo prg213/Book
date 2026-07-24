@@ -112,12 +112,28 @@ function SectionHeading({ icon: Icon, title, count }: { icon: React.ElementType;
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+const CACHE_PREFIX = 'colouring-cache-v1:';
+
+function loadCache(storyId: string): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(CACHE_PREFIX + storyId) || '{}'); } catch { return {}; }
+}
+function saveCache(storyId: string, record: Record<string, string>) {
+  try { localStorage.setItem(CACHE_PREFIX + storyId, JSON.stringify(record)); } catch { /* storage full */ }
+}
+
 export default function StoryView() {
   const params = new URLSearchParams(window.location.search);
   const storyId = params.get('storyId') || '';
 
-  const [colouringMap, setColouringMap] = useState<Map<string, ColouringEntry>>(new Map());
-  const triggeredRef = useRef<Set<string>>(new Set());
+  const [colouringMap, setColouringMap] = useState<Map<string, ColouringEntry>>(() => {
+    const cache = loadCache(storyId);
+    const map = new Map<string, ColouringEntry>();
+    for (const [url, colouringUrl] of Object.entries(cache)) {
+      map.set(url, { status: 'done', url: colouringUrl });
+    }
+    return map;
+  });
+  const triggeredRef = useRef<Set<string>>(new Set(Object.keys(loadCache(storyId))));
 
   const { data: storyData, isLoading, isError } = useGetStoryForReading(storyId, {
     query: { enabled: !!storyId, queryKey: getGetStoryForReadingQueryKey(storyId) },
@@ -201,7 +217,13 @@ export default function StoryView() {
     fresh.forEach((url, i) => {
       setTimeout(() => {
         fetchColouringPage(url)
-          .then(colouringUrl => setColouringMap(prev => new Map(prev).set(url, { status: 'done', url: colouringUrl })))
+          .then(colouringUrl => {
+            // Persist to localStorage so next visit skips the API
+            const cache = loadCache(storyId);
+            cache[url] = colouringUrl;
+            saveCache(storyId, cache);
+            setColouringMap(prev => new Map(prev).set(url, { status: 'done', url: colouringUrl }));
+          })
           .catch(() => { triggeredRef.current.delete(url); setColouringMap(prev => new Map(prev).set(url, { status: 'error' })); });
       }, i * 400);
     });
