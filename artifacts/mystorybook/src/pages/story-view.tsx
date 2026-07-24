@@ -146,30 +146,46 @@ export default function StoryView() {
       .sheet { width: 148mm; height: 210mm; overflow: hidden; page-break-after: always; break-after: page; background: white; }
       .sheet:last-child { page-break-after: avoid; break-after: avoid; }
       .sheet img { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .text-sheet { width: 148mm; height: 210mm; padding: 12mm 12mm 10mm; display: flex; flex-direction: column; page-break-after: always; break-after: page; background: white; }
+      .text-sheet { width: 148mm; height: 210mm; padding: 12mm 14mm 10mm; display: flex; flex-direction: column; page-break-after: always; break-after: page; background: white; }
       .text-sheet:last-child { page-break-after: avoid; break-after: avoid; }
-      .text-title { font-family: Georgia, serif; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.4); text-align: center; border-bottom: 0.5pt solid rgba(0,0,0,0.15); padding-bottom: 4mm; margin-bottom: 6mm; }
-      .text-body { font-family: Georgia, serif; font-size: 13pt; line-height: 1.75; color: #111; flex: 1; overflow: hidden; }
-      .text-footer { font-family: Georgia, serif; font-size: 8pt; color: rgba(0,0,0,0.3); text-align: center; padding-top: 5mm; }
+      .text-title { font-family: Georgia, serif; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.4); text-align: center; border-bottom: 0.5pt solid rgba(0,0,0,0.15); padding-bottom: 4mm; margin-bottom: 0; }
+      .text-body { font-family: Georgia, serif; font-size: 17pt; line-height: 1.85; color: #111; flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+      .text-body p { text-align: center; margin: 0; }
+      .text-footer { font-family: Georgia, serif; font-size: 8pt; color: rgba(0,0,0,0.3); text-align: center; padding-top: 4mm; }
     `;
     const sheets: string[] = [];
     if (coverUrl) sheets.push(`<div class="sheet"><img src="${coverUrl}" alt="Cover" /></div>`);
     for (const p of storyPages) {
       if (p.imageUrl) sheets.push(`<div class="sheet"><img src="${p.imageUrl}" alt="Page ${p.num}" /></div>`);
-      if (p.text) sheets.push(`<div class="text-sheet"><div class="text-title">${story.title}</div><div class="text-body">${p.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div><div class="text-footer">${p.num}</div></div>`);
+      if (p.text) sheets.push(`<div class="text-sheet"><div class="text-title">${story.title}</div><div class="text-body"><p>${p.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p></div><div class="text-footer">${p.num}</div></div>`);
     }
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${story.title}</title><style>${pageStyle}</style></head><body>${sheets.join('\n')}</body></html>`;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(html); win.document.close();
-    win.onload = () => win.print();
-    win.document.addEventListener('DOMContentLoaded', () => {
-      const imgs = Array.from(win.document.images);
-      if (!imgs.length) { win.print(); return; }
-      let loaded = 0;
-      const check = () => { if (++loaded === imgs.length) win.print(); };
-      imgs.forEach(img => { img.onload = check; img.onerror = check; });
-    });
+
+    // Use a hidden iframe so printing works inside iframe-hosted environments
+    // (window.open triggers HTML download in some browsers when inside an iframe)
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
+    document.body.appendChild(frame);
+
+    const cleanup = () => { try { document.body.removeChild(frame); } catch { /* already removed */ } };
+
+    const frameDoc = frame.contentDocument ?? frame.contentWindow?.document;
+    if (!frameDoc) { cleanup(); return; }
+    frameDoc.open(); frameDoc.write(html); frameDoc.close();
+
+    const doPrint = () => {
+      try { frame.contentWindow?.print(); } catch { /* ignore */ }
+      // Remove after a short delay to allow the print dialog to open
+      setTimeout(cleanup, 2000);
+    };
+
+    const imgs = Array.from(frameDoc.images);
+    if (!imgs.length) { doPrint(); return; }
+    let remaining = imgs.length;
+    const check = () => { if (--remaining === 0) doPrint(); };
+    imgs.forEach(img => { img.onload = check; img.onerror = check; });
+    // Safety fallback in case some images never fire events
+    setTimeout(doPrint, 8000);
   }
 
   useEffect(() => {

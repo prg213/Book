@@ -2,8 +2,47 @@ import { Router } from "express";
 import path from "path";
 import { readFile, writeFile, mkdir, access } from "fs/promises";
 import { createHash } from "crypto";
+import sharp from "sharp";
 import { generateColouringPage } from "../lib/grok";
 import { logger } from "../lib/logger";
+
+// A5 at 150 dpi — good quality, fast to render
+const A5_W = 1240;
+const A5_H = 1754; // 1240 × (210/148)
+
+/**
+ * Letterbox a square (or any) image onto a white A5 canvas.
+ * Image is scaled to fill the full width and centred vertically,
+ * leaving white margins top and bottom.
+ */
+async function toA5(inputBuf: Buffer): Promise<Buffer> {
+  const meta = await sharp(inputBuf).metadata();
+  const srcW = meta.width ?? 1024;
+  const srcH = meta.height ?? 1024;
+
+  // Scale to fit full width of A5 canvas
+  const scale = A5_W / srcW;
+  const scaledW = A5_W;
+  const scaledH = Math.round(srcH * scale);
+
+  const resized = await sharp(inputBuf)
+    .resize(scaledW, scaledH, { fit: "fill" })
+    .toBuffer();
+
+  const top = Math.max(0, Math.round((A5_H - scaledH) / 2));
+
+  return sharp({
+    create: {
+      width: A5_W,
+      height: A5_H,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .composite([{ input: resized, top, left: 0 }])
+    .png({ compressionLevel: 8 })
+    .toBuffer();
+}
 
 const router = Router();
 const uploadsDir = path.resolve(process.cwd(), "uploads");
@@ -62,9 +101,12 @@ router.post("/colouring-page", async (req, res) => {
     logger.info({ relPath }, "Generating coloring page");
     const colouringBuf = await generateColouringPage(sourceBuf);
 
+    // ── Letterbox to A5 portrait ───────────────────────────────────────────
+    const a5Buf = await toA5(colouringBuf);
+
     // ── Save to cache ──────────────────────────────────────────────────────
     await mkdir(cacheDir, { recursive: true });
-    await writeFile(cacheFile, colouringBuf);
+    await writeFile(cacheFile, a5Buf);
 
     res.json({ colouringUrl: `/api/uploads/${cacheRelPath}` });
   } catch (err) {
