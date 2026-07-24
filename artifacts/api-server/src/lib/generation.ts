@@ -360,13 +360,31 @@ Respond ONLY with a JSON object:
 
     // Step 4: Generate cover image
     const coverPrompt = buildCoverPrompt(story, characterDesc, character2Desc, lockedOutfitDesc);
+    let coverImagePath: string | undefined;
     try {
       const coverBuf = await generateImage(coverPrompt);
-      const coverImagePath = await saveImage(coverBuf, "covers");
+      coverImagePath = await saveImage(coverBuf, "covers");
       await updateStory(storyId, { coverImagePath });
       logger.info({ storyId }, "Cover image generated");
     } catch (e) {
       logger.error({ storyId, err: e }, "Cover generation failed");
+    }
+
+    // Step 4b: Kick off Kling video immediately in the background — runs in
+    // parallel with page illustration so it is ready when the user opens the book.
+    let klingVideoPromise: Promise<void> | null = null;
+    if (coverImagePath && process.env.KLING_API_KEY) {
+      const domain = process.env.REPLIT_DEV_DOMAIN;
+      const publicCoverUrl = `https://${domain}/api/uploads/${coverImagePath}`;
+      klingVideoPromise = generateWavingVideoKling(publicCoverUrl)
+        .then(async (videoPath) => {
+          await updateStory(storyId, { characterVideoPath: videoPath });
+          logger.info({ storyId, videoPath }, "Kling waving video saved");
+        })
+        .catch((e) => {
+          logger.warn({ storyId, err: e }, "Kling video generation failed — continuing without it");
+        });
+      logger.info({ storyId }, "Kling video generation started in background");
     }
 
     await updateStory(storyId, { generationProgress: 55, generationStatusMessage: `Cover created! Illustrating ${pages.length} pages...` });
@@ -403,30 +421,15 @@ Respond ONLY with a JSON object:
 
     await db.insert(storyPagesTable).values(savedPages);
 
-    // Step 6: Generate waving character video via Kling (non-blocking if it fails)
-    const latestStory = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, storyId) });
-    if (latestStory?.coverImagePath && process.env.LUMALABS_API_KEY) {
-      try {
-        await updateStory(storyId, {
-          status: "complete",
-          generationProgress: 100,
-          generationStatusMessage: "✨ Animating your cover...",
-        });
-        const domain = process.env.REPLIT_DEV_DOMAIN;
-        const publicUrl = `https://${domain}/api/uploads/${latestStory.coverImagePath}`;
-        const videoPath = await generateWavingVideoKling(publicUrl);
-        await updateStory(storyId, { characterVideoPath: videoPath });
-        logger.info({ storyId, videoPath }, "Waving video saved");
-      } catch (e) {
-        logger.warn({ storyId, err: e }, "Waving video generation failed — continuing without it");
-      }
-    }
-
+    // Step 6: Mark complete, then wait for Kling if it's still running
     await updateStory(storyId, {
       status: "complete",
       generationProgress: 100,
       generationStatusMessage: `Your story is ready! ${savedPages.length} pages illustrated.`,
     });
+
+    // Await remaining Kling time (non-blocking to the user — story is already "complete")
+    if (klingVideoPromise) await klingVideoPromise;
 
     logger.info({ storyId }, "Story generation complete");
   } catch (e) {
