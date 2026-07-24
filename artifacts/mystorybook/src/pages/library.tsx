@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   useListStories, useDeleteStory, useGetStoryStatus,
@@ -18,6 +18,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
+// Module-level set so "Story ready!" toast fires at most once per story per session,
+// even if the StoryCard component unmounts and remounts during list refetches.
+const notifiedStories = new Set<string>();
+
 // ── Live watcher for a single in-progress story ───────────────────────────────
 // Polls /api/stories/:id/status every 2.5 s while the story is pending or
 // generating.  When it completes, it invalidates both the status cache and the
@@ -26,7 +30,6 @@ function useStoryLiveStatus(storyId: string, initialStatus: string) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const notified = useRef(false);
 
   const isActive = initialStatus === 'pending' || initialStatus === 'generating';
 
@@ -41,9 +44,9 @@ function useStoryLiveStatus(storyId: string, initialStatus: string) {
   });
 
   useEffect(() => {
-    if (!liveStatus || notified.current) return;
+    if (!liveStatus || notifiedStories.has(storyId)) return;
     if (liveStatus.status === 'complete') {
-      notified.current = true;
+      notifiedStories.add(storyId);
       // Refresh the full story list so the card flips to "Ready"
       queryClient.invalidateQueries({ queryKey: getListStoriesQueryKey() });
       queryClient.invalidateQueries({ queryKey: ['getStoryForReading', storyId] });
