@@ -179,158 +179,158 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
       data-testid={`card-story-${story.id}`}
     >
       {/* Cover image */}
-      <div className="relative h-48 bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 overflow-visible">
-        <div className="w-full h-full overflow-hidden rounded-t-3xl">
-          {coverUrl ? (
-            <img
-              src={coverUrl}
-              alt={story.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-              data-testid={`img-cover-${story.id}`}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              {stillActive
-                ? <Loader2 className="w-12 h-12 text-primary/40 animate-spin" />
-                : <BookOpen className="w-16 h-16 text-primary/40" />
-              }
+      <div className="relative h-48 bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 overflow-hidden rounded-t-3xl">
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={story.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+            data-testid={`img-cover-${story.id}`}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            {stillActive
+              ? <Loader2 className="w-12 h-12 text-primary/40 animate-spin" />
+              : <BookOpen className="w-16 h-16 text-primary/40" />
+            }
+          </div>
+        )}
+        <div className="absolute top-3 left-4">{statusBadge()}</div>
+      </div>
+
+      {/* Content — left: text/actions, right: waving character */}
+      <div className="p-5 flex gap-3 items-start">
+
+        {/* Left column: title, date, progress, actions */}
+        <div className="flex-1 min-w-0">
+          <h3
+            className="font-display text-xl font-bold mb-1 line-clamp-2"
+            data-testid={`text-title-${story.id}`}
+          >
+            {story.title}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Created {format(new Date(story.createdAt), 'MMM d, yyyy')}
+          </p>
+
+          {/* Live progress bar */}
+          {stillActive && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <span>{liveStatus?.generationStatusMessage || 'Creating your story…'}</span>
+                <span data-testid={`text-progress-${story.id}`}>{progress}%</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
           )}
+
+          {/* Error message */}
+          {status === 'error' && story.errorMessage && (
+            <p className="text-xs text-destructive mb-3" data-testid={`text-error-${story.id}`}>
+              {story.errorMessage}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            {status === 'complete' && (
+              <>
+                <Link href={`/read?storyId=${story.id}`} className="flex-1">
+                  <Button className="w-full rounded-xl" data-testid={`button-read-${story.id}`}>
+                    <Eye className="mr-2 h-4 w-4" /> Read
+                  </Button>
+                </Link>
+                <Link href={`/story-view?storyId=${story.id}`}>
+                  <Button
+                    variant="outline" size="icon"
+                    className="rounded-xl flex-shrink-0"
+                    title="View story contents"
+                    data-testid={`button-view-${story.id}`}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {stillActive && (
+              <Link href={`/generating?storyId=${story.id}`} className="flex-1">
+                <Button
+                  variant="outline" className="w-full rounded-xl"
+                  data-testid={`button-view-progress-${story.id}`}
+                >
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> View Progress
+                </Button>
+              </Link>
+            )}
+
+            {status === 'error' && (
+              <Button
+                variant="outline" className="flex-1 rounded-xl" disabled
+                data-testid={`button-retry-${story.id}`}
+              >
+                Try Again
+              </Button>
+            )}
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline" size="icon" className="rounded-xl"
+                  data-testid={`button-delete-${story.id}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Story?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete "{story.title}"? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel data-testid={`button-cancel-delete-${story.id}`}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => onDelete(story.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    data-testid={`button-confirm-delete-${story.id}`}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
-        <div className="absolute top-3 left-4">{statusBadge()}</div>
-        {/* Waving character video — white box peeks out of the card bottom-right */}
+
+        {/* Right column: waving character video */}
         {videoUrl && status === 'complete' && (
           <div
-            className="absolute pointer-events-none"
+            className="flex-shrink-0"
             style={{
-              bottom: '-36px', right: '10px',
-              width: '100px', height: '124px',
+              width: '88px',
+              height: '110px',
               background: 'white',
               borderRadius: '12px',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
               overflow: 'hidden',
-              zIndex: 10,
             }}
           >
             <video
               src={videoUrl}
               autoPlay loop muted playsInline
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-              }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           </div>
         )}
-      </div>
 
-      {/* Content */}
-      <div className="p-6">
-        <h3
-          className="font-display text-xl font-bold mb-2 line-clamp-2"
-          data-testid={`text-title-${story.id}`}
-        >
-          {story.title}
-        </h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Created {format(new Date(story.createdAt), 'MMM d, yyyy')}
-        </p>
-
-        {/* Live progress bar */}
-        {stillActive && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-              <span>{liveStatus?.generationStatusMessage || 'Creating your story…'}</span>
-              <span data-testid={`text-progress-${story.id}`}>{progress}%</span>
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Error message */}
-        {status === 'error' && story.errorMessage && (
-          <p className="text-xs text-destructive mb-4" data-testid={`text-error-${story.id}`}>
-            {story.errorMessage}
-          </p>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          {status === 'complete' && (
-            <>
-              <Link href={`/read?storyId=${story.id}`} className="flex-1">
-                <Button className="w-full rounded-xl" data-testid={`button-read-${story.id}`}>
-                  <Eye className="mr-2 h-4 w-4" /> Read
-                </Button>
-              </Link>
-              <Link href={`/story-view?storyId=${story.id}`}>
-                <Button
-                  variant="outline" size="icon"
-                  className="rounded-xl flex-shrink-0"
-                  title="View story contents"
-                  data-testid={`button-view-${story.id}`}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-              </Link>
-            </>
-          )}
-
-          {stillActive && (
-            <Link href={`/generating?storyId=${story.id}`} className="flex-1">
-              <Button
-                variant="outline" className="w-full rounded-xl"
-                data-testid={`button-view-progress-${story.id}`}
-              >
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> View Progress
-              </Button>
-            </Link>
-          )}
-
-          {status === 'error' && (
-            <Button
-              variant="outline" className="flex-1 rounded-xl" disabled
-              data-testid={`button-retry-${story.id}`}
-            >
-              Try Again
-            </Button>
-          )}
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline" size="icon" className="rounded-xl"
-                data-testid={`button-delete-${story.id}`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Story?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{story.title}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel data-testid={`button-cancel-delete-${story.id}`}>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(story.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  data-testid={`button-confirm-delete-${story.id}`}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
       </div>
     </div>
   );
