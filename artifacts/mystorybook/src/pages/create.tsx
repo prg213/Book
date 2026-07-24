@@ -533,27 +533,55 @@ export default function Create() {
                 <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 overflow-hidden">
                   <div className="px-5 py-3 border-b border-primary/20 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary" />
-                    <span className="font-semibold text-sm text-primary">Your character is ready!</span>
+                    <span className="font-semibold text-sm text-primary">
+                      {character2 ? 'Characters ready!' : 'Your character is ready!'}
+                    </span>
                   </div>
-                  <div className="p-5 flex gap-5 items-center">
-                    <div className="w-36 h-36 rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-primary/20 shadow-md bg-white">
-                      <img
-                        src={character1.characterImageUrl}
-                        alt={characterName}
-                        className="w-full h-full object-contain"
-                      />
+                  <div className={`p-5 ${character2 ? 'flex gap-4' : 'flex gap-5 items-center'}`}>
+                    {/* Character 1 */}
+                    <div className={character2 ? 'flex flex-col items-center gap-2 flex-1' : 'flex gap-5 items-center w-full'}>
+                      <div className={`rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-primary/20 shadow-md bg-white ${character2 ? 'w-full aspect-square' : 'w-36 h-36'}`}>
+                        <img
+                          src={character1.characterImageUrl}
+                          alt={characterName}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      {character2 ? (
+                        <p className="font-display font-bold text-sm text-center">{characterName}</p>
+                      ) : (
+                        <div className="min-w-0">
+                          <p className="font-display font-bold text-lg">{characterName}</p>
+                          <p className="text-muted-foreground text-xs mt-1 leading-relaxed line-clamp-4">
+                            {character1.characterDescription.slice(0, 200)}
+                            {character1.characterDescription.length > 200 ? '…' : ''}
+                          </p>
+                          <p className="text-xs text-primary font-medium mt-2">
+                            This character will appear on the cover and every page.
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-display font-bold text-lg">{characterName}</p>
-                      <p className="text-muted-foreground text-xs mt-1 leading-relaxed line-clamp-4">
-                        {character1.characterDescription.slice(0, 200)}
-                        {character1.characterDescription.length > 200 ? '…' : ''}
-                      </p>
-                      <p className="text-xs text-primary font-medium mt-2">
-                        This character will appear on the cover and every page.
-                      </p>
-                    </div>
+
+                    {/* Character 2 — shown when generated */}
+                    {character2 && (
+                      <div className="flex flex-col items-center gap-2 flex-1">
+                        <div className="w-full aspect-square rounded-xl overflow-hidden flex-shrink-0 ring-2 ring-primary/20 shadow-md bg-white">
+                          <img
+                            src={character2.characterImageUrl}
+                            alt={characterName2}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <p className="font-display font-bold text-sm text-center">{characterName2}</p>
+                      </div>
+                    )}
                   </div>
+                  {character2 && (
+                    <p className="text-xs text-primary font-medium text-center pb-4">
+                      Both characters will appear throughout your story.
+                    </p>
+                  )}
                 </div>
               )}
 
