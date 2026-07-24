@@ -661,11 +661,7 @@ function PortraitCover({ story }: { story: any }) {
         <img
           src={story.coverImageUrl}
           alt={story.title}
-          style={{
-            display: 'block',
-            width: '100%',
-            height: 'auto',
-          }}
+          style={{ display: 'block', width: '100%', height: 'auto' }}
           data-testid="img-cover"
           draggable={false}
         />
@@ -678,7 +674,25 @@ function PortraitCover({ story }: { story: any }) {
           </div>
         </div>
       )}
-      {/* Spine overlay — dark gradient on left edge */}
+
+      {/* Waving character video — overlaid at bottom, blend removes white bg */}
+      {story.characterVideoUrl && (
+        <video
+          src={story.characterVideoUrl}
+          autoPlay loop muted playsInline
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '70%',
+            mixBlendMode: 'multiply',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
+      {/* Spine overlay */}
       <div className="absolute inset-y-0 left-0 pointer-events-none"
         style={{ width: '24px', background: 'linear-gradient(to right, rgba(5,2,0,0.95) 0%, rgba(40,18,6,0.6) 55%, transparent 100%)' }} />
       {/* Bottom page-edge shadow */}
@@ -829,6 +843,22 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
                   <p className="font-display text-2xl font-bold">{story.title}</p>
                 </div>
               </div>
+            )}
+            {/* Waving character video overlay */}
+            {story.characterVideoUrl && (
+              <video
+                src={story.characterVideoUrl}
+                autoPlay loop muted playsInline
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '65%',
+                  mixBlendMode: 'multiply',
+                  pointerEvents: 'none',
+                }}
+              />
             )}
             {/* Spine — rotates with cover as part of the 1:1 unit */}
             <div className="absolute inset-y-0 left-0 pointer-events-none"

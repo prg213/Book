@@ -42,6 +42,7 @@ function storyToResponse(row: typeof storiesTable.$inferSelect) {
     userPrompt: row.userPrompt ?? null,
     originalPhotoUrl: row.originalPhotoPath ? `${base}${row.originalPhotoPath}` : null,
     characterImageUrl: row.characterImagePath ? `${base}${row.characterImagePath}` : null,
+    characterVideoUrl: row.characterVideoPath ? `${base}${row.characterVideoPath}` : null,
     coverImageUrl: row.coverImagePath ? `${base}${row.coverImagePath}` : null,
     status: row.status,
     generationProgress: row.generationProgress,

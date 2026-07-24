@@ -4,6 +4,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { eq } from "drizzle-orm";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
+import { generateWavingVideo } from "./luma";
 import { analyzePhoto, generateStoryText, generateImage } from "./grok";
 import { buildCharacterPrompt } from "../routes/character";
 import { logger } from "./logger";
@@ -384,6 +385,25 @@ Respond ONLY with a JSON object:
     }
 
     await db.insert(storyPagesTable).values(savedPages);
+
+    // Step 6: Generate waving character video via Luma (non-blocking if it fails)
+    const latestStory = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, storyId) });
+    if (latestStory?.characterImagePath && process.env.LUMALABS_API_KEY) {
+      try {
+        await updateStory(storyId, {
+          status: "complete",
+          generationProgress: 100,
+          generationStatusMessage: "✨ Animating your character...",
+        });
+        const domain = process.env.REPLIT_DEV_DOMAIN;
+        const publicUrl = `https://${domain}/api/uploads/${latestStory.characterImagePath}`;
+        const videoPath = await generateWavingVideo(publicUrl);
+        await updateStory(storyId, { characterVideoPath: videoPath });
+        logger.info({ storyId, videoPath }, "Waving video saved");
+      } catch (e) {
+        logger.warn({ storyId, err: e }, "Waving video generation failed — continuing without it");
+      }
+    }
 
     await updateStory(storyId, {
       status: "complete",
