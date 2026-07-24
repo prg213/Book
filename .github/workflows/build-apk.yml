@@ -38,6 +38,12 @@ jobs:
         working-directory: artifacts/mystorybook
         run: npx cap sync android
 
+      # ── Patch AndroidManifest with required permissions ───────────────────
+      - name: Add Android permissions
+        working-directory: artifacts/mystorybook/android/app/src/main
+        run: |
+          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n</manifest>|' AndroidManifest.xml
+
       # ── Java 17 (required by modern Gradle / AGP) ─────────────────────────
       - uses: actions/setup-java@v4
         with:

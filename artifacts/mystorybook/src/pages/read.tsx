@@ -35,6 +35,17 @@ function usePageAudio(storyId: string, audioKey: string) {
 
   const startRecording = useCallback(async () => {
     try {
+      // On Android (Capacitor) request the native RECORD_AUDIO permission first
+      if (typeof (window as any).Capacitor !== 'undefined') {
+        const { Permissions } = await import('@capacitor/core') as any;
+        if (Permissions?.query) {
+          const { state } = await Permissions.query({ name: 'microphone' });
+          if (state === 'denied') {
+            alert('Microphone permission is denied. Please enable it in Android Settings → Apps → MyStoryBook → Permissions.');
+            return;
+          }
+        }
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
       mrRef.current = mr;

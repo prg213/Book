@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2, Printer } from 'lucide-react';
+import { isCapacitor } from '@/lib/capacitor';
 
 // ─── Coloring helpers ────────────────────────────────────────────────────────
 
@@ -272,12 +273,12 @@ export default function StoryView() {
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400/60 bg-amber-500/10 border border-amber-500/15 flex-shrink-0">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparing…
             </div>
-          ) : (
+          ) : !isCapacitor() ? (
             <button onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200 flex-shrink-0">
               <Printer className="w-3.5 h-3.5" /> Print
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
