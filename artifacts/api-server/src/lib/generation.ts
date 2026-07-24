@@ -66,6 +66,7 @@ async function updateStory(storyId: string, updates: Partial<typeof storiesTable
 const ANATOMY_RULE = `CRITICAL ANATOMY — STRICTLY ENFORCE:
 - The character has EXACTLY TWO (2) arms and EXACTLY TWO (2) hands — no more, no less
 - Never draw a third hand, extra arm, or duplicate limb under any circumstances
+- If the pose has both arms spread wide, raised, or extended, hands must be EMPTY — do not add a hand holding a phone or any object
 - If one hand holds an object, the other arm must hang at the side, rest on a hip, or be clearly positioned elsewhere — never floating free or hidden
 - Count limbs before finalising: two arms, two hands, two legs, two feet`;
 

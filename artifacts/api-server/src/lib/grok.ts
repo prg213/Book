@@ -44,7 +44,7 @@ export async function analyzePhoto(filePath: string): Promise<string> {
               type: "text",
               text: `Analyse this photo to capture ONLY this person's physical appearance — so an AI image generator can recreate them as a 3D cartoon character across many different scenes and poses.
 
-IMPORTANT: Do NOT describe body pose, posture, stance, arm position, hand position, or what the person is doing. Do NOT mention age, how old someone looks, or use words like "child", "kid", "boy", "girl", "young", "adult". Only describe physical appearance features.
+IMPORTANT: Do NOT describe body pose, posture, stance, arm position, hand position, or what the person is doing. Do NOT mention any objects the person is holding, carrying, or touching with their hands (phones, cups, bags held in hands, bottles, etc.) — ignore anything in their hands entirely. Do NOT mention age, how old someone looks, or use words like "child", "kid", "boy", "girl", "young", "adult". Only describe physical appearance features.
 
 Write a single dense paragraph covering ALL of the following in this order:
 
