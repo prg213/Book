@@ -2,9 +2,11 @@ import { Link } from 'wouter';
 import { useGetLibraryStats } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { BookOpen, Sparkles, Image, Wand2 } from 'lucide-react';
+import { useUser } from '@clerk/react';
 
 export default function Home() {
   const { data: stats, isLoading } = useGetLibraryStats();
+  const { isSignedIn, isLoaded } = useUser();
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-secondary/10 to-accent/10">

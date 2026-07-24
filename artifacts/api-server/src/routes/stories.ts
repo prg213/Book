@@ -1,28 +1,17 @@
 import { Router } from "express";
-import { eq, desc, and, count } from "drizzle-orm";
+import { eq, desc, and, count, or, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import cookieParser from "cookie-parser";
+import { getAuth } from "@clerk/express";
 import { db, storiesTable, storyPagesTable } from "@workspace/db";
 import { runStoryGeneration } from "../lib/generation";
 import { logger } from "../lib/logger";
 
 const router = Router();
-router.use(cookieParser());
 
-const SESSION_COOKIE = "story_session";
-const COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // 1 year
-
-function getSessionId(req: Parameters<Parameters<typeof router.use>[0]>[0], res: Parameters<Parameters<typeof router.use>[0]>[1]): string {
-  let sessionId = (req as { cookies?: Record<string, string> }).cookies?.[SESSION_COOKIE];
-  if (!sessionId) {
-    sessionId = randomUUID();
-    res.cookie(SESSION_COOKIE, sessionId, {
-      httpOnly: true,
-      maxAge: COOKIE_MAX_AGE,
-      sameSite: "lax",
-    });
-  }
-  return sessionId;
+/** Resolve the current user's identifier — Clerk userId when signed in, else null */
+function getUserId(req: any): string | null {
+  const auth = getAuth(req);
+  return auth?.userId ?? null;
 }
 
 function storyToResponse(row: typeof storiesTable.$inferSelect) {
@@ -33,50 +22,62 @@ function storyToResponse(row: typeof storiesTable.$inferSelect) {
     characterName: row.characterName,
     characterName2: row.characterName2 ?? null,
     relationship: row.relationship,
-    relationship2: row.relationship2 ?? null,
     theme: row.theme,
     age: row.age,
     emotion: row.emotion,
     outfit: row.outfit ?? null,
+    occasion: row.occasion ?? null,
     pageCount: row.pageCount,
     userPrompt: row.userPrompt ?? null,
-    originalPhotoUrl: row.originalPhotoPath ? `${base}${row.originalPhotoPath}` : null,
-    characterImageUrl: row.characterImagePath ? `${base}${row.characterImagePath}` : null,
-    characterVideoUrl: row.characterVideoPath ? `${base}${row.characterVideoPath}` : null,
     coverImageUrl: row.coverImagePath ? `${base}${row.coverImagePath}` : null,
+    characterImageUrl: row.characterImagePath ? `${base}${row.characterImagePath}` : null,
+    character2ImageUrl: (row as any).character2ImagePath ? `${base}${(row as any).character2ImagePath}` : null,
+    characterVideoUrl: (row as any).characterVideoPath ? `${base}${(row as any).characterVideoPath}` : null,
     status: row.status,
     generationProgress: row.generationProgress,
     generationStatusMessage: row.generationStatusMessage ?? null,
     errorMessage: row.errorMessage ?? null,
-    createdAt: row.createdAt.toISOString(),
+    createdAt: row.createdAt,
   };
 }
 
 function pageToResponse(row: typeof storyPagesTable.$inferSelect) {
   return {
     id: row.id,
-    storyId: row.storyId,
-    pageNumber: row.pageNumber,
+    num: row.pageNumber,
     text: row.text ?? null,
     imageUrl: row.imagePath ? `/api/uploads/${row.imagePath}` : null,
     imagePrompt: row.imagePrompt ?? null,
   };
 }
 
+/** Build a where clause matching stories owned by this user (Clerk userId or sessionId fallback) */
+function ownerFilter(userId: string | null, sessionId?: string) {
+  if (userId) return eq(storiesTable.userId, userId);
+  // Legacy: anonymous stories are tied to sessionId column
+  if (sessionId) return eq(storiesTable.sessionId, sessionId);
+  return eq(storiesTable.sessionId, "__no_match__");
+}
+
 // GET /api/stories
-router.get("/stories", async (req, res): Promise<void> => {
-  const sessionId = getSessionId(req, res);
+router.get("/stories", async (req: any, res: any): Promise<void> => {
+  const userId = getUserId(req);
   const rows = await db
     .select()
     .from(storiesTable)
-    .where(eq(storiesTable.sessionId, sessionId))
+    .where(ownerFilter(userId))
     .orderBy(desc(storiesTable.createdAt));
   res.json(rows.map(storyToResponse));
 });
 
 // POST /api/stories
-router.post("/stories", async (req, res): Promise<void> => {
-  const sessionId = getSessionId(req, res);
+router.post("/stories", async (req: any, res: any): Promise<void> => {
+  const userId = getUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Sign in to create stories" });
+    return;
+  }
+
   const body = req.body as Record<string, unknown>;
 
   if (!body.title || !body.characterName || !body.relationship || !body.theme || !body.age || !body.emotion || !body.originalPhotoPath) {
@@ -87,7 +88,8 @@ router.post("/stories", async (req, res): Promise<void> => {
   const id = randomUUID();
   const newStory: typeof storiesTable.$inferInsert = {
     id,
-    sessionId,
+    userId,
+    sessionId: userId, // keep sessionId non-null (schema constraint)
     title: String(body.title),
     characterName: String(body.characterName),
     characterName2: body.characterName2 ? String(body.characterName2) : null,
@@ -105,7 +107,6 @@ router.post("/stories", async (req, res): Promise<void> => {
     userPrompt: body.userPrompt ? String(body.userPrompt) : null,
     originalPhotoPath: String(body.originalPhotoPath),
     originalPhotoPath2: body.originalPhotoPath2 ? String(body.originalPhotoPath2) : null,
-    // Pre-generated character data from the create wizard (optional)
     characterImagePath: body.characterImagePath ? String(body.characterImagePath) : null,
     characterDescription: body.characterDescription ? String(body.characterDescription) : null,
     character2ImagePath: body.character2ImagePath ? String(body.character2ImagePath) : null,
@@ -121,30 +122,14 @@ router.post("/stories", async (req, res): Promise<void> => {
 });
 
 // GET /api/stories/stats
-router.get("/stories/stats", async (req, res): Promise<void> => {
-  const sessionId = getSessionId(req, res);
+router.get("/stories/stats", async (req: any, res: any): Promise<void> => {
+  const userId = getUserId(req);
+  const filter = ownerFilter(userId);
 
-  const [totals] = await db
-    .select({ total: count() })
-    .from(storiesTable)
-    .where(eq(storiesTable.sessionId, sessionId));
-
-  const [completed] = await db
-    .select({ total: count() })
-    .from(storiesTable)
-    .where(and(eq(storiesTable.sessionId, sessionId), eq(storiesTable.status, "complete")));
-
-  const [inProgress] = await db
-    .select({ total: count() })
-    .from(storiesTable)
-    .where(and(eq(storiesTable.sessionId, sessionId), eq(storiesTable.status, "generating")));
-
-  const recent = await db
-    .select()
-    .from(storiesTable)
-    .where(eq(storiesTable.sessionId, sessionId))
-    .orderBy(desc(storiesTable.createdAt))
-    .limit(3);
+  const [totals] = await db.select({ total: count() }).from(storiesTable).where(filter);
+  const [completed] = await db.select({ total: count() }).from(storiesTable).where(and(filter, eq(storiesTable.status, "complete")));
+  const [inProgress] = await db.select({ total: count() }).from(storiesTable).where(and(filter, eq(storiesTable.status, "generating")));
+  const recent = await db.select().from(storiesTable).where(filter).orderBy(desc(storiesTable.createdAt)).limit(3);
 
   res.json({
     totalStories: totals.total,
@@ -155,12 +140,12 @@ router.get("/stories/stats", async (req, res): Promise<void> => {
 });
 
 // DELETE /api/stories/:id
-router.delete("/stories/:id", async (req, res): Promise<void> => {
-  const sessionId = getSessionId(req, res);
+router.delete("/stories/:id", async (req: any, res: any): Promise<void> => {
+  const userId = getUserId(req);
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   const existing = await db.query.storiesTable.findFirst({
-    where: and(eq(storiesTable.id, id), eq(storiesTable.sessionId, sessionId)),
+    where: and(eq(storiesTable.id, id), ownerFilter(userId)),
   });
 
   if (!existing) {
@@ -174,7 +159,7 @@ router.delete("/stories/:id", async (req, res): Promise<void> => {
 });
 
 // GET /api/stories/:id/status
-router.get("/stories/:id/status", async (req, res): Promise<void> => {
+router.get("/stories/:id/status", async (req: any, res: any): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const story = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, id) });
 
@@ -195,7 +180,7 @@ router.get("/stories/:id/status", async (req, res): Promise<void> => {
 });
 
 // POST /api/stories/:id/generate
-router.post("/stories/:id/generate", async (req, res): Promise<void> => {
+router.post("/stories/:id/generate", async (req: any, res: any): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const story = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, id) });
 
@@ -209,7 +194,6 @@ router.post("/stories/:id/generate", async (req, res): Promise<void> => {
     return;
   }
 
-  // Fire-and-forget: run generation in background
   runStoryGeneration(id).catch((err) => {
     logger.error({ storyId: id, err }, "Background generation crashed");
   });
@@ -218,7 +202,7 @@ router.post("/stories/:id/generate", async (req, res): Promise<void> => {
 });
 
 // GET /api/stories/:id/reading
-router.get("/stories/:id/reading", async (req, res): Promise<void> => {
+router.get("/stories/:id/reading", async (req: any, res: any): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   const story = await db.query.storiesTable.findFirst({ where: eq(storiesTable.id, id) });

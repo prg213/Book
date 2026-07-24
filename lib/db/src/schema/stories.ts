@@ -23,6 +23,7 @@ export const storiesTable = pgTable("stories", {
   originalPhotoPath: text("original_photo_path"),
   originalPhotoPath2: text("original_photo_path_2"),
   characterImagePath: text("character_image_path"),
+  userId: text("user_id"),
   characterDescription: text("character_description"),
   lockedOutfitDesc: text("locked_outfit_desc"),
   character2ImagePath: text("character_2_image_path"),

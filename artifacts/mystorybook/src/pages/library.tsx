@@ -7,9 +7,10 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useClerk, useUser } from '@clerk/react';
 import {
   BookOpen, Plus, Trash2, Eye, Clock, CheckCircle,
-  AlertCircle, Loader2, LayoutGrid,
+  AlertCircle, Loader2, LayoutGrid, LogOut, LogIn,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -17,6 +18,40 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+
+// ── User menu (sign-in / sign-out) ───────────────────────────────────────────
+function UserMenu() {
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  const [, setLocation] = useLocation();
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+  if (!isLoaded) return null;
+
+  if (!user) {
+    return (
+      <Link href="/sign-in">
+        <Button variant="outline" size="sm" className="rounded-xl gap-2">
+          <LogIn className="h-4 w-4" /> Sign in
+        </Button>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-muted-foreground hidden md:block">
+        {user.firstName ?? user.emailAddresses[0]?.emailAddress}
+      </span>
+      <Button
+        variant="outline" size="sm" className="rounded-xl gap-2"
+        onClick={() => signOut(() => setLocation('/'))}
+      >
+        <LogOut className="h-4 w-4" /> Sign out
+      </Button>
+    </div>
+  );
+}
 
 // Module-level set so "Story ready!" toast fires at most once per story per session,
 // even if the StoryCard component unmounts and remounts during list refetches.
@@ -290,11 +325,14 @@ export default function Library() {
             <h1 className="font-display text-5xl font-bold mb-2">Your Story Library</h1>
             <p className="text-muted-foreground text-lg">All your magical adventures in one place</p>
           </div>
-          <Link href="/create">
-            <Button size="lg" className="rounded-xl font-display" data-testid="button-create-new">
-              <Plus className="mr-2 h-5 w-5" /> Create New Story
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <UserMenu />
+            <Link href="/create">
+              <Button size="lg" className="rounded-xl font-display" data-testid="button-create-new">
+                <Plus className="mr-2 h-5 w-5" /> Create New Story
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Loading */}
