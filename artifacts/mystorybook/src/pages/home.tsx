@@ -19,7 +19,7 @@ export default function Home() {
           
           <h1 className="font-display text-5xl md:text-7xl font-bold text-foreground leading-tight">
             Turn Your Loved Ones Into
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-primary animate-shimmer">
+            <span className="block text-primary">
               Storybook Heroes
             </span>
           </h1>
