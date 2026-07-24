@@ -47,7 +47,7 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
   }
 }
 
-async function saveImage(buf: Buffer, subdir: string): Promise<string> {
+export async function saveImage(buf: Buffer, subdir: string): Promise<string> {
   const dir = path.join(uploadsDir, subdir);
   await mkdir(dir, { recursive: true });
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
@@ -175,7 +175,7 @@ COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas comp
 }
 
 /** Page illustration prompt — character MUST appear in every scene with a scene-specific pose */
-function buildPagePrompt(
+export function buildPagePrompt(
   story: typeof storiesTable.$inferSelect,
   page: { text: string; image_prompt: string },
   characterDesc: string,
@@ -186,7 +186,19 @@ function buildPagePrompt(
   const char2Line = character2Desc
     ? `\nSECOND CHARACTER (also in this scene): ${story.characterName2} — ${character2Desc}.`
     : "";
-  const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+  // Some fairy-tale theme names trigger Aurora content moderation when used verbatim.
+  // Map them to safe descriptive equivalents for image prompts.
+  const THEME_SAFE_LABELS: Record<string, string> = {
+    "little red riding hood": "enchanted forest path with a cosy woodland cottage",
+    "goldilocks":             "cosy woodland cottage with three friendly bears",
+    "hansel and gretel":      "magical forest with a candy-decorated gingerbread cottage",
+    "three little pigs":      "sunny countryside with colourful brick and straw houses",
+    "sleeping beauty":        "enchanted royal castle surrounded by rose gardens",
+    "jack and the beanstalk": "magical giant beanstalk reaching into the clouds",
+    "cinderella":             "magical ballroom with sparkling fairy-tale castle",
+  };
+  const rawTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+  const effectiveTheme = THEME_SAFE_LABELS[rawTheme] ?? rawTheme;
   const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
 
   const effectiveOutfit = story.outfit ?? lockedOutfitDesc;
