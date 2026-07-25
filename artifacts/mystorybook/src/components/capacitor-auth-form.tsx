@@ -47,6 +47,8 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     // Listeners we must clean up on exit
     let urlListenerHandle: { remove: () => Promise<void> } | null = null;
     let finishedListenerHandle: { remove: () => Promise<void> } | null = null;
+    // Guard: prevents browserFinished from cancelling a successful deep-link return
+    let oauthHandled = false;
 
     const cleanup = async () => {
       await urlListenerHandle?.remove();
@@ -60,8 +62,13 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       //    Android fires appUrlOpen when Clerk redirects to mystorybook://...
       urlListenerHandle = await App.addListener('appUrlOpen', async (data) => {
         if (!data.url.startsWith('mystorybook://sso-callback')) return;
+        if (oauthHandled) return;
+        oauthHandled = true;
+
+        // Remove listeners first so browserFinished can't race with us
         await cleanup();
-        await Browser.close();
+        // Browser.close() is a no-op if Android already closed it for the deep link
+        try { await Browser.close(); } catch { /* ignore */ }
 
         // Extract Clerk params and navigate the WebView to our /sso-callback
         // route so <AuthenticateWithRedirectCallback> can process the token.
@@ -70,7 +77,9 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       });
 
       // 2. If the user closes the tab without signing in, reset the button.
+      //    Skip if the deep link already handled the flow (oauthHandled = true).
       finishedListenerHandle = await Browser.addListener('browserFinished', async () => {
+        if (oauthHandled) return; // deep link fired first — don't reset
         await cleanup();
         setGoogleLoading(false);
       });
