@@ -18,7 +18,6 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleAwaitingReturn, setGoogleAwaitingReturn] = useState(false);
   const [error, setError] = useState('');
 
   const { signIn, setActive: setSignInActive } = useSignIn();
@@ -35,70 +34,21 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     setGoogleAwaitingReturn(false);
 
     try {
-      // Don't pass a custom redirectUrl — Clerk's own backend callback URL
-      // is always allowed and doesn't need to be whitelisted. After OAuth
-      // completes, Clerk sets the session; we reload to pick it up.
-      const attempt = await (signIn as any).create({
+      // Navigate the WebView directly to Google OAuth via Clerk.
+      // The native MainActivity patches the WebView user-agent to remove the
+      // "wv" flag, so Google no longer blocks this as an "embedded WebView".
+      // After OAuth, Clerk redirects to /sso-callback which finalises the session.
+      await (signIn as any).authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: `${PROD_URL}/sso-callback`,
-        actionCompleteRedirectUrl: `${PROD_URL}/`,
+        redirectUrlComplete: `${PROD_URL}/`,
       });
-
-      // Clerk may surface the URL at different paths across SDK versions
-      const oauthUrl: string | undefined =
-        attempt?.firstFactorVerification?.externalVerificationRedirectURL?.href
-        ?? (attempt as any)?.externalVerificationRedirectURL?.href;
-
-      // Log full response for debugging
-      console.log('[CapacitorAuth] attempt keys:', Object.keys(attempt || {}));
-      console.log('[CapacitorAuth] firstFactorVerification:', JSON.stringify({
-        status: attempt?.firstFactorVerification?.status,
-        strategy: attempt?.firstFactorVerification?.strategy,
-        url: attempt?.firstFactorVerification?.externalVerificationRedirectURL?.href,
-      }));
-
-      if (!oauthUrl) {
-        // Fallback: try using Clerk's authenticateWithRedirect to get the URL
-        // by intercepting the navigation
-        throw new Error(
-          `Google OAuth URL not returned by Clerk. ` +
-          `Add "${PROD_URL}/*" to Allowed Redirect URLs in your Clerk dashboard ` +
-          `under Configure → Paths.`
-        );
-      }
-
-      // Open in Chrome Custom Tab — avoids Google's WebView restriction.
-      // Clean up any listener from a previous attempt first.
-      const { Browser } = await import('@capacitor/browser');
-      await Browser.removeAllListeners();
-      await Browser.open({ url: oauthUrl });
-
-      setGoogleLoading(false);
-      setGoogleAwaitingReturn(true); // show "Return here when done" UI
-
-      Browser.addListener('browserFinished', () => {
-        setGoogleAwaitingReturn(false);
-        // Reload so Clerk picks up the session cookie set during OAuth.
-        window.location.reload();
-      });
-
+      // Page navigates away — no code runs after this point.
     } catch (e: any) {
       const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
       setError(msg);
       setGoogleLoading(false);
     }
-  };
-
-  const handleGoogleContinue = () => {
-    setGoogleAwaitingReturn(false);
-    window.location.reload();
-  };
-
-  const handleGoogleCancel = async () => {
-    const { Browser } = await import('@capacitor/browser');
-    await Browser.removeAllListeners();
-    setGoogleAwaitingReturn(false);
-    setError('');
   };
 
   /* ── Sign In ─────────────────────────────────────────────────────── */
@@ -212,30 +162,11 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         title={isSignIn ? 'Welcome back 📖' : 'Create account ✨'}
         subtitle={isSignIn ? 'Sign in to see your storybooks' : 'Start building magical storybooks'}
       >
-        {/* Google — awaiting return from Chrome Custom Tab */}
-        {googleAwaitingReturn ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{
-              background: 'hsl(142,72%,95%)', border: '1.5px solid hsl(142,60%,70%)',
-              borderRadius: 12, padding: '12px 14px', fontSize: 14,
-              color: 'hsl(142,40%,25%)', textAlign: 'center',
-            }}>
-              🌐 Google sign-in opened.<br />Complete it, then tap <strong>Continue</strong>.
-            </div>
-            <button style={primaryBtnStyle} onClick={handleGoogleContinue}>
-              ✓ Continue after signing in
-            </button>
-            <button style={{ ...googleBtnStyle, color: 'hsl(0,60%,50%)' }} onClick={handleGoogleCancel}>
-              Cancel
-            </button>
-          </div>
-        ) : (
-          /* Google button */
-          <button style={googleBtnStyle} onClick={handleGoogle}>
-            {googleLoading ? <Spinner /> : <GoogleLogo />}
-            <span>{googleLoading ? 'Opening Google…' : 'Continue with Google'}</span>
-          </button>
-        )}
+        {/* Google */}
+        <button style={googleBtnStyle} onClick={handleGoogle}>
+          {googleLoading ? <Spinner /> : <GoogleLogo />}
+          <span>{googleLoading ? 'Redirecting to Google…' : 'Continue with Google'}</span>
+        </button>
 
         <Divider />
 
