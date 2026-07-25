@@ -536,7 +536,7 @@ export default function Read() {
             Library
           </button>
         </Link>
-        <span className="text-amber-200/50 text-xs font-medium tracking-wider uppercase truncate mx-4">
+        <span className="text-amber-200/50 text-xs font-medium tracking-wider truncate mx-4">
           {isCover ? story.title : isEndPage ? 'The End' : `Page ${currentPage + 1} of ${totalPages}`}
         </span>
         <Link href={`/story-view?storyId=${storyId}`}>
