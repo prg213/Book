@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.mystorybook.app",
+    "sha256_cert_fingerprints": [
+      "24:95:F3:D1:29:74:FE:C2:45:DB:A4:4B:3A:B8:28:8F:25:EF:23:BD:4F:2E:C5:2E:B3:25:30:A3:C5:F6:1F:B1"
+    ]
+  }
+}]

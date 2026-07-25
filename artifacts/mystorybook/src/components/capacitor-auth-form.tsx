@@ -19,9 +19,11 @@ type Mode = 'sign-in' | 'sign-up' | 'verify';
 // window.location.origin is unreliable inside Capacitor WebView.
 const PROD_URL = 'https://grok-canvas-copy.replit.app';
 
-// Custom URL scheme registered in AndroidManifest.xml.
-// Clerk redirects here after OAuth so Android routes back into this app.
-const DEEP_LINK = 'mystorybook://sso-callback';
+// The sso-callback URL Clerk redirects to after OAuth.
+// Android App Links (assetlinks.json) intercept this HTTPS URL and route it
+// back into the app — no custom URL scheme needed, and Clerk dev instances
+// accept HTTPS redirect URLs without any dashboard configuration.
+const SSO_CALLBACK_URL = `${PROD_URL}/sso-callback`;
 
 export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: 'sign-in' | 'sign-up' }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -58,38 +60,40 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     };
 
     try {
-      // 1. Listen for the deep-link callback BEFORE opening the browser.
-      //    Android fires appUrlOpen when Clerk redirects to mystorybook://...
+      // 1. Listen for the App Links callback BEFORE opening the browser.
+      //    Android fires appUrlOpen when it intercepts the Clerk redirect to
+      //    https://grok-canvas-copy.replit.app/sso-callback (verified via
+      //    assetlinks.json) and routes it back into this app.
       urlListenerHandle = await App.addListener('appUrlOpen', async (data) => {
-        if (!data.url.startsWith('mystorybook://sso-callback')) return;
+        if (!data.url.startsWith(SSO_CALLBACK_URL)) return;
         if (oauthHandled) return;
         oauthHandled = true;
 
         // Remove listeners first so browserFinished can't race with us
         await cleanup();
-        // Browser.close() is a no-op if Android already closed it for the deep link
-        try { await Browser.close(); } catch { /* ignore */ }
+        try { await Browser.close(); } catch { /* ignore if already closed */ }
 
-        // Extract Clerk params and navigate the WebView to our /sso-callback
-        // route so <AuthenticateWithRedirectCallback> can process the token.
-        const rawSearch = data.url.replace('mystorybook://sso-callback', '');
-        window.location.href = `${PROD_URL}/sso-callback${rawSearch}`;
+        // Navigate the WebView to /sso-callback with Clerk's params so
+        // <AuthenticateWithRedirectCallback> can process the token.
+        const params = data.url.slice(SSO_CALLBACK_URL.length); // keeps ?query#hash
+        window.location.href = `${SSO_CALLBACK_URL}${params}`;
       });
 
       // 2. If the user closes the tab without signing in, reset the button.
-      //    Skip if the deep link already handled the flow (oauthHandled = true).
+      //    Skip if App Links already handled the flow (oauthHandled = true).
       finishedListenerHandle = await Browser.addListener('browserFinished', async () => {
-        if (oauthHandled) return; // deep link fired first — don't reset
+        if (oauthHandled) return; // App Links fired first — don't reset
         await cleanup();
         setGoogleLoading(false);
       });
 
       // 3. Open Clerk Account Portal in Chrome Custom Tab.
-      //    redirect_url is our custom scheme → Android routes it back here.
+      //    redirect_url is our production sso-callback URL, which Clerk accepts
+      //    and Android App Links intercepts to route back into this app.
       await Browser.open({
         url:
           `https://grateful-terrier-54.accounts.dev/sign-in` +
-          `?redirect_url=${encodeURIComponent(DEEP_LINK)}`,
+          `?redirect_url=${encodeURIComponent(SSO_CALLBACK_URL)}`,
         presentationStyle: 'popover',
       });
 

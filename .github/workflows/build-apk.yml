@@ -41,14 +41,25 @@ jobs:
         working-directory: artifacts/mystorybook
         run: npx cap sync android
 
-      # ── Patch AndroidManifest with permissions + deep-link scheme ────────
-      # The mystorybook:// scheme lets Clerk redirect back into the app
-      # after Google OAuth in Chrome Custom Tab (Browser.open).
+      # ── Restore fixed signing keystore ────────────────────────────────────
+      # A repo-committed PKCS12 keystore ensures every build produces the same
+      # certificate fingerprint, which is required for Android App Links.
+      # The SHA-256 of this cert is in public/.well-known/assetlinks.json.
+      - name: Restore signing keystore
+        run: |
+          base64 -d artifacts/mystorybook/android-extras/debug.keystore.p12.b64 \
+            > /tmp/mystorybook-debug.p12
+          echo "Keystore restored at /tmp/mystorybook-debug.p12"
+
+      # ── Patch AndroidManifest: permissions + App Links intent filter ───────
+      # App Links (autoVerify) let Android intercept the Clerk OAuth callback
+      # URL (https://grok-canvas-copy.replit.app/sso-callback) and route it
+      # back into the app instead of keeping it in Chrome Custom Tab.
       - name: Patch AndroidManifest
         working-directory: artifacts/mystorybook/android/app/src/main
         run: |
           python3 - <<'EOF'
-          import re, pathlib
+          import pathlib
 
           path = pathlib.Path("AndroidManifest.xml")
           xml  = path.read_text()
@@ -61,21 +72,63 @@ jobs:
           )
           xml = xml.replace("</manifest>", perms + "</manifest>")
 
-          # 2. Add mystorybook:// intent-filter inside MainActivity's <activity> block,
-          #    just before the first </activity> tag.
-          deep_link_filter = """
-                  <intent-filter>
+          # 2. Add App Links intent-filter inside MainActivity's <activity> block.
+          #    android:autoVerify="true" triggers domain verification so Android
+          #    intercepts https://grok-canvas-copy.replit.app/sso-callback URLs.
+          app_links_filter = """
+                  <intent-filter android:autoVerify="true">
                       <action android:name="android.intent.action.VIEW" />
                       <category android:name="android.intent.category.DEFAULT" />
                       <category android:name="android.intent.category.BROWSABLE" />
-                      <data android:scheme="mystorybook" />
+                      <data android:scheme="https"
+                            android:host="grok-canvas-copy.replit.app"
+                            android:pathPrefix="/sso-callback" />
                   </intent-filter>
           """
-          xml = xml.replace("</activity>", deep_link_filter + "    </activity>", 1)
+          xml = xml.replace("</activity>", app_links_filter + "    </activity>", 1)
 
           path.write_text(xml)
           print("Patched AndroidManifest.xml:")
           print(xml)
+          EOF
+
+      # ── Configure Gradle to sign with our fixed keystore ──────────────────
+      - name: Configure Gradle signing
+        working-directory: artifacts/mystorybook/android/app
+        run: |
+          python3 - <<'EOF'
+          import pathlib, re
+
+          path = pathlib.Path("build.gradle")
+          content = path.read_text()
+
+          signing_block = """
+              signingConfigs {
+                  fixedDebug {
+                      storeFile file('/tmp/mystorybook-debug.p12')
+                      storePassword 'android'
+                      keyAlias 'androiddebugkey'
+                      keyPassword 'android'
+                      storeType 'PKCS12'
+                  }
+              }
+          """
+
+          # Insert signingConfigs before buildTypes
+          content = content.replace(
+              "    buildTypes {",
+              signing_block + "    buildTypes {"
+          )
+
+          # Override the debug build to use our fixed signing config
+          content = content.replace(
+              "debug {",
+              "debug {\n            signingConfig signingConfigs.fixedDebug",
+              1
+          )
+
+          path.write_text(content)
+          print("Patched app/build.gradle with fixed signing config")
           EOF
 
       # ── Patch MainActivity: remove WebView user-agent "wv" flag ──────────
