@@ -46,6 +46,27 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     setError('');
     setGoogleLoading(true);
 
+    // ── DEBUG: probe what Clerk returns for OAuth in this WebView context ──
+    try {
+      const probe = await signIn.create({
+        strategy: 'oauth_google',
+        redirectUrl: SSO_CALLBACK_URL,
+        redirectUrlComplete: PROD_URL + '/',
+      });
+      const redirectUrl = (probe as any).firstFactorVerification?.externalVerificationRedirectURL;
+      const status = probe.status;
+      // Show result and stop — remove this block once we understand the issue
+      setGoogleLoading(false);
+      setError(`DEBUG — status: ${status} | redirectUrl: ${String(redirectUrl)}`);
+      return;
+    } catch (e: any) {
+      const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
+      setGoogleLoading(false);
+      setError(`DEBUG error: ${msg}`);
+      return;
+    }
+    // ── END DEBUG ──────────────────────────────────────────────────────────
+
     // Listeners we must clean up on exit
     let urlListenerHandle: { remove: () => Promise<void> } | null = null;
     let finishedListenerHandle: { remove: () => Promise<void> } | null = null;
