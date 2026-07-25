@@ -28,6 +28,9 @@ jobs:
       # ── Build web app ─────────────────────────────────────────────────────
       - name: Build MyStoryBook web app
         run: pnpm --filter @workspace/mystorybook run build
+        env:
+          PORT: '3000'
+          BASE_PATH: './'
 
       # ── Capacitor: generate Android project & sync ────────────────────────
       - name: Add Android platform
