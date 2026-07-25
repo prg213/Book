@@ -35,17 +35,36 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     setGoogleAwaitingReturn(false);
 
     try {
+      // Don't pass a custom redirectUrl — Clerk's own backend callback URL
+      // is always allowed and doesn't need to be whitelisted. After OAuth
+      // completes, Clerk sets the session; we reload to pick it up.
       const attempt = await (signIn as any).create({
         strategy: 'oauth_google',
         redirectUrl: `${PROD_URL}/sso-callback`,
         actionCompleteRedirectUrl: `${PROD_URL}/`,
       });
 
+      // Clerk may surface the URL at different paths across SDK versions
       const oauthUrl: string | undefined =
-        attempt?.firstFactorVerification?.externalVerificationRedirectURL?.href;
+        attempt?.firstFactorVerification?.externalVerificationRedirectURL?.href
+        ?? (attempt as any)?.externalVerificationRedirectURL?.href;
+
+      // Log full response for debugging
+      console.log('[CapacitorAuth] attempt keys:', Object.keys(attempt || {}));
+      console.log('[CapacitorAuth] firstFactorVerification:', JSON.stringify({
+        status: attempt?.firstFactorVerification?.status,
+        strategy: attempt?.firstFactorVerification?.strategy,
+        url: attempt?.firstFactorVerification?.externalVerificationRedirectURL?.href,
+      }));
 
       if (!oauthUrl) {
-        throw new Error('Google sign-in is not configured. Enable Google in your Clerk dashboard under Social Connections.');
+        // Fallback: try using Clerk's authenticateWithRedirect to get the URL
+        // by intercepting the navigation
+        throw new Error(
+          `Google OAuth URL not returned by Clerk. ` +
+          `Add "${PROD_URL}/*" to Allowed Redirect URLs in your Clerk dashboard ` +
+          `under Configure → Paths.`
+        );
       }
 
       // Open in Chrome Custom Tab — avoids Google's WebView restriction.
