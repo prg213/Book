@@ -14,6 +14,14 @@ const config: CapacitorConfig = {
   server: {
     url: PRODUCTION_URL,
     cleartext: false,
+    // Allow the WebView to navigate to OAuth and callback domains.
+    // Without this, window.location.href to an external domain is silently blocked.
+    allowNavigation: [
+      'grateful-terrier-54.accounts.dev', // Clerk Account Portal
+      'accounts.google.com',              // Google sign-in page
+      '*.google.com',                     // Google OAuth redirects
+      'grok-canvas-copy.replit.app',      // our app (callback target)
+    ],
   },
   android: {
     allowMixedContent: false,
