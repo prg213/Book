@@ -31,19 +31,40 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
 
     setError('');
     setGoogleLoading(true);
-    setGoogleAwaitingReturn(false);
 
     try {
-      // Navigate the WebView directly to Google OAuth via Clerk.
-      // The native MainActivity patches the WebView user-agent to remove the
-      // "wv" flag, so Google no longer blocks this as an "embedded WebView".
-      // After OAuth, Clerk redirects to /sso-callback which finalises the session.
-      await (signIn as any).authenticateWithRedirect({
-        strategy: 'oauth_google',
-        redirectUrl: `${PROD_URL}/sso-callback`,
-        redirectUrlComplete: `${PROD_URL}/`,
-      });
-      // Page navigates away — no code runs after this point.
+      // Try authenticateWithRedirect first. In Clerk dev instances it sometimes
+      // resolves without navigating (redirect URL not accepted by API).
+      // We detect this and fall back to the Clerk Account Portal immediately.
+      let didNavigate = false;
+
+      const fallbackToPortal = () => {
+        if (didNavigate) return;
+        didNavigate = true;
+        // Clerk's Account Portal always accepts Google OAuth — no URL restrictions.
+        // After sign-in Clerk redirects back to our production URL.
+        window.location.href =
+          `https://grateful-terrier-54.accounts.dev/sign-in` +
+          `?redirect_url=${encodeURIComponent(PROD_URL)}`;
+      };
+
+      // 2-second watchdog: if page hasn't navigated, use the portal
+      const watchdog = setTimeout(fallbackToPortal, 2000);
+
+      try {
+        await (signIn as any).authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: `${PROD_URL}/sso-callback`,
+          redirectUrlComplete: `${PROD_URL}/`,
+        });
+      } catch {
+        // Ignore inner errors — fall through to portal
+      }
+
+      // SDK resolved without navigating — go to portal now
+      clearTimeout(watchdog);
+      fallbackToPortal();
+
     } catch (e: any) {
       const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
       setError(msg);
