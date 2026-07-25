@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "MyStoryBook",
+    "slug": "mystorybook-native",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mystorybook-native",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F9F5F0"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mystorybook.native"
+    },
+    "android": {
+      "package": "com.mystorybook.native"
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
