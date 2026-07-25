@@ -1,11 +1,13 @@
 /**
  * Custom auth form for Capacitor (Android/iOS).
- * Uses Clerk hooks directly — no pre-built <SignIn>/<SignUp> components,
- * which render an invisible backdrop that blocks touch events on the page.
+ * Uses Clerk hooks directly — no pre-built <SignIn>/<SignUp> components.
+ *
+ * DEBUG BUILD: shows an on-screen log when Google is tapped.
+ * Remove the <DebugPanel> block once the issue is diagnosed.
  */
 import { useState } from 'react';
 import { useSignIn, useSignUp } from '@clerk/react';
-import { signInWithGoogleCustomTab } from '@/lib/google-auth-capacitor';
+import { isCapacitor } from '@/lib/capacitor';
 
 type Mode = 'sign-in' | 'sign-up' | 'verify';
 
@@ -17,21 +19,77 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const [debugLog, setDebugLog] = useState<string[]>([]);
 
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
 
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+  const log = (msg: string) => {
+    console.log('[CapacitorAuth]', msg);
+    setDebugLog(prev => [...prev.slice(-9), msg]);
+  };
+
   /* ── Google ──────────────────────────────────────────────────────── */
   const handleGoogle = async () => {
-    if (!signIn) { setError('Still loading, try again.'); return; }
+    log(`Tap registered. isCapacitor=${isCapacitor()}`);
+    log(`UA: ${navigator.userAgent.substring(0, 60)}`);
+    log(`signInLoaded=${signInLoaded} signIn=${!!signIn}`);
+
+    if (!signIn) {
+      setError('Clerk not loaded yet — try again.');
+      log('ABORT: no signIn');
+      return;
+    }
+
     setError('');
     setGoogleLoading(true);
+
     try {
-      await signInWithGoogleCustomTab(signIn);
+      log('Calling signIn.create(oauth_google)…');
+      const origin = window.location.origin;
+      log(`origin=${origin}`);
+
+      const attempt = await (signIn as any).create({
+        strategy: 'oauth_google',
+        redirectUrl: `${origin}/sso-callback`,
+        actionCompleteRedirectUrl: origin,
+      });
+
+      const oauthUrl: string | undefined =
+        attempt?.firstFactorVerification?.externalVerificationRedirectURL?.href;
+
+      log(`oauthUrl=${oauthUrl ? oauthUrl.substring(0, 60) + '…' : 'null'}`);
+
+      if (!oauthUrl) {
+        throw new Error('Clerk returned no Google OAuth URL. Check Google is enabled in Clerk dashboard.');
+      }
+
+      // Try @capacitor/browser first; fall back to window.open
+      try {
+        log('Trying Browser.open()…');
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: oauthUrl, windowName: '_blank' });
+        log('Browser.open() succeeded');
+
+        // When user closes the Custom Tab, reload to pick up Clerk session
+        Browser.addListener('browserFinished', () => {
+          log('browserFinished — reloading');
+          window.location.reload();
+        });
+      } catch (browserErr: any) {
+        log(`Browser.open() failed: ${browserErr?.message}. Using window.open fallback.`);
+        const popup = window.open(oauthUrl, '_blank');
+        if (!popup) {
+          log('window.open returned null — using location.href');
+          window.location.href = oauthUrl;
+        }
+      }
     } catch (e: any) {
-      setError('Could not open Google sign-in. Please use email below.');
+      const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
+      log(`ERROR: ${msg}`);
+      setError(msg);
     } finally {
       setGoogleLoading(false);
     }
@@ -48,7 +106,7 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         await setSignInActive({ session: result.createdSessionId });
         window.location.replace(basePath || '/');
       } else {
-        setError('Sign-in incomplete. Please try again.');
+        setError('Sign-in incomplete — please try again.');
       }
     } catch (e: any) {
       setError(e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? 'Incorrect email or password.');
@@ -84,7 +142,7 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         await setSignUpActive({ session: result.createdSessionId });
         window.location.replace(basePath || '/');
       } else {
-        setError('Verification incomplete. Please try again.');
+        setError('Verification incomplete — please try again.');
       }
     } catch (e: any) {
       setError(e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? 'Invalid code.');
@@ -93,78 +151,43 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     }
   };
 
-  /* ── Shared styles ───────────────────────────────────────────────── */
+  /* ── Styles ──────────────────────────────────────────────────────── */
   const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '12px 14px',
-    borderRadius: 12,
-    border: '1.5px solid hsl(28,25%,88%)',
-    background: '#fff',
-    color: 'hsl(25,30%,20%)',
-    fontSize: 16,
-    outline: 'none',
-    boxSizing: 'border-box',
-    WebkitAppearance: 'none',
+    width: '100%', padding: '12px 14px', borderRadius: 12,
+    border: '1.5px solid hsl(28,25%,88%)', background: '#fff',
+    color: 'hsl(25,30%,20%)', fontSize: 16, outline: 'none',
+    boxSizing: 'border-box', WebkitAppearance: 'none',
   };
-
   const primaryBtnStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '14px',
-    borderRadius: 14,
-    background: 'hsl(15,85%,65%)',
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 700,
-    border: 'none',
-    cursor: 'pointer',
-    touchAction: 'manipulation',
-    WebkitTapHighlightColor: 'transparent',
+    width: '100%', padding: '14px', borderRadius: 14,
+    background: 'hsl(15,85%,65%)', color: '#fff', fontSize: 16,
+    fontWeight: 700, border: 'none', cursor: 'pointer',
+    touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
   };
-
   const googleBtnStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '13px',
-    borderRadius: 14,
-    border: '1.5px solid hsl(28,25%,88%)',
-    background: '#fff',
-    color: 'hsl(25,30%,20%)',
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+    width: '100%', padding: '13px', borderRadius: 14,
+    border: '1.5px solid hsl(28,25%,88%)', background: '#fff',
+    color: 'hsl(25,30%,20%)', fontSize: 15, fontWeight: 600,
+    cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', gap: 10,
     touchAction: 'manipulation',
-    WebkitTapHighlightColor: 'rgba(240,123,82,0.1)',
+    WebkitTapHighlightColor: 'rgba(240,123,82,0.12)',
   };
-
   const linkStyle: React.CSSProperties = {
-    color: 'hsl(15,85%,60%)',
-    fontWeight: 600,
-    cursor: 'pointer',
-    background: 'none',
-    border: 'none',
-    fontSize: 14,
-    touchAction: 'manipulation',
-    WebkitTapHighlightColor: 'transparent',
+    color: 'hsl(15,85%,60%)', fontWeight: 600, cursor: 'pointer',
+    background: 'none', border: 'none', fontSize: 14,
+    touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
   };
 
   /* ── Verify screen ───────────────────────────────────────────────── */
   if (mode === 'verify') {
     return (
       <Card title="Check your email" subtitle={`We sent a 6-digit code to ${email}`}>
-        <input
-          style={inputStyle}
-          type="text"
-          inputMode="numeric"
-          placeholder="Enter code"
-          value={code}
-          onChange={e => setCode(e.target.value)}
-          maxLength={6}
-        />
+        <input style={inputStyle} type="text" inputMode="numeric"
+          placeholder="Enter code" value={code}
+          onChange={e => setCode(e.target.value)} maxLength={6} />
         {error && <ErrorMsg>{error}</ErrorMsg>}
-        <button style={primaryBtnStyle} onClick={handleVerify} disabled={loading}>
+        <button style={primaryBtnStyle} onClick={handleVerify}>
           {loading ? 'Verifying…' : 'Verify Email'}
         </button>
         <p style={{ textAlign: 'center', fontSize: 14, color: 'hsl(25,20%,50%)' }}>
@@ -175,84 +198,79 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     );
   }
 
-  /* ── Sign In / Sign Up screen ────────────────────────────────────── */
   const isSignIn = mode === 'sign-in';
 
   return (
-    <Card
-      title={isSignIn ? 'Welcome back 📖' : 'Create account ✨'}
-      subtitle={isSignIn ? 'Sign in to see your storybooks' : 'Start building magical storybooks'}
-    >
-      {/* Google */}
-      <button style={googleBtnStyle} onClick={handleGoogle}>
-        {googleLoading ? (
-          <Spinner />
-        ) : (
-          <GoogleLogo />
-        )}
-        {googleLoading ? 'Opening Google…' : 'Continue with Google'}
-      </button>
+    <>
+      {/* ── DEBUG PANEL — remove once diagnosed ── */}
+      {debugLog.length > 0 && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
+          background: 'rgba(0,0,0,0.92)', color: '#4ade80',
+          fontFamily: 'monospace', fontSize: 11, padding: '8px 10px',
+          maxHeight: '40vh', overflowY: 'auto',
+        }}>
+          <strong style={{ color: '#fff' }}>DEBUG LOG:</strong>
+          {debugLog.map((l, i) => <div key={i}>› {l}</div>)}
+          <button
+            onClick={() => setDebugLog([])}
+            style={{ marginTop: 4, background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
-      {/* Divider */}
-      <Divider />
-
-      {/* Email */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <input
-          style={inputStyle}
-          type="email"
-          inputMode="email"
-          autoCapitalize="none"
-          placeholder="Email address"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
-        <input
-          style={inputStyle}
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
-      </div>
-
-      {error && <ErrorMsg>{error}</ErrorMsg>}
-
-      <button
-        style={{ ...primaryBtnStyle, opacity: loading ? 0.7 : 1 }}
-        onClick={isSignIn ? handleSignIn : handleSignUp}
+      <Card
+        title={isSignIn ? 'Welcome back 📖' : 'Create account ✨'}
+        subtitle={isSignIn ? 'Sign in to see your storybooks' : 'Start building magical storybooks'}
       >
-        {loading ? (isSignIn ? 'Signing in…' : 'Creating account…') : (isSignIn ? 'Continue' : 'Create Account')}
-      </button>
-
-      <p style={{ textAlign: 'center', fontSize: 14, color: 'hsl(25,20%,50%)' }}>
-        {isSignIn ? "Don't have an account? " : 'Already have an account? '}
-        <button
-          style={linkStyle}
-          onClick={() => { setMode(isSignIn ? 'sign-up' : 'sign-in'); setError(''); }}
-        >
-          {isSignIn ? 'Sign up' : 'Sign in'}
+        {/* Google */}
+        <button style={googleBtnStyle} onClick={handleGoogle}>
+          {googleLoading ? <Spinner /> : <GoogleLogo />}
+          <span>{googleLoading ? 'Opening Google…' : 'Continue with Google'}</span>
         </button>
-      </p>
-    </Card>
+
+        <Divider />
+
+        {/* Email + Password */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <input style={inputStyle} type="email" inputMode="email"
+            autoCapitalize="none" placeholder="Email address"
+            value={email} onChange={e => setEmail(e.target.value)} />
+          <input style={inputStyle} type="password" placeholder="Password"
+            value={password} onChange={e => setPassword(e.target.value)} />
+        </div>
+
+        {error && <ErrorMsg>{error}</ErrorMsg>}
+
+        <button
+          style={{ ...primaryBtnStyle, opacity: loading ? 0.7 : 1 }}
+          onClick={isSignIn ? handleSignIn : handleSignUp}
+        >
+          {loading
+            ? (isSignIn ? 'Signing in…' : 'Creating account…')
+            : (isSignIn ? 'Continue' : 'Create Account')}
+        </button>
+
+        <p style={{ textAlign: 'center', fontSize: 14, color: 'hsl(25,20%,50%)' }}>
+          {isSignIn ? "Don't have an account? " : 'Already have an account? '}
+          <button style={linkStyle} onClick={() => { setMode(isSignIn ? 'sign-up' : 'sign-in'); setError(''); }}>
+            {isSignIn ? 'Sign up' : 'Sign in'}
+          </button>
+        </p>
+      </Card>
+    </>
   );
 }
 
-/* ── Small helpers ───────────────────────────────────────────────────── */
-
+/* ── Helpers ─────────────────────────────────────────────────────────── */
 function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <div style={{
-      width: '100%',
-      maxWidth: 440,
-      background: '#fff',
-      borderRadius: 20,
-      padding: '32px 28px',
-      boxShadow: '0 8px 32px rgba(240,123,82,0.12)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16,
-      boxSizing: 'border-box',
+      width: '100%', maxWidth: 440, background: '#fff', borderRadius: 20,
+      padding: '32px 28px', boxShadow: '0 8px 32px rgba(240,123,82,0.12)',
+      display: 'flex', flexDirection: 'column', gap: 16, boxSizing: 'border-box',
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 24, fontWeight: 700, color: 'hsl(25,30%,20%)', marginBottom: 4 }}>{title}</div>
@@ -262,7 +280,6 @@ function Card({ title, subtitle, children }: { title: string; subtitle: string; 
     </div>
   );
 }
-
 function Divider() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -272,28 +289,12 @@ function Divider() {
     </div>
   );
 }
-
 function ErrorMsg({ children }: { children: React.ReactNode }) {
-  return (
-    <p style={{ fontSize: 13, color: 'hsl(0,72%,51%)', textAlign: 'center', margin: 0 }}>
-      {children}
-    </p>
-  );
+  return <p style={{ fontSize: 13, color: 'hsl(0,72%,51%)', textAlign: 'center', margin: 0 }}>{children}</p>;
 }
-
 function Spinner() {
-  return (
-    <span style={{
-      width: 18, height: 18,
-      border: '2px solid hsl(15,85%,65%)',
-      borderTopColor: 'transparent',
-      borderRadius: '50%',
-      display: 'inline-block',
-      animation: 'spin 0.7s linear infinite',
-    }} />
-  );
+  return <span style={{ width: 18, height: 18, border: '2px solid hsl(15,85%,65%)', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />;
 }
-
 function GoogleLogo() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
