@@ -1,15 +1,15 @@
 /**
  * Custom auth form for Capacitor (Android/iOS).
  * Uses Clerk hooks directly — no pre-built <SignIn>/<SignUp> components.
- *
- * DEBUG BUILD: shows an on-screen log when Google is tapped.
- * Remove the <DebugPanel> block once the issue is diagnosed.
  */
 import { useState } from 'react';
 import { useSignIn, useSignUp } from '@clerk/react';
-import { isCapacitor } from '@/lib/capacitor';
 
 type Mode = 'sign-in' | 'sign-up' | 'verify';
+
+// The deployed production URL — used for OAuth redirects.
+// window.location.origin is unreliable inside Capacitor WebView.
+const PROD_URL = 'https://grok-canvas-copy.replit.app';
 
 export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: 'sign-in' | 'sign-up' }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -18,81 +18,68 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleAwaitingReturn, setGoogleAwaitingReturn] = useState(false);
   const [error, setError] = useState('');
-  const [debugLog, setDebugLog] = useState<string[]>([]);
 
-  const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
+  const { signIn, setActive: setSignInActive } = useSignIn();
+  const { signUp, setActive: setSignUpActive } = useSignUp();
 
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-  const log = (msg: string) => {
-    console.log('[CapacitorAuth]', msg);
-    setDebugLog(prev => [...prev.slice(-9), msg]);
-  };
-
   /* ── Google ──────────────────────────────────────────────────────── */
   const handleGoogle = async () => {
-    log(`Tap registered. isCapacitor=${isCapacitor()}`);
-    log(`UA: ${navigator.userAgent.substring(0, 60)}`);
-    log(`signInLoaded=${signInLoaded} signIn=${!!signIn}`);
-
-    if (!signIn) {
-      setError('Clerk not loaded yet — try again.');
-      log('ABORT: no signIn');
-      return;
-    }
+    if (!signIn) { setError('Clerk not loaded — try again.'); return; }
 
     setError('');
     setGoogleLoading(true);
+    setGoogleAwaitingReturn(false);
 
     try {
-      log('Calling signIn.create(oauth_google)…');
-      const origin = window.location.origin;
-      log(`origin=${origin}`);
-
       const attempt = await (signIn as any).create({
         strategy: 'oauth_google',
-        redirectUrl: `${origin}/sso-callback`,
-        actionCompleteRedirectUrl: origin,
+        redirectUrl: `${PROD_URL}/sso-callback`,
+        actionCompleteRedirectUrl: `${PROD_URL}/`,
       });
 
       const oauthUrl: string | undefined =
         attempt?.firstFactorVerification?.externalVerificationRedirectURL?.href;
 
-      log(`oauthUrl=${oauthUrl ? oauthUrl.substring(0, 60) + '…' : 'null'}`);
-
       if (!oauthUrl) {
-        throw new Error('Clerk returned no Google OAuth URL. Check Google is enabled in Clerk dashboard.');
+        throw new Error('Google sign-in is not configured. Enable Google in your Clerk dashboard under Social Connections.');
       }
 
-      // Try @capacitor/browser first; fall back to window.open
-      try {
-        log('Trying Browser.open()…');
-        const { Browser } = await import('@capacitor/browser');
-        await Browser.open({ url: oauthUrl, windowName: '_blank' });
-        log('Browser.open() succeeded');
+      // Open in Chrome Custom Tab — avoids Google's WebView restriction.
+      // Clean up any listener from a previous attempt first.
+      const { Browser } = await import('@capacitor/browser');
+      await Browser.removeAllListeners();
+      await Browser.open({ url: oauthUrl });
 
-        // When user closes the Custom Tab, reload to pick up Clerk session
-        Browser.addListener('browserFinished', () => {
-          log('browserFinished — reloading');
-          window.location.reload();
-        });
-      } catch (browserErr: any) {
-        log(`Browser.open() failed: ${browserErr?.message}. Using window.open fallback.`);
-        const popup = window.open(oauthUrl, '_blank');
-        if (!popup) {
-          log('window.open returned null — using location.href');
-          window.location.href = oauthUrl;
-        }
-      }
+      setGoogleLoading(false);
+      setGoogleAwaitingReturn(true); // show "Return here when done" UI
+
+      Browser.addListener('browserFinished', () => {
+        setGoogleAwaitingReturn(false);
+        // Reload so Clerk picks up the session cookie set during OAuth.
+        window.location.reload();
+      });
+
     } catch (e: any) {
       const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
-      log(`ERROR: ${msg}`);
       setError(msg);
-    } finally {
       setGoogleLoading(false);
     }
+  };
+
+  const handleGoogleContinue = () => {
+    setGoogleAwaitingReturn(false);
+    window.location.reload();
+  };
+
+  const handleGoogleCancel = async () => {
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.removeAllListeners();
+    setGoogleAwaitingReturn(false);
+    setError('');
   };
 
   /* ── Sign In ─────────────────────────────────────────────────────── */
@@ -202,34 +189,34 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
 
   return (
     <>
-      {/* ── DEBUG PANEL — remove once diagnosed ── */}
-      {debugLog.length > 0 && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
-          background: 'rgba(0,0,0,0.92)', color: '#4ade80',
-          fontFamily: 'monospace', fontSize: 11, padding: '8px 10px',
-          maxHeight: '40vh', overflowY: 'auto',
-        }}>
-          <strong style={{ color: '#fff' }}>DEBUG LOG:</strong>
-          {debugLog.map((l, i) => <div key={i}>› {l}</div>)}
-          <button
-            onClick={() => setDebugLog([])}
-            style={{ marginTop: 4, background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
-          >
-            Clear
-          </button>
-        </div>
-      )}
-
       <Card
         title={isSignIn ? 'Welcome back 📖' : 'Create account ✨'}
         subtitle={isSignIn ? 'Sign in to see your storybooks' : 'Start building magical storybooks'}
       >
-        {/* Google */}
-        <button style={googleBtnStyle} onClick={handleGoogle}>
-          {googleLoading ? <Spinner /> : <GoogleLogo />}
-          <span>{googleLoading ? 'Opening Google…' : 'Continue with Google'}</span>
-        </button>
+        {/* Google — awaiting return from Chrome Custom Tab */}
+        {googleAwaitingReturn ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{
+              background: 'hsl(142,72%,95%)', border: '1.5px solid hsl(142,60%,70%)',
+              borderRadius: 12, padding: '12px 14px', fontSize: 14,
+              color: 'hsl(142,40%,25%)', textAlign: 'center',
+            }}>
+              🌐 Google sign-in opened.<br />Complete it, then tap <strong>Continue</strong>.
+            </div>
+            <button style={primaryBtnStyle} onClick={handleGoogleContinue}>
+              ✓ Continue after signing in
+            </button>
+            <button style={{ ...googleBtnStyle, color: 'hsl(0,60%,50%)' }} onClick={handleGoogleCancel}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          /* Google button */
+          <button style={googleBtnStyle} onClick={handleGoogle}>
+            {googleLoading ? <Spinner /> : <GoogleLogo />}
+            <span>{googleLoading ? 'Opening Google…' : 'Continue with Google'}</span>
+          </button>
+        )}
 
         <Divider />
 
