@@ -1,15 +1,27 @@
 /**
  * Custom auth form for Capacitor (Android/iOS).
  * Uses Clerk hooks directly — no pre-built <SignIn>/<SignUp> components.
+ *
+ * Google OAuth flow:
+ *  1. Open Clerk Account Portal in Chrome Custom Tab (Browser.open)
+ *  2. User signs in with Google in the real browser — no WebView restrictions
+ *  3. Clerk redirects to mystorybook://sso-callback?__clerk_ticket=...
+ *  4. Android fires appUrlOpen; we close the tab and hand params to Clerk JS
  */
 import { useState } from 'react';
 import { useSignIn, useSignUp } from '@clerk/react';
+import { Browser } from '@capacitor/browser';
+import { App } from '@capacitor/app';
 
 type Mode = 'sign-in' | 'sign-up' | 'verify';
 
 // The deployed production URL — used for OAuth redirects.
 // window.location.origin is unreliable inside Capacitor WebView.
 const PROD_URL = 'https://grok-canvas-copy.replit.app';
+
+// Custom URL scheme registered in AndroidManifest.xml.
+// Clerk redirects here after OAuth so Android routes back into this app.
+const DEEP_LINK = 'mystorybook://sso-callback';
 
 export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: 'sign-in' | 'sign-up' }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -32,40 +44,48 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     setError('');
     setGoogleLoading(true);
 
+    // Listeners we must clean up on exit
+    let urlListenerHandle: { remove: () => Promise<void> } | null = null;
+    let finishedListenerHandle: { remove: () => Promise<void> } | null = null;
+
+    const cleanup = async () => {
+      await urlListenerHandle?.remove();
+      await finishedListenerHandle?.remove();
+      urlListenerHandle = null;
+      finishedListenerHandle = null;
+    };
+
     try {
-      // Try authenticateWithRedirect first. In Clerk dev instances it sometimes
-      // resolves without navigating (redirect URL not accepted by API).
-      // We detect this and fall back to the Clerk Account Portal immediately.
-      let didNavigate = false;
+      // 1. Listen for the deep-link callback BEFORE opening the browser.
+      //    Android fires appUrlOpen when Clerk redirects to mystorybook://...
+      urlListenerHandle = await App.addListener('appUrlOpen', async (data) => {
+        if (!data.url.startsWith('mystorybook://sso-callback')) return;
+        await cleanup();
+        await Browser.close();
 
-      const fallbackToPortal = () => {
-        if (didNavigate) return;
-        didNavigate = true;
-        // Clerk's Account Portal always accepts Google OAuth — no URL restrictions.
-        // After sign-in Clerk redirects back to our production URL.
-        window.location.href =
+        // Extract Clerk params and navigate the WebView to our /sso-callback
+        // route so <AuthenticateWithRedirectCallback> can process the token.
+        const rawSearch = data.url.replace('mystorybook://sso-callback', '');
+        window.location.href = `${PROD_URL}/sso-callback${rawSearch}`;
+      });
+
+      // 2. If the user closes the tab without signing in, reset the button.
+      finishedListenerHandle = await Browser.addListener('browserFinished', async () => {
+        await cleanup();
+        setGoogleLoading(false);
+      });
+
+      // 3. Open Clerk Account Portal in Chrome Custom Tab.
+      //    redirect_url is our custom scheme → Android routes it back here.
+      await Browser.open({
+        url:
           `https://grateful-terrier-54.accounts.dev/sign-in` +
-          `?redirect_url=${encodeURIComponent(PROD_URL)}`;
-      };
-
-      // 2-second watchdog: if page hasn't navigated, use the portal
-      const watchdog = setTimeout(fallbackToPortal, 2000);
-
-      try {
-        await (signIn as any).authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl: `${PROD_URL}/sso-callback`,
-          redirectUrlComplete: `${PROD_URL}/`,
-        });
-      } catch {
-        // Ignore inner errors — fall through to portal
-      }
-
-      // SDK resolved without navigating — go to portal now
-      clearTimeout(watchdog);
-      fallbackToPortal();
+          `?redirect_url=${encodeURIComponent(DEEP_LINK)}`,
+        presentationStyle: 'popover',
+      });
 
     } catch (e: any) {
+      await cleanup();
       const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
       setError(msg);
       setGoogleLoading(false);

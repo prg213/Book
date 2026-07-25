@@ -41,11 +41,42 @@ jobs:
         working-directory: artifacts/mystorybook
         run: npx cap sync android
 
-      # ── Patch AndroidManifest with required permissions ───────────────────
-      - name: Add Android permissions
+      # ── Patch AndroidManifest with permissions + deep-link scheme ────────
+      # The mystorybook:// scheme lets Clerk redirect back into the app
+      # after Google OAuth in Chrome Custom Tab (Browser.open).
+      - name: Patch AndroidManifest
         working-directory: artifacts/mystorybook/android/app/src/main
         run: |
-          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n</manifest>|' AndroidManifest.xml
+          python3 - <<'EOF'
+          import re, pathlib
+
+          path = pathlib.Path("AndroidManifest.xml")
+          xml  = path.read_text()
+
+          # 1. Add permissions before </manifest>
+          perms = (
+              '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n'
+              '    <uses-permission android:name="android.permission.INTERNET" />\n'
+              '    <uses-feature android:name="android.hardware.microphone" android:required="false" />\n'
+          )
+          xml = xml.replace("</manifest>", perms + "</manifest>")
+
+          # 2. Add mystorybook:// intent-filter inside MainActivity's <activity> block,
+          #    just before the first </activity> tag.
+          deep_link_filter = """
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="mystorybook" />
+                  </intent-filter>
+          """
+          xml = xml.replace("</activity>", deep_link_filter + "    </activity>", 1)
+
+          path.write_text(xml)
+          print("Patched AndroidManifest.xml:")
+          print(xml)
+          EOF
 
       # ── Patch MainActivity: remove WebView user-agent "wv" flag ──────────
       # Google blocks OAuth inside standard WebViews based on this flag.
