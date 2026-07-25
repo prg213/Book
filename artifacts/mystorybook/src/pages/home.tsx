@@ -21,7 +21,7 @@ export default function Home() {
           
           <h1 className="font-display text-5xl md:text-7xl font-bold text-foreground leading-tight">
             Turn Your Loved Ones Into
-            <span className="block text-primary">
+            <span className="block" style={{ color: 'hsl(15, 85%, 65%)' }}>
               Storybook Heroes
             </span>
           </h1>

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ClerkProvider, SignIn, SignUp, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
+import { isCapacitor } from '@/lib/capacitor';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -36,6 +37,15 @@ function stripBase(path: string): string {
     : path;
 }
 
+// Google OAuth doesn't work in Android WebView — hide social buttons in native app
+const nativeOverrides = isCapacitor()
+  ? {
+      socialButtonsBlockButton: 'hidden',
+      socialButtonsIconButton: 'hidden',
+      dividerRow: 'hidden',
+    }
+  : {};
+
 const clerkAppearance = {
   theme: shadcn,
   cssLayerName: 'clerk',
@@ -43,8 +53,10 @@ const clerkAppearance = {
     logoPlacement: 'inside' as const,
     logoLinkUrl: basePath || '/',
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-    socialButtonsVariant: 'blockButton' as const,
-    socialButtonsPlacement: 'top' as const,
+    ...(isCapacitor() ? {} : {
+      socialButtonsVariant: 'blockButton' as const,
+      socialButtonsPlacement: 'top' as const,
+    }),
   },
   variables: {
     colorPrimary: 'hsl(15,85%,65%)',
@@ -84,6 +96,7 @@ const clerkAppearance = {
     otpCodeFieldInput: 'border border-[hsl(28,25%,88%)]',
     formFieldRow: '',
     main: '',
+    ...nativeOverrides,
   },
 };
 
