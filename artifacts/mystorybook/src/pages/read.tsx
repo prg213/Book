@@ -39,8 +39,21 @@ function usePageAudio(storyId: string, audioKey: string) {
       alert('Audio recording is not available in this view. Open the story in Chrome browser to use narration.');
       return;
     }
+    // On Android/Capacitor: explicitly request the native mic permission before calling
+    // getUserMedia — this satisfies the WebView's onPermissionRequest internally.
+    if (typeof (window as any).Capacitor !== 'undefined') {
+      try {
+        const { Permissions } = await import('@capacitor/core') as any;
+        if (Permissions?.request) {
+          await Permissions.request({ name: 'microphone' });
+        }
+      } catch { /* plugin may not be available — continue anyway */ }
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Use explicit constraints — some Android WebViews reject the shorthand `true`
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
+      });
       const mr = new MediaRecorder(stream);
       mrRef.current = mr;
       chunksRef.current = [];
