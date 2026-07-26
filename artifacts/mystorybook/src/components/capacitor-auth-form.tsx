@@ -46,38 +46,6 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     setError('');
     setGoogleLoading(true);
 
-    // ── DEBUG: probe what Clerk returns for OAuth in this WebView context ──
-    try {
-      const probe = await signIn.create({
-        strategy: 'oauth_google',
-        redirectUrl: SSO_CALLBACK_URL,
-        redirectUrlComplete: PROD_URL + '/',
-      });
-      const p     = probe as any;
-      const ffv   = p?.firstFactorVerification;
-      const err   = p?.error;
-      const info  = {
-        status:      p?.status,
-        ffvStatus:   ffv?.status,
-        redirectUrl: ffv?.externalVerificationRedirectURL,
-        origin:      window.location.origin,
-        // The error object that came back
-        errMsg:      err?.message ?? err?.longMessage ?? String(err),
-        errCode:     err?.code ?? err?.clerkError,
-        errMeta:     err?.meta ? JSON.stringify(err.meta).slice(0, 120) : undefined,
-        // Raw first 200 chars of the whole probe
-        raw:         JSON.stringify(p).slice(0, 200),
-      };
-      setGoogleLoading(false);
-      setError('DEBUG: ' + JSON.stringify(info));
-      return;
-    } catch (e: any) {
-      const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
-      setGoogleLoading(false);
-      setError(`DEBUG error: ${msg}`);
-      return;
-    }
-    // ── END DEBUG ──────────────────────────────────────────────────────────
 
     // Listeners we must clean up on exit
     let urlListenerHandle: { remove: () => Promise<void> } | null = null;
@@ -120,15 +88,29 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         setGoogleLoading(false);
       });
 
-      // 3. Open Clerk Account Portal in Chrome Custom Tab.
-      //    redirect_url is our production sso-callback URL, which Clerk accepts
-      //    and Android App Links intercepts to route back into this app.
-      await Browser.open({
-        url:
-          `https://grateful-terrier-54.accounts.dev/sign-in` +
-          `?redirect_url=${encodeURIComponent(SSO_CALLBACK_URL)}`,
-        presentationStyle: 'popover',
+      // 3. Ask Clerk for the Google OAuth URL.
+      //    NOTE: redirectUrlComplete is NOT a valid param for signIn.create()
+      //    — passing it made Clerk return a swallowed 422 (form_param_unknown)
+      //    which was the root cause of every silent OAuth failure.
+      const attempt = await signIn.create({
+        strategy: 'oauth_google',
+        redirectUrl: SSO_CALLBACK_URL,
       });
+      const a = attempt as any;
+      if (a?.error) {
+        // Clerk SDK returns { error } instead of throwing in some cases
+        throw a.error;
+      }
+      const oauthUrl: string | null | undefined =
+        a?.firstFactorVerification?.externalVerificationRedirectURL;
+      if (!oauthUrl) {
+        throw new Error('Clerk did not return an OAuth URL. Please try again.');
+      }
+
+      // 4. Open the Google OAuth URL in Chrome Custom Tab (real browser —
+      //    no WebView restrictions). After auth, Clerk redirects to our
+      //    sso-callback URL, which Android App Links routes back into the app.
+      await Browser.open({ url: String(oauthUrl), presentationStyle: 'popover' });
 
     } catch (e: any) {
       await cleanup();
