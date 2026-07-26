@@ -835,37 +835,43 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
   const rawAngle = flipPhase === 'completing' ? 90
     : flipPhase === 'reverting' ? 0
     : flipPhase === 'tracking' ? Math.min(89, (Math.abs(swipeDx) / halfWidth) * 90)
-    : 0; // idle — cover fully closed
+    : 0;
   const animated = flipPhase === 'completing' || flipPhase === 'reverting';
-
-  const bookRadius = '16px';
+  const SPINE = 24; // px — fixed-width spine strip
 
   return (
     <div className="w-full h-full flex items-center justify-center">
-      {/* Drop-shadow wrapper — outside the clip so shadow is visible */}
+      {/* Drop-shadow wrapper — outside the clip so shadow renders past rounded edges */}
       <div className="relative h-full"
-        style={{
-          aspectRatio: '1 / 1',
-          filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))',
-        }}>
-        {/* Clip wrapper — enforces the book shape so no layer bleeds outside */}
+        style={{ aspectRatio: '1 / 1', filter: 'drop-shadow(-4px 10px 24px rgba(0,0,0,0.92))' }}>
+
+        {/* Clip wrapper — dark bg so rounded corners never show white */}
         <div className="absolute inset-0 overflow-hidden"
-          style={{ borderRadius: bookRadius }}>
-          {/* Perspective container — 3D context lives here, inside the clip */}
-          <div className="absolute inset-0"
+          style={{ borderRadius: '14px', background: '#060301' }}>
+
+          {/* ── Back layer: page 1 (revealed as cover swings open) ── */}
+          <div className="absolute inset-0" style={{ background: '#1a0e08' }}>
+            <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
+          </div>
+
+          {/* ── Spine — fixed strip, NOT inside the rotating cover ── */}
+          <div className="absolute top-0 bottom-0 left-0 pointer-events-none"
             style={{
-              perspective: '900px',
-              perspectiveOrigin: 'left center',
+              width: `${SPINE}px`,
+              zIndex: 3,
+              borderRadius: '14px 0 0 14px',
+              background: 'linear-gradient(to right, #060302 0%, #1c0a05 55%, #2a1008 100%)',
             }}>
+            {/* Gloss highlight on spine edge */}
+            <div style={{
+              position: 'absolute', top: 0, left: '3px', bottom: 0, width: '2px',
+              background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.08) 50%, transparent)',
+            }} />
+          </div>
 
-            {/* ── Back layer: page 1 — always mounted, never remounted ── */}
-            {/* Dark background so any sub-pixel leak is invisible against the screen */}
-            <div className="absolute inset-0 overflow-hidden"
-              style={{ background: '#1a0e08' }}>
-              <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
-            </div>
-
-            {/* ── Cover — rotates around left edge, hides back-layer at rest ── */}
+          {/* ── Cover face — sits to the RIGHT of the spine, rotates on flip ── */}
+          <div className="absolute top-0 bottom-0 right-0"
+            style={{ left: `${SPINE}px`, zIndex: 2, perspective: '900px', perspectiveOrigin: 'left center' }}>
             <div className="absolute inset-0"
               style={{
                 transformOrigin: 'left center',
@@ -874,8 +880,7 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
               }}>
-              {/* Inner div clips image — border-radius no longer needed here (parent clip handles it) */}
-              <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute inset-0 overflow-hidden" style={{ background: '#0d0705' }}>
                 {story.coverImageUrl ? (
                   <img src={story.coverImageUrl} alt={story.title}
                     className="absolute inset-0 w-full h-full"
@@ -889,10 +894,10 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
                     </div>
                   </div>
                 )}
-                {/* Spine — rotates with cover as part of the 1:1 unit */}
-                <div className="absolute inset-y-0 left-0 pointer-events-none"
-                  style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
-                {/* Cover darkens as it swings away from light */}
+                {/* Binding shadow — left edge where cover meets spine */}
+                <div className="absolute inset-0 pointer-events-none"
+                  style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.1) 8%, transparent 20%)' }} />
+                {/* Cover darkens as it swings away */}
                 <div className="absolute inset-0 pointer-events-none"
                   style={{
                     background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
@@ -901,6 +906,7 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
