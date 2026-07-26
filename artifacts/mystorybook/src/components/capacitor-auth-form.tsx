@@ -47,11 +47,18 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     setGoogleLoading(true);
 
 
+    // Unique nonce for this OAuth attempt — threaded through the redirect URL
+    // so the sso-callback page can key its relay POST, and we can poll for it.
+    const nonce = Array.from(
+      crypto.getRandomValues(new Uint8Array(16))
+    ).map(b => b.toString(16).padStart(2, '0')).join('');
+    const relayUrl = `${PROD_URL}/api/auth/mobile-relay`;
+
     // Listeners we must clean up on exit
     let urlListenerHandle: { remove: () => Promise<void> } | null = null;
     let finishedListenerHandle: { remove: () => Promise<void> } | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
-    // Guard: prevents browserFinished from cancelling a successful deep-link return
+    // Guard: prevents double-completion
     let oauthHandled = false;
 
     const cleanup = async () => {
@@ -105,9 +112,12 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       //    NOTE: redirectUrlComplete is NOT a valid param for signIn.create()
       //    — passing it made Clerk return a swallowed 422 (form_param_unknown)
       //    which was the root cause of every silent OAuth failure.
+      // Include the nonce in the redirect URL so the sso-callback page can
+      // key its relay POST. Clerk appends its own params (?created_session_id)
+      // to whatever redirect URL we provide, preserving our query string.
       const attempt = await signIn.create({
         strategy: 'oauth_google',
-        redirectUrl: SSO_CALLBACK_URL,
+        redirectUrl: `${SSO_CALLBACK_URL}?relay_nonce=${nonce}`,
       });
       // Clerk may resolve with a { result, error } wrapper instead of the
       // SignIn resource itself — unwrap it. If the wrapper is empty, fall back
@@ -164,10 +174,10 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       //    App Links routes back into the app.
       await Browser.open({ url: finalUrl, presentationStyle: 'popover' });
 
-      // 6. Fallback that doesn't depend on App Links: the sign-in attempt
-      //    belongs to THIS WebView's Clerk client, so once the user finishes
-      //    OAuth in the tab, reloading the attempt shows status 'complete'.
-      //    Poll for it, then close the tab and activate the session here.
+      // 6. Relay poll: once Google OAuth completes in the Chrome Custom Tab,
+      //    the sso-callback page POSTs {nonce, sessionId} to the relay.
+      //    We poll here and activate the session directly in this WebView
+      //    — completely independent of App Links or cookie sharing.
       const startedAt = performance.now();
       pollTimer = setInterval(async () => {
         if (oauthHandled) return;
@@ -177,12 +187,11 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
           return;
         }
         try {
-          const reloaded: any = await (signIn as any).reload();
-          let r = reloaded;
-          if (r && ('result' in r || 'error' in r)) r = r.result ?? signIn;
-          r = r ?? signIn;
-          if (r?.status === 'complete' && r?.createdSessionId) {
-            await finishSignIn(r.createdSessionId);
+          const resp = await fetch(`${relayUrl}?nonce=${nonce}`);
+          if (!resp.ok) return;
+          const data = await resp.json() as { sessionId: string | null };
+          if (data.sessionId) {
+            await finishSignIn(data.sessionId);
           }
         } catch { /* transient network error — keep polling */ }
       }, 1500);

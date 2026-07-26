@@ -6,6 +6,7 @@ import characterRouter from "./character";
 import colouringRouter from "./colouring";
 import audioRouter from "./audio";
 import videoRouter from "./video";
+import mobileRelayRouter from "./mobile-relay";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(storiesRouter);
 router.use(colouringRouter);
 router.use(audioRouter);
 router.use(videoRouter);
+router.use("/auth/mobile-relay", mobileRelayRouter);
 
 export default router;
