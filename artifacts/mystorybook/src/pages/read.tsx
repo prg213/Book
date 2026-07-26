@@ -656,70 +656,86 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// 3D book: spine on left + AI cover face on right.
-// IMPORTANT: filter must wrap the transformed element (not the perspective
-// parent) — nesting filter inside perspective breaks the CSS 3D engine.
+// Realistic face-on hardcover book: spine strip on left, AI image edge-to-edge
+// on the cover face, binding shadow, and box-shadow depth — no steep angle.
 function PortraitCover({ story }: { story: any }) {
-  // Square face sized to fit the stage on any phone.
-  const faceSize = 'min(74vw, 54vh)';
-  const spineW   = 'min(8.5vw, 6.2vh)';
+  const coverSize = 'min(72vw, 54vh)';
+  const spineW    = '28px';
 
   return (
-    // drop-shadow wraps the whole book — rendered after the 3D transform so
-    // the shadow follows the tilted shape.
-    <div style={{ filter: 'drop-shadow(-8px 22px 44px rgba(0,0,0,0.9))' }}>
-      {/* perspective() in the transform shorthand avoids a separate wrapper
-          and keeps the 3D engine working correctly alongside filter. */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        transform: 'perspective(900px) rotateY(-22deg)',
-      }}>
-        {/* Spine */}
-        <div style={{
-          width: spineW,
-          height: faceSize,          /* explicit height = face height */
-          flexShrink: 0,
-          background: 'linear-gradient(to right, #060302 0%, #1c0a05 55%, #2a1008 100%)',
-          borderRadius: '6px 0 0 6px',
-        }} />
+    <div style={{
+      display: 'flex',
+      /* subtle perspective — just enough to hint at depth without distortion */
+      transform: 'perspective(1600px) rotateY(-4deg)',
+      /* outer shadow: bottom-right depth + left spine shadow */
+      boxShadow: '6px 18px 48px rgba(0,0,0,0.75), -3px 4px 12px rgba(0,0,0,0.5)',
+      borderRadius: '10px 6px 6px 10px',
+    }}>
 
-        {/* Cover face — AI image fills this with zero gaps */}
-        <div
-          data-testid="img-cover"
-          style={{
-            width: faceSize,
-            height: faceSize,
-            flexShrink: 0,
-            overflow: 'hidden',
-            borderRadius: '0 8px 8px 0',
-            background: '#0d0705',   /* dark fallback — never white */
-          }}
-        >
-          {story.coverImageUrl ? (
-            <img
-              src={story.coverImageUrl}
-              alt={story.title}
-              draggable={false}
-              style={{
-                display: 'block',
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center top',
-              }}
-            />
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
-              background: 'linear-gradient(135deg, #92400e, #b45309)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '1.5rem',
-            }}>
-              <p style={{ textAlign: 'center', color: '#fde68a', fontWeight: 700 }}>{story.title}</p>
-            </div>
-          )}
-        </div>
+      {/* ── Spine ── */}
+      <div style={{
+        width: spineW,
+        height: coverSize,
+        flexShrink: 0,
+        borderRadius: '10px 0 0 10px',
+        overflow: 'hidden',
+        background: 'linear-gradient(to right, #080401 0%, #1a0a05 45%, #2c1409 85%, #38190c 100%)',
+        position: 'relative',
+      }}>
+        {/* Left-edge gloss highlight */}
+        <div style={{
+          position: 'absolute', top: 0, left: '3px', bottom: 0, width: '3px',
+          background: 'linear-gradient(to bottom, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.10) 50%, transparent 100%)',
+        }} />
+      </div>
+
+      {/* ── Cover face ── */}
+      <div
+        data-testid="img-cover"
+        style={{
+          width: coverSize,
+          height: coverSize,
+          flexShrink: 0,
+          overflow: 'hidden',
+          borderRadius: '0 6px 6px 0',
+          background: '#0d0705',
+          position: 'relative',
+        }}
+      >
+        {story.coverImageUrl ? (
+          <img
+            src={story.coverImageUrl}
+            alt={story.title}
+            draggable={false}
+            style={{
+              display: 'block',
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center top',
+            }}
+          />
+        ) : (
+          <div style={{
+            width: '100%', height: '100%',
+            background: 'linear-gradient(135deg, #92400e, #b45309)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
+          }}>
+            <p style={{ textAlign: 'center', color: '#fde68a', fontWeight: 700 }}>{story.title}</p>
+          </div>
+        )}
+
+        {/* Binding shadow — darkens the left edge where cover meets spine */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 9%, transparent 22%)',
+        }} />
+        {/* Top highlight — simulates overhead light on gloss cover */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: '56px',
+          pointerEvents: 'none',
+          background: 'linear-gradient(to bottom, rgba(255,255,255,0.11), transparent)',
+        }} />
       </div>
     </div>
   );
