@@ -146,7 +146,7 @@ CRITICAL: IGNORE any clothing mentioned in the character description below. Use 
     ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
     : `CHARACTER APPEARANCE — reproduce faithfully (hair, eyes, skin, outfit, accessories):`;
 
-  return `Create a vibrant, professional children's picture book COVER illustration in a 3D animated Pixar / Disney movie style — high-quality 3D render, soft cel-shading, vibrant saturated colors. The style must exactly match a 3D animated movie still, NOT a 2D hand-drawn illustration.
+  return `Create a vibrant, professional 3D animated movie poster illustration in a Pixar / Disney style — high-quality 3D render, soft cel-shading, vibrant saturated colors. The style must exactly match a 3D animated movie still, NOT a 2D hand-drawn illustration.
 
 MAIN CHARACTER (must be prominently centered, full body visible): ${story.characterName}
 ${outfitBlock}
@@ -170,7 +170,55 @@ SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm 
 
 TITLE: The story title "${story.title}" appears centered at the very top of the image. STRICT SIZE RULE — the font must be tiny: no taller than 4% of the image height, and the entire title must fit comfortably within the central 50% of the image width (25% blank margin on every left and right side). Use neat, rounded children's book lettering in a single line. If the title is long, reduce the font size further until it fits on one line within that 50% width limit. Render NO other text anywhere in the image.
 
-COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional picture book cover quality. No logos, no brand names, no watermarks — only the story title text described above.`;
+COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional 3D animated movie quality. No logos, no brand names, no watermarks — only the story title text described above.`;
+}
+
+/** Returns true when an error is an Aurora content-moderation rejection */
+function isContentModerated(e: unknown): boolean {
+  return e instanceof Error && e.message.includes("content-moderated");
+}
+
+/**
+ * Safe fallback cover prompt — no photo-derived description, generic cartoon character.
+ * Used when the primary prompt is rejected by content moderation.
+ */
+function buildSafeCoverPrompt(story: typeof storiesTable.$inferSelect): string {
+  const effectiveTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+  return `Create a vibrant, professional 3D animated movie poster illustration in a Pixar / Disney style — high-quality 3D render, soft cel-shading, vibrant saturated colors.
+
+MAIN CHARACTER (prominently centered, full body visible): ${story.characterName} — a friendly cartoon character with an oversized round head, big expressive eyes, small body (Pixar chibi proportions), cheerful smile, warm skin tone, wearing colorful casual clothes appropriate for the theme.
+
+SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm golden-hour lighting, vibrant colors.
+
+TITLE: The story title "${story.title}" appears centered at the very top of the image in neat, rounded lettering. Font no taller than 4% of the image height, fitting within the central 50% of the image width.
+
+COMPOSITION: Square 1:1 aspect ratio. Fill canvas completely edge-to-edge — no white margins, no borders. Professional 3D animated movie quality. No watermarks.`;
+}
+
+/**
+ * Safe fallback page prompt — no photo-derived description, generic cartoon character.
+ * Used when the primary prompt is rejected by content moderation.
+ */
+function buildSafePagePrompt(
+  story: typeof storiesTable.$inferSelect,
+  page: { image_prompt: string; page_number: number },
+  pageIndex: number,
+): string {
+  const rawTheme = story.theme === "custom" && story.customTheme ? story.customTheme : story.theme;
+  const poseInstruction = derivePoseFromScene(page.image_prompt, pageIndex);
+  return `Create a 3D animated movie scene illustration in a Pixar / Disney style — high-quality 3D render, soft cel-shading, vibrant saturated colors.
+
+SCENE: ${page.image_prompt}
+
+MAIN CHARACTER (MUST appear in this scene): ${story.characterName} — a friendly cartoon character with an oversized round head, big expressive eyes, small body (Pixar chibi proportions), cheerful smile, warm skin tone, wearing colorful casual clothes.
+
+CHARACTER POSE: ${poseInstruction}
+
+SETTING: ${rawTheme} adventure scene, richly detailed, vibrant colors, soft warm lighting.
+
+CRITICAL — NO TEXT WHATSOEVER in the image.
+
+COMPOSITION: Square 1:1 aspect ratio. Fill canvas completely edge-to-edge — no white margins, no borders. Professional 3D animation quality.`;
 }
 
 /** Page illustration prompt — character MUST appear in every scene with a scene-specific pose */
@@ -210,7 +258,7 @@ CRITICAL: IGNORE any clothing mentioned in the character description below. Use 
     ? `CHARACTER PHYSICAL FEATURES ONLY — hair, eyes, skin, face (ignore any clothing mentioned):`
     : `CHARACTER APPEARANCE (hair, eyes, skin, outfit, accessories — consistent across all pages):`;
 
-  return `Create a children's picture book page illustration in a 3D animated Pixar / Disney movie style — high-quality 3D render, soft cel-shading, vibrant saturated colors. The style must exactly match a 3D animated movie still, NOT a 2D hand-drawn illustration.
+  return `Create a 3D animated movie scene illustration in a Pixar / Disney style — high-quality 3D render, soft cel-shading, vibrant saturated colors. The style must exactly match a 3D animated movie still, NOT a 2D hand-drawn illustration.
 
 SCENE: ${page.image_prompt}
 
@@ -236,7 +284,7 @@ SETTING: ${effectiveTheme} adventure scene, richly detailed, vibrant colors, sof
 
 CRITICAL — NO TEXT WHATSOEVER: Do NOT render any letters, words, numbers, speech bubbles, signs with text, book pages with text, or any written characters anywhere in the image. The image must be a purely visual scene — zero text of any kind.
 
-COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind. The background scene bleeds all the way to all four edges of the canvas. Richly detailed background. Professional 3D animated children's picture book quality.`;
+COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind. The background scene bleeds all the way to all four edges of the canvas. Richly detailed background. Professional 3D animated movie quality.`;
 }
 
 export async function runStoryGeneration(storyId: string): Promise<void> {
@@ -395,7 +443,19 @@ Respond ONLY with a JSON object:
       await updateStory(storyId, { coverImagePath });
       logger.info({ storyId }, "Cover image generated");
     } catch (e) {
-      logger.error({ storyId, err: e }, "Cover generation failed");
+      if (isContentModerated(e)) {
+        logger.warn({ storyId }, "Cover moderated — retrying with safe prompt");
+        try {
+          const safeBuf = await generateImage(buildSafeCoverPrompt(story));
+          coverImagePath = await saveImage(safeBuf, "covers");
+          await updateStory(storyId, { coverImagePath });
+          logger.info({ storyId }, "Cover image generated (safe fallback)");
+        } catch (e2) {
+          logger.error({ storyId, err: e2 }, "Cover generation failed after safe retry");
+        }
+      } else {
+        logger.error({ storyId, err: e }, "Cover generation failed");
+      }
     }
 
     await updateStory(storyId, { generationProgress: 55, generationStatusMessage: `Cover created! Illustrating ${pages.length} pages...` });
@@ -417,7 +477,18 @@ Respond ONLY with a JSON object:
         imagePath = await saveImage(imgBuf, "pages");
         logger.info({ storyId, pageNumber: page.page_number }, "Page image generated");
       } catch (e) {
-        logger.warn({ storyId, pageNumber: page.page_number, err: e }, "Page image failed");
+        if (isContentModerated(e)) {
+          logger.warn({ storyId, pageNumber: page.page_number }, "Page moderated — retrying with safe prompt");
+          try {
+            const safeBuf = await generateImage(buildSafePagePrompt(story, page, i));
+            imagePath = await saveImage(safeBuf, "pages");
+            logger.info({ storyId, pageNumber: page.page_number }, "Page image generated (safe fallback)");
+          } catch (e2) {
+            logger.warn({ storyId, pageNumber: page.page_number, err: e2 }, "Page image failed after safe retry");
+          }
+        } else {
+          logger.warn({ storyId, pageNumber: page.page_number, err: e }, "Page image failed");
+        }
       }
 
       savedPages.push({
