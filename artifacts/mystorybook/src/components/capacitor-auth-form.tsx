@@ -131,8 +131,18 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       let finalUrl = String(oauthUrl);
       try {
         const u = new URL(finalUrl);
-        if (u.hostname.startsWith('accounts.') || u.hostname.startsWith('clerk.')) {
-          finalUrl = `${PROD_URL}/api/__clerk${u.pathname}${u.search}${u.hash}`;
+        const prodHost = new URL(PROD_URL).hostname;
+        // Only fix hostnames the proxy mangled onto OUR domain (e.g.
+        // accounts.grok-canvas-copy.replit.app). Never touch real hosts
+        // like accounts.google.com.
+        if (u.hostname !== prodHost && u.hostname.endsWith(`.${prodHost}`)) {
+          if (u.pathname.startsWith('/o/oauth2')) {
+            // Google's authorize endpoint with a mangled host — restore it.
+            finalUrl = `https://accounts.google.com${u.pathname}${u.search}${u.hash}`;
+          } else {
+            // Clerk FAPI endpoint — route through the production proxy.
+            finalUrl = `${PROD_URL}/api/__clerk${u.pathname}${u.search}${u.hash}`;
+          }
         }
       } catch { /* leave as-is if unparseable */ }
 
