@@ -96,10 +96,12 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         strategy: 'oauth_google',
         redirectUrl: SSO_CALLBACK_URL,
       });
-      const a = attempt as any;
-      if (a?.error) {
-        // Clerk SDK returns { error } instead of throwing in some cases
-        throw a.error;
+      // Clerk may resolve with a { result, error } wrapper instead of the
+      // SignIn resource itself — unwrap it.
+      let a = attempt as any;
+      if (a && ('result' in a || 'error' in a)) {
+        if (a.error) throw a.error;
+        a = a.result;
       }
       const ffv = a?.firstFactorVerification;
       const oauthUrl: string | null | undefined =
