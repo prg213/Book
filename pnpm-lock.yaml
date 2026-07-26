@@ -450,6 +450,9 @@ importers:
       '@capacitor/core':
         specifier: ^7.0.0
         version: 7.6.8
+      '@capacitor/filesystem':
+        specifier: ^8.1.2
+        version: 8.1.2(@capacitor/core@7.6.8)
       '@clerk/react':
         specifier: ^6.12.6
         version: 6.12.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -458,7 +461,7 @@ importers:
         version: 2.4.57(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       capacitor-voice-recorder:
         specifier: ^7.0.6
-        version: 7.0.6(@capacitor/core@7.6.8)
+        version: 7.0.6(@capacitor/core@7.6.8)(@capacitor/filesystem@8.1.2(@capacitor/core@7.6.8))
       jspdf:
         specifier: ^4.2.1
         version: 4.2.1
@@ -1382,6 +1385,14 @@ packages:
 
   '@capacitor/core@7.6.8':
     resolution: {integrity: sha512-x1xfxvNcTSnj6OoYaAB0n0a0HRvi5f2YjcVnMLxpMhbHDgGDAzzN9z8cnPCYV+SKTvqGF1hezHm82Op32XaAGg==}
+
+  '@capacitor/filesystem@8.1.2':
+    resolution: {integrity: sha512-doaaMfGoFR2hWU6aV6u83I+5ZsGyJVq+Gz4r9lMpJzUKMm1eMu0hLnFdV1aXZlU9FlK/RndFrVD8oRZfNOqWgQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
+  '@capacitor/synapse@1.0.4':
+    resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
 
   '@clerk/backend@3.12.0':
     resolution: {integrity: sha512-AyrNvel4KcLSjQCf6wXKXtzz7VZbpIuM4lNkA3Tsfs0CAT+XKJiV3HyrJKgpGnL29K3TeWeYfzPbQvL/Gcy59g==}
@@ -7324,6 +7335,13 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@capacitor/filesystem@8.1.2(@capacitor/core@7.6.8)':
+    dependencies:
+      '@capacitor/core': 7.6.8
+      '@capacitor/synapse': 1.0.4
+
+  '@capacitor/synapse@1.0.4': {}
+
   '@clerk/backend@3.12.0':
     dependencies:
       '@clerk/shared': 4.25.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -10075,14 +10093,15 @@ snapshots:
       svg-pathdata: 6.0.3
     optional: true
 
-  capacitor-blob-writer@1.1.20(@capacitor/core@7.6.8):
+  capacitor-blob-writer@1.1.20(@capacitor/core@7.6.8)(@capacitor/filesystem@8.1.2(@capacitor/core@7.6.8)):
     dependencies:
       '@capacitor/core': 7.6.8
+      '@capacitor/filesystem': 8.1.2(@capacitor/core@7.6.8)
 
-  capacitor-voice-recorder@7.0.6(@capacitor/core@7.6.8):
+  capacitor-voice-recorder@7.0.6(@capacitor/core@7.6.8)(@capacitor/filesystem@8.1.2(@capacitor/core@7.6.8)):
     dependencies:
       '@capacitor/core': 7.6.8
-      capacitor-blob-writer: 1.1.20(@capacitor/core@7.6.8)
+      capacitor-blob-writer: 1.1.20(@capacitor/core@7.6.8)(@capacitor/filesystem@8.1.2(@capacitor/core@7.6.8))
       get-blob-duration: 1.2.0
     transitivePeerDependencies:
       - '@capacitor/filesystem'
