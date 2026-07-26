@@ -26,3 +26,19 @@ channel = "stable-25_05"
 
 [userenv.shared]
 KLING_API_KEY = "api-key-kling-4E6YyHBPMjjzcQZfppWiI38-8V_ev0lcWjCtDAfmGCk"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 24276
+externalPort = 3001
+
+[[ports]]
+localPort = 25768
+externalPort = 3000
