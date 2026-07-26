@@ -13,44 +13,62 @@ function usePageAudio(storyId: string, audioKey: string) {
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Hidden file input — used as fallback when getUserMedia is blocked (Capacitor WebView)
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const base = `${import.meta.env.BASE_URL}api/audio/${storyId}`;
 
   // When key changes: stop everything, check server for existing recording
   useEffect(() => {
-    // Stop active recording
-    if (mrRef.current && mrRef.current.state !== 'inactive') {
-      mrRef.current.stop();
-    }
+    if (mrRef.current && mrRef.current.state !== 'inactive') mrRef.current.stop();
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     setIsRecording(false);
-    // Stop playback
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
     setIsPlaying(false);
-
     fetch(`${base}/${audioKey}`, { method: 'HEAD' })
       .then(r => setHasRecording(r.ok))
       .catch(() => setHasRecording(false));
   }, [base, audioKey]);
 
+  // Upload a Blob or File to the server and mark recording as saved
+  const uploadAudio = useCallback(async (blob: Blob) => {
+    try {
+      const r = await fetch(`${base}/${audioKey}`, {
+        method: 'POST', headers: { 'Content-Type': blob.type || 'audio/webm' }, body: blob,
+      });
+      if (r.ok) setHasRecording(true);
+    } catch { /* ignore upload errors */ }
+  }, [base, audioKey]);
+
+  // Native file-capture fallback — opens Android's built-in audio recorder.
+  // Used automatically when getUserMedia is blocked by the WebView.
+  const triggerNativeCapture = useCallback(() => {
+    if (!fileInputRef.current) {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'audio/*';
+      inp.setAttribute('capture', 'microphone');
+      inp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(inp);
+      fileInputRef.current = inp;
+    }
+    const inp = fileInputRef.current;
+    // Replace handler each call so audioKey closure is fresh
+    inp.onchange = () => {
+      const file = inp.files?.[0];
+      inp.value = '';           // reset so same file can be re-picked next time
+      if (file) uploadAudio(file);
+    };
+    inp.click();
+  }, [uploadAudio]);
+
   const startRecording = useCallback(async () => {
-    // Some WebViews (including Capacitor on Android) don't expose mediaDevices
+    // If getUserMedia isn't available at all, go straight to native capture
     if (!navigator.mediaDevices?.getUserMedia) {
-      alert('Audio recording is not available in this view. Open the story in Chrome browser to use narration.');
+      triggerNativeCapture();
       return;
     }
-    // On Android/Capacitor: explicitly request the native mic permission before calling
-    // getUserMedia — this satisfies the WebView's onPermissionRequest internally.
-    if (typeof (window as any).Capacitor !== 'undefined') {
-      try {
-        const { Permissions } = await import('@capacitor/core') as any;
-        if (Permissions?.request) {
-          await Permissions.request({ name: 'microphone' });
-        }
-      } catch { /* plugin may not be available — continue anyway */ }
-    }
     try {
-      // Use explicit constraints — some Android WebViews reject the shorthand `true`
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
       });
@@ -63,29 +81,22 @@ function usePageAudio(storyId: string, audioKey: string) {
         const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
         if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
         setIsRecording(false);
-        try {
-          const r = await fetch(`${base}/${audioKey}`, {
-            method: 'POST', headers: { 'Content-Type': blob.type }, body: blob,
-          });
-          if (r.ok) setHasRecording(true);
-        } catch { /* ignore */ }
+        await uploadAudio(blob);
       };
       mr.start(250);
       setIsRecording(true);
     } catch (e: unknown) {
       const err = e as DOMException;
       if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        // Android OS permission is granted but the WebView still blocked it —
-        // this happens in Capacitor when onPermissionRequest isn't wired up.
-        // Chrome browser handles this correctly so we point the user there.
-        alert('Microphone was blocked by the app browser.\n\nTo record narration, open this story in Chrome instead:\n1. Copy the URL from the address bar\n2. Paste it into Chrome\n3. Allow microphone when Chrome asks');
+        // WebView blocked getUserMedia — silently fall back to native file capture
+        triggerNativeCapture();
       } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
         alert('No microphone found on this device.');
       } else {
-        alert(`Microphone error: ${err?.name ?? 'unknown'}. Try opening the story in Chrome browser.`);
+        alert(`Microphone error: ${err?.name ?? 'unknown'}.`);
       }
     }
-  }, [base, audioKey]);
+  }, [uploadAudio, triggerNativeCapture]);
 
   const stopRecording = useCallback(() => {
     mrRef.current?.stop();
