@@ -7,10 +7,12 @@ import colouringRouter from "./colouring";
 import audioRouter from "./audio";
 import videoRouter from "./video";
 import mobileRelayRouter from "./mobile-relay";
+import imagesRouter from "./images";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(imagesRouter);   // GET /api/images/:subdir/:filename — GCS-backed image serving
 router.use(uploadRouter);
 router.use(characterRouter);
 router.use(storiesRouter);

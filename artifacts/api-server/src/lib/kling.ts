@@ -1,8 +1,5 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { logger } from "./logger";
-
-const uploadsDir = path.resolve(process.cwd(), "uploads");
+import { uploadImage } from "./imageStorage";
 const KLING_BASE = "https://api.klingai.com";
 
 function klingHeaders() {
@@ -91,19 +88,14 @@ export async function generateWavingVideoKling(
     ) {
       const videoUrl = status.data.task_result.videos[0].url;
 
-      // 3. Download
+      // 3. Download and upload to GCS
       const videoRes = await fetch(videoUrl);
       if (!videoRes.ok) throw new Error("Failed to download Kling video");
       const buf = Buffer.from(await videoRes.arrayBuffer());
 
-      const dir = path.join(uploadsDir, "videos");
-      await mkdir(dir, { recursive: true });
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`;
-      await writeFile(path.join(dir, filename), buf);
-
-      const relativePath = `videos/${filename}`;
-      logger.info({ relativePath }, "Kling waving video saved");
-      return relativePath;
+      const servingUrl = await uploadImage(buf, "videos", "mp4");
+      logger.info({ servingUrl }, "Kling waving video saved to GCS");
+      return servingUrl;
     }
 
     if (status.data?.task_status === "failed") {

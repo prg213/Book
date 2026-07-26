@@ -2,18 +2,10 @@ import { Router } from "express";
 import { analyzePhoto, generateImage } from "../lib/grok";
 import { logger } from "../lib/logger";
 import path from "path";
-import { mkdir, writeFile } from "fs/promises";
+import { uploadImage } from "../lib/imageStorage";
 
+// Only needed for reading user-uploaded original photos (local disk).
 const uploadsDir = path.resolve(process.cwd(), "uploads");
-
-async function saveImage(buf: Buffer, subdir: string): Promise<string> {
-  const dir = path.join(uploadsDir, subdir);
-  await mkdir(dir, { recursive: true });
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
-  const fullPath = path.join(dir, filename);
-  await writeFile(fullPath, buf);
-  return path.join(subdir, filename);
-}
 
 const router = Router();
 
@@ -42,13 +34,16 @@ router.post("/generate-character", async (req, res): Promise<void> => {
     // Step 2: Generate the 3D character illustration
     const charPrompt = buildCharacterPrompt(characterDescription);
     const imgBuf = await generateImage(charPrompt);
-    const characterImagePath = await saveImage(imgBuf, "characters");
+    // uploadImage returns a root-relative URL: /api/images/characters/<uuid>.png
+    const characterImageUrl = await uploadImage(imgBuf, "characters");
+    // Store the serving URL directly; resolveUrl() in stories.ts handles it
+    const characterImagePath = characterImageUrl;
 
-    logger.info({ photoPath, characterImagePath }, "Character generation complete");
+    logger.info({ photoPath, characterImageUrl }, "Character generation complete");
 
     res.json({
       characterImagePath,
-      characterImageUrl: `/api/uploads/${characterImagePath}`,
+      characterImageUrl,
       characterDescription,
     });
   } catch (err) {

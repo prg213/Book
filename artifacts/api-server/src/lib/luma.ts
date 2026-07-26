@@ -1,8 +1,5 @@
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { logger } from "./logger";
-
-const uploadsDir = path.resolve(process.cwd(), "uploads");
+import { uploadImage } from "./imageStorage";
 const LUMA_BASE = "https://agents.lumalabs.ai/v1";
 
 function lumaHeaders() {
@@ -62,19 +59,14 @@ export async function generateWavingVideo(publicCharacterImageUrl: string): Prom
     logger.info({ id: gen.id, state: status.state, attempt }, "Luma poll");
 
     if (status.state === "completed" && status.output?.[0]?.url) {
-      // 3. Download the video
+      // 3. Download and upload to GCS
       const videoRes = await fetch(status.output[0].url);
       if (!videoRes.ok) throw new Error("Failed to download Luma video");
       const buf = Buffer.from(await videoRes.arrayBuffer());
 
-      const dir = path.join(uploadsDir, "videos");
-      await mkdir(dir, { recursive: true });
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`;
-      await writeFile(path.join(dir, filename), buf);
-
-      const relativePath = `videos/${filename}`;
-      logger.info({ relativePath }, "Luma waving video saved");
-      return relativePath;
+      const servingUrl = await uploadImage(buf, "videos", "mp4");
+      logger.info({ servingUrl }, "Luma waving video saved to GCS");
+      return servingUrl;
     }
 
     if (status.state === "failed") {

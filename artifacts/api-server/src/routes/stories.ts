@@ -48,8 +48,18 @@ async function migrateLegacyStories(userId: string, sessionId: string) {
   }
 }
 
+/**
+ * Resolve a stored path/URL to a client-facing URL.
+ * New storage: /api/images/<subdir>/<uuid>.png  → returned as-is
+ * Legacy storage: <subdir>/<filename>.png       → prefixed with /api/uploads/
+ */
+function resolveUrl(stored: string | null | undefined): string | null {
+  if (!stored) return null;
+  if (stored.startsWith("/api/") || stored.startsWith("http")) return stored;
+  return `/api/uploads/${stored}`;
+}
+
 function storyToResponse(row: typeof storiesTable.$inferSelect) {
-  const base = `/api/uploads/`;
   return {
     id: row.id,
     title: row.title,
@@ -63,10 +73,10 @@ function storyToResponse(row: typeof storiesTable.$inferSelect) {
     occasion: row.occasion ?? null,
     pageCount: row.pageCount,
     userPrompt: row.userPrompt ?? null,
-    coverImageUrl: row.coverImagePath ? `${base}${row.coverImagePath}` : null,
-    characterImageUrl: row.characterImagePath ? `${base}${row.characterImagePath}` : null,
-    character2ImageUrl: (row as any).character2ImagePath ? `${base}${(row as any).character2ImagePath}` : null,
-    characterVideoUrl: (row as any).characterVideoPath ? `${base}${(row as any).characterVideoPath}` : null,
+    coverImageUrl: resolveUrl(row.coverImagePath),
+    characterImageUrl: resolveUrl(row.characterImagePath),
+    character2ImageUrl: resolveUrl((row as any).character2ImagePath),
+    characterVideoUrl: resolveUrl((row as any).characterVideoPath),
     status: row.status,
     generationProgress: row.generationProgress,
     generationStatusMessage: row.generationStatusMessage ?? null,
@@ -80,7 +90,7 @@ function pageToResponse(row: typeof storyPagesTable.$inferSelect) {
     id: row.id,
     num: row.pageNumber,
     text: row.text ?? null,
-    imageUrl: row.imagePath ? `/api/uploads/${row.imagePath}` : null,
+    imageUrl: resolveUrl(row.imagePath),
     imagePrompt: row.imagePrompt ?? null,
   };
 }

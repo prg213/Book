@@ -1,40 +1,41 @@
 import { Router } from "express";
-import path from "path";
-import { readFile, writeFile, mkdir, access } from "fs/promises";
 import { createHash } from "crypto";
 import sharp from "sharp";
 import { generateColouringPage } from "../lib/grok";
 import { logger } from "../lib/logger";
+import { uploadImage, fetchImageBuffer } from "../lib/imageStorage";
+import { objectStorageClient } from "../lib/objectStorage";
 
 // A5 at 150 dpi — good quality, fast to render
 const A5_W = 1240;
 const A5_H = 1754; // 1240 × (210/148)
 
-/**
- * Scale and crop an image to exactly A5 portrait dimensions (cover mode).
- * The image is scaled so it fills the full A5 canvas edge-to-edge,
- * cropping the shorter axis from the centre — no white bars, no margins.
- */
 async function toA5(inputBuf: Buffer): Promise<Buffer> {
   return sharp(inputBuf)
-    .resize(A5_W, A5_H, {
-      fit: "cover",        // fill entire canvas, crop overflow
-      position: "centre",  // crop symmetrically
-    })
+    .resize(A5_W, A5_H, { fit: "cover", position: "centre" })
     .png({ compressionLevel: 8 })
     .toBuffer();
 }
 
+/** Check whether a coloring-page result is already cached in GCS. */
+async function getCachedColouringUrl(hash: string): Promise<string | null> {
+  const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+  if (!bucketId) return null;
+  const objectPath = `story-images/colouring/${hash}.png`;
+  const bucket = objectStorageClient.bucket(bucketId);
+  const [exists] = await bucket.file(objectPath).exists();
+  return exists ? `/api/images/colouring/${hash}.png` : null;
+}
+
 const router = Router();
-const uploadsDir = path.resolve(process.cwd(), "uploads");
 
 /**
  * POST /api/colouring-page
- * Body: { imageUrl: string }   e.g. "/api/uploads/covers/12345.png"
+ * Body: { imageUrl: string }   — any /api/images/... or /api/uploads/... URL
  * Returns: { colouringUrl: string }
  *
- * Results are cached on disk under uploads/colouring/ keyed by a hash of
- * the source path, so repeated requests are instant.
+ * Results are cached in GCS keyed by a hash of the source URL, so repeated
+ * requests are instant.
  */
 router.post("/colouring-page", async (req, res) => {
   try {
@@ -44,52 +45,43 @@ router.post("/colouring-page", async (req, res) => {
       return;
     }
 
-    // Strip the leading /api/uploads/ prefix to get the relative file path
-    const prefix = "/api/uploads/";
-    if (!imageUrl.startsWith(prefix)) {
-      res.status(400).json({ error: "imageUrl must start with /api/uploads/" });
+    // Cache key: hash of the normalised source URL
+    const hash = createHash("sha1").update(imageUrl).digest("hex").slice(0, 16);
+
+    // ── GCS cache check ────────────────────────────────────────────────────
+    const cached = await getCachedColouringUrl(hash);
+    if (cached) {
+      logger.info({ hash }, "Coloring page GCS cache hit");
+      res.json({ colouringUrl: cached });
       return;
     }
-    const relPath = imageUrl.slice(prefix.length);
-    const absPath = path.join(uploadsDir, relPath);
 
-    // ── Cache check ────────────────────────────────────────────────────────
-    const hash = createHash("sha1").update(relPath).digest("hex").slice(0, 16);
-    const cacheDir = path.join(uploadsDir, "colouring");
-    const cacheFile = path.join(cacheDir, `${hash}.png`);
-    const cacheRelPath = `colouring/${hash}.png`;
-
-    try {
-      await access(cacheFile);
-      // Cache hit
-      logger.info({ cacheFile }, "Coloring page cache hit");
-      res.json({ colouringUrl: `/api/uploads/${cacheRelPath}` });
-      return;
-    } catch {
-      // Cache miss — generate
-    }
-
-    // ── Read source image ─────────────────────────────────────────────────
+    // ── Fetch source image via HTTP ────────────────────────────────────────
     let sourceBuf: Buffer;
     try {
-      sourceBuf = await readFile(absPath);
-    } catch {
-      res.status(404).json({ error: `Source image not found: ${relPath}` });
+      sourceBuf = await fetchImageBuffer(imageUrl);
+    } catch (err) {
+      logger.error({ imageUrl, err }, "Failed to fetch source image for coloring");
+      res.status(404).json({ error: "Source image not accessible" });
       return;
     }
 
     // ── Generate via xAI ──────────────────────────────────────────────────
-    logger.info({ relPath }, "Generating coloring page");
+    logger.info({ imageUrl, hash }, "Generating coloring page");
     const colouringBuf = await generateColouringPage(sourceBuf);
-
-    // ── Letterbox to A5 portrait ───────────────────────────────────────────
     const a5Buf = await toA5(colouringBuf);
 
-    // ── Save to cache ──────────────────────────────────────────────────────
-    await mkdir(cacheDir, { recursive: true });
-    await writeFile(cacheFile, a5Buf);
+    // ── Upload to GCS using the stable hash as the filename ────────────────
+    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID!;
+    const objectPath = `story-images/colouring/${hash}.png`;
+    await objectStorageClient.bucket(bucketId).file(objectPath).save(a5Buf, {
+      contentType: "image/png",
+      resumable: false,
+      metadata: { cacheControl: "public, max-age=31536000, immutable" },
+    });
+    const colouringUrl = `/api/images/colouring/${hash}.png`;
 
-    res.json({ colouringUrl: `/api/uploads/${cacheRelPath}` });
+    res.json({ colouringUrl });
   } catch (err) {
     logger.error({ err }, "Coloring page generation failed");
     res.status(500).json({ error: "Failed to generate coloring page" });

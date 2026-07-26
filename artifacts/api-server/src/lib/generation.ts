@@ -1,5 +1,5 @@
 import path from "path";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile } from "fs/promises";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { eq } from "drizzle-orm";
@@ -8,7 +8,10 @@ import { analyzePhoto, extractOutfitFromDescription, generateStoryText, generate
 import { buildCharacterPrompt } from "../routes/character";
 import { generateWavingVideoKling } from "./kling";
 import { logger } from "./logger";
+import { uploadImage } from "./imageStorage";
 
+// Local uploads dir — only used for reading user-uploaded original photos.
+// Generated images (covers, pages, characters) go to GCS via uploadImage().
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 const execFileAsync = promisify(execFile);
 
@@ -48,15 +51,11 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
 }
 
 export async function saveImage(buf: Buffer, subdir: string): Promise<string> {
-  const dir = path.join(uploadsDir, subdir);
-  await mkdir(dir, { recursive: true });
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
-  const fullPath = path.join(dir, filename);
   const processed = (subdir === "covers" || subdir === "characters" || subdir === "pages")
     ? await processImage(buf, subdir === "covers")
     : buf;
-  await writeFile(fullPath, processed);
-  return path.join(subdir, filename);
+  // Returns a root-relative serving URL: /api/images/<subdir>/<uuid>.png
+  return uploadImage(processed, subdir);
 }
 
 async function updateStory(storyId: string, updates: Partial<typeof storiesTable.$inferSelect>): Promise<void> {
@@ -297,7 +296,8 @@ export async function runStoryGeneration(storyId: string): Promise<void> {
         // Runs in background — story continues while Kling generates.
         if (process.env.KLING_API_KEY) {
           const domain = process.env.REPLIT_DEV_DOMAIN;
-          const publicCharUrl = `https://${domain}/api/uploads/${characterImagePath}`;
+          // characterImagePath is now a root-relative serving URL (/api/images/...)
+        const publicCharUrl = `https://${domain}${characterImagePath}`;
           generateWavingVideoKling(publicCharUrl)
             .then(async (videoPath) => {
               await updateStory(storyId, { characterVideoPath: videoPath });
