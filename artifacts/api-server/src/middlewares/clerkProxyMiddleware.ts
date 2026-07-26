@@ -98,6 +98,32 @@ export function clerkProxyMiddleware(): RequestHandler {
       // assets) and body-less responses stream through without buffering.
       proxyRes: (proxyRes, req, res) => {
         const headers = { ...proxyRes.headers };
+
+        // Clerk sometimes emits redirects to subdomains of the proxy host
+        // (accounts.<host>, clerk.<host>) that don't actually exist for
+        // .replit.app deployments. Rewrite those to the real app origin so
+        // OAuth flows (e.g. the post-oauth_callback 303) can complete.
+        const location = headers['location'];
+        if (typeof location === 'string' && location) {
+          const host = getClerkProxyHost(req);
+          if (host) {
+            console.log('[clerk-proxy] redirect location:', location);
+            try {
+              const u = new URL(location);
+              if (
+                u.hostname !== host &&
+                u.hostname.endsWith(`.${host}`) &&
+                (u.hostname.startsWith('accounts.') || u.hostname.startsWith('clerk.'))
+              ) {
+                u.hostname = host;
+                headers['location'] = u.toString();
+                console.log('[clerk-proxy] rewrote location to:', headers['location']);
+              }
+            } catch {
+              /* non-URL Location — leave untouched */
+            }
+          }
+        }
         // Transfer-Encoding/Connection are hop-by-hop (RFC 7230 §6.1).
         delete headers['transfer-encoding'];
         delete headers['connection'];
