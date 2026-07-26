@@ -101,10 +101,22 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         // Clerk SDK returns { error } instead of throwing in some cases
         throw a.error;
       }
+      const ffv = a?.firstFactorVerification;
       const oauthUrl: string | null | undefined =
-        a?.firstFactorVerification?.externalVerificationRedirectURL;
+        ffv?.externalVerificationRedirectURL;
       if (!oauthUrl) {
-        throw new Error('Clerk did not return an OAuth URL. Please try again.');
+        // Surface everything Clerk gave us so the real failure isn't swallowed
+        const dbg = {
+          status: a?.status,
+          ffvStatus: ffv?.status,
+          ffvStrategy: ffv?.strategy,
+          ffvError: ffv?.error
+            ? { code: ffv.error.code, message: ffv.error.longMessage ?? ffv.error.message }
+            : null,
+          errors: a?.errors?.map((er: any) => ({ code: er.code, message: er.longMessage ?? er.message })),
+          keys: a ? Object.keys(a).filter(k => typeof a[k] !== 'function').join(',') : null,
+        };
+        throw new Error('No OAuth URL. Debug: ' + JSON.stringify(dbg));
       }
 
       // 4. Open the Google OAuth URL in Chrome Custom Tab (real browser —
