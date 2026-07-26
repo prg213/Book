@@ -843,7 +843,7 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
     <div className="w-full h-full flex items-center justify-center">
       {/* Drop-shadow wrapper — outside the clip so shadow renders past rounded edges */}
       <div className="relative h-full"
-        style={{ aspectRatio: '1 / 1', filter: 'drop-shadow(-4px 10px 24px rgba(0,0,0,0.92))' }}>
+        style={{ aspectRatio: '1 / 1', filter: 'drop-shadow(-4px 10px 24px rgba(0,0,0,0.92))', background: 'black' }}>
 
         {/* Clip wrapper — dark bg so rounded corners never show white */}
         <div className="absolute inset-0 overflow-hidden"
