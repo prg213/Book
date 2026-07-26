@@ -92,12 +92,17 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       //    assetlinks.json) and routes it back into this app.
       urlListenerHandle = await App.addListener('appUrlOpen', async (data) => {
         if (!data.url.startsWith(SSO_CALLBACK_URL)) return;
-        // Clerk's callback includes ?created_session_id=... — activate it
-        // directly instead of loading the web sso-callback page.
-        try {
-          const sid = new URL(data.url).searchParams.get('created_session_id');
-          if (sid) { await finishSignIn(sid); return; }
-        } catch { /* fall through to polling */ }
+        if (oauthHandled) return;
+        oauthHandled = true;
+        await cleanup();
+        try { await Browser.close(); } catch { /* already closed */ }
+        // Navigate THIS WebView to the sso-callback URL so Clerk JS running
+        // in the WebView's own context (with the production proxy) can
+        // process the created_session_id and activate the session properly.
+        // setActive(sessionId) alone fails because the session token lives
+        // in the Chrome Tab's cookie jar, not the WebView's.
+        const params = data.url.slice(PROD_URL.length); // e.g. /sso-callback?created_session_id=...
+        window.location.href = PROD_URL + params;
       });
 
       // 2. If the user closes the tab without signing in, reset the button.
@@ -196,7 +201,15 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
             const data = await resp.json() as { sessionId: string | null };
             if (data.sessionId) { sessionId = data.sessionId; break; }
           }
-          if (sessionId) await finishSignIn(sessionId);
+          if (sessionId) {
+            if (oauthHandled) return;
+            oauthHandled = true;
+            await cleanup();
+            try { await Browser.close(); } catch { /* already closed */ }
+            // Navigate WebView to sso-callback with the session ID so Clerk
+            // JS activates the session in the WebView's own proxy context.
+            window.location.href = `${SSO_CALLBACK_URL}?created_session_id=${sessionId}`;
+          }
         } catch { /* transient network error — keep polling */ }
       }, 1500);
 
