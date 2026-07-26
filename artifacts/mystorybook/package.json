@@ -82,6 +82,7 @@
     "@capacitor/core": "^7.0.0",
     "@clerk/react": "^6.12.6",
     "@clerk/themes": "^2.4.57",
+    "capacitor-voice-recorder": "^7.0.6",
     "jspdf": "^4.2.1"
   }
 }

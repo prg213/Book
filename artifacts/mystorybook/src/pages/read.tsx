@@ -1,20 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid, Mic, Square, Play, Pause } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
+
+const isCapacitor = typeof (window as any).Capacitor !== 'undefined';
 
 // ── Audio hook — record + playback per page ───────────────────────────────────
 function usePageAudio(storyId: string, audioKey: string) {
   const [hasRecording, setHasRecording] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Web-only refs
   const mrRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Hidden file input — used as fallback when getUserMedia is blocked (Capacitor WebView)
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const base = `${import.meta.env.BASE_URL}api/audio/${storyId}`;
 
@@ -30,7 +32,7 @@ function usePageAudio(storyId: string, audioKey: string) {
       .catch(() => setHasRecording(false));
   }, [base, audioKey]);
 
-  // Upload a Blob or File to the server and mark recording as saved
+  // Upload a Blob to the server and mark recording as saved
   const uploadAudio = useCallback(async (blob: Blob) => {
     try {
       const r = await fetch(`${base}/${audioKey}`, {
@@ -40,37 +42,48 @@ function usePageAudio(storyId: string, audioKey: string) {
     } catch { /* ignore upload errors */ }
   }, [base, audioKey]);
 
-  // Native file-capture fallback — opens Android's built-in audio recorder.
-  // Used automatically when getUserMedia is blocked by the WebView.
-  const triggerNativeCapture = useCallback(() => {
-    if (!fileInputRef.current) {
-      const inp = document.createElement('input');
-      inp.type = 'file';
-      inp.accept = 'audio/*';
-      inp.setAttribute('capture', 'microphone');
-      inp.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
-      document.body.appendChild(inp);
-      fileInputRef.current = inp;
+  // ── Capacitor path: use VoiceRecorder native plugin ──────────────────────────
+  const startRecordingNative = useCallback(async () => {
+    try {
+      // Request permission if not already granted
+      const hasPerm = await VoiceRecorder.hasAudioRecordingPermission();
+      if (!hasPerm.value) {
+        const granted = await VoiceRecorder.requestAudioRecordingPermission();
+        if (!granted.value) {
+          alert('Microphone permission is required. Please allow it in Android Settings.');
+          return;
+        }
+      }
+      await VoiceRecorder.startRecording();
+      setIsRecording(true);
+    } catch (e: unknown) {
+      alert(`Could not start recording: ${(e as Error)?.message ?? 'unknown error'}`);
     }
-    const inp = fileInputRef.current;
-    // Replace handler each call so audioKey closure is fresh
-    inp.onchange = () => {
-      const file = inp.files?.[0];
-      inp.value = '';           // reset so same file can be re-picked next time
-      if (file) uploadAudio(file);
-    };
-    inp.click();
+  }, []);
+
+  const stopRecordingNative = useCallback(async () => {
+    try {
+      const result = await VoiceRecorder.stopRecording();
+      setIsRecording(false);
+      const { recordDataBase64, mimeType } = result.value;
+      if (!recordDataBase64) return;
+      // Convert base64 → Blob and upload
+      const byteChars = atob(recordDataBase64);
+      const bytes = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mimeType || 'audio/aac' });
+      await uploadAudio(blob);
+    } catch {
+      setIsRecording(false);
+    }
   }, [uploadAudio]);
 
-  const startRecording = useCallback(async () => {
-    // If getUserMedia is not available at all, go straight to native file capture.
+  // ── Browser path: use getUserMedia + MediaRecorder ────────────────────────────
+  const startRecordingWeb = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      triggerNativeCapture();
+      alert('Audio recording is not supported in this browser.');
       return;
     }
-
-    // Try getUserMedia first — works in browsers and in Capacitor WebView once
-    // onPermissionRequest is overridden in MainActivity to grant audio access.
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
@@ -91,19 +104,22 @@ function usePageAudio(storyId: string, audioKey: string) {
     } catch (e: unknown) {
       const err = e as DOMException;
       if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        // Permission denied — fall back to native Android file capture as a last resort.
-        triggerNativeCapture();
+        alert('Please allow microphone access and try again.');
       } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
         alert('No microphone found on this device.');
       } else {
         alert(`Microphone error: ${err?.name ?? 'unknown'}.`);
       }
     }
-  }, [uploadAudio, triggerNativeCapture]);
+  }, [uploadAudio]);
 
-  const stopRecording = useCallback(() => {
+  const stopRecordingWeb = useCallback(() => {
     mrRef.current?.stop();
   }, []);
+
+  // ── Unified API ───────────────────────────────────────────────────────────────
+  const startRecording = isCapacitor ? startRecordingNative : startRecordingWeb;
+  const stopRecording  = isCapacitor ? stopRecordingNative  : stopRecordingWeb;
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current) audioRef.current = new Audio();
