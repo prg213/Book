@@ -656,50 +656,59 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// Realistic face-on hardcover book: spine strip on left, AI image edge-to-edge
-// on the cover face, binding shadow, and box-shadow depth — no steep angle.
+// Realistic hardcover book — portrait 5:7 proportions, AI image fills the face,
+// dark leather spine on left, cream page fore-edge stack on right, heavy drop shadow.
 function PortraitCover({ story }: { story: any }) {
-  const coverSize = 'min(72vw, 54vh)';
-  const spineW    = '28px';
+  // Book height drives everything — cover face derives its width via aspect-ratio
+  const BOOK_H  = 'min(64vh, 360px)';
+  const SPINE_W = 26; // px
+  const FORE_W  = 14; // px — visible page stack on right (fore-edge)
 
   return (
-    <div style={{
-      display: 'flex',
-      /* NO rotation — book faces perfectly straight forward */
-      boxShadow: '6px 18px 48px rgba(0,0,0,0.75), -3px 4px 12px rgba(0,0,0,0.5)',
-      borderRadius: '10px 6px 6px 10px',
-    }}>
-
-      {/* ── Spine ── */}
+    <div
+      data-testid="img-cover"
+      style={{
+        display: 'flex',
+        height: BOOK_H,
+        // Multi-layer shadow: left offset = spine casting shadow, bottom = book on surface
+        filter: [
+          'drop-shadow(-5px 0px 6px rgba(0,0,0,0.7))',
+          'drop-shadow(3px 16px 32px rgba(0,0,0,0.85))',
+          'drop-shadow(0px 4px 8px rgba(0,0,0,0.5))',
+        ].join(' '),
+      }}
+    >
+      {/* ── Spine (left edge) ── */}
       <div style={{
-        width: spineW,
-        height: coverSize,
+        width: SPINE_W,
+        height: '100%',
         flexShrink: 0,
         borderRadius: '10px 0 0 10px',
-        overflow: 'hidden',
-        background: 'linear-gradient(to right, #080401 0%, #1a0a05 45%, #2c1409 85%, #38190c 100%)',
+        background: 'linear-gradient(to right, #0b0401 0%, #1c0c06 35%, #2d1409 75%, #3c1a0b 100%)',
         position: 'relative',
+        overflow: 'hidden',
       }}>
-        {/* Left-edge gloss highlight */}
+        {/* Gloss highlight — left edge of spine */}
         <div style={{
-          position: 'absolute', top: 0, left: '3px', bottom: 0, width: '3px',
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.10) 50%, transparent 100%)',
+          position: 'absolute', top: 0, left: '2px', bottom: 0, width: '3px',
+          background: 'linear-gradient(to bottom, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.10) 45%, transparent 100%)',
+        }} />
+        {/* Shadow where spine meets cover face */}
+        <div style={{
+          position: 'absolute', top: 0, right: 0, bottom: 0, width: '7px',
+          background: 'linear-gradient(to right, transparent, rgba(0,0,0,0.55))',
         }} />
       </div>
 
-      {/* ── Cover face ── */}
-      <div
-        data-testid="img-cover"
-        style={{
-          width: coverSize,
-          height: coverSize,
-          flexShrink: 0,
-          overflow: 'hidden',
-          borderRadius: '0 6px 6px 0',
-          background: '#0d0705',
-          position: 'relative',
-        }}
-      >
+      {/* ── Cover face — portrait 5:7, AI image fills it ── */}
+      <div style={{
+        aspectRatio: '5 / 7',
+        height: '100%',
+        flexShrink: 0,
+        overflow: 'hidden',
+        position: 'relative',
+        background: '#0d0705',
+      }}>
         {story.coverImageUrl ? (
           <img
             src={story.coverImageUrl}
@@ -716,23 +725,57 @@ function PortraitCover({ story }: { story: any }) {
         ) : (
           <div style={{
             width: '100%', height: '100%',
-            background: 'linear-gradient(135deg, #92400e, #b45309)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
+            background: 'linear-gradient(150deg, #92400e 0%, #b45309 60%, #92400e 100%)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '1rem',
           }}>
-            <p style={{ textAlign: 'center', color: '#fde68a', fontWeight: 700 }}>{story.title}</p>
+            <p style={{
+              textAlign: 'center', color: '#fde68a', fontWeight: 700,
+              fontSize: 'clamp(0.85rem, 4vw, 1.1rem)', lineHeight: 1.3,
+            }}>
+              {story.title}
+            </p>
           </div>
         )}
 
-        {/* Binding shadow — darkens the left edge where cover meets spine */}
+        {/* Binding shadow — darkens left edge where cover meets spine */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 9%, transparent 22%)',
+          background: 'linear-gradient(to right, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.20) 10%, transparent 24%)',
         }} />
-        {/* Top highlight — simulates overhead light on gloss cover */}
+        {/* Gloss sheen — diagonal highlight across cover */}
         <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: '56px',
+          position: 'absolute', top: 0, left: 0, right: 0, height: '80px',
           pointerEvents: 'none',
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.11), transparent)',
+          background: 'linear-gradient(160deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 60%, transparent 100%)',
+        }} />
+      </div>
+
+      {/* ── Page fore-edge (right) — visible stack of pages ── */}
+      <div style={{
+        width: FORE_W,
+        height: '100%',
+        flexShrink: 0,
+        borderRadius: '0 5px 5px 0',
+        position: 'relative',
+        overflow: 'hidden',
+        // Repeating stripes simulate individual page edges
+        background: 'repeating-linear-gradient(to bottom, #ede0c4 0px, #ede0c4 1.5px, #e0d0b0 1.5px, #e0d0b0 3px)',
+      }}>
+        {/* Shadow where pages meet cover face */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, bottom: 0, width: '6px',
+          background: 'linear-gradient(to right, rgba(0,0,0,0.40), transparent)',
+        }} />
+        {/* Outer right edge highlight */}
+        <div style={{
+          position: 'absolute', top: 0, right: '1px', bottom: 0, width: '2px',
+          background: 'rgba(255,255,255,0.30)',
+        }} />
+        {/* Inset shadow on far right */}
+        <div style={{
+          position: 'absolute', top: 0, right: 0, bottom: 0, width: '5px',
+          background: 'linear-gradient(to left, rgba(0,0,0,0.30), transparent)',
         }} />
       </div>
     </div>
