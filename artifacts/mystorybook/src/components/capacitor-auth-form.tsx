@@ -52,41 +52,92 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     const relayUrl = `${PROD_URL}/api/auth/mobile-relay`;
 
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let urlHandle: { remove: () => Promise<void> } | null = null;
     let finishedHandle: { remove: () => Promise<void> } | null = null;
-    // Prevents both appUrlOpen AND the poll from both navigating
+    let resumeHandle: { remove: () => Promise<void> } | null = null;
     let done = false;
+    // Poll deadline — browserFinished shortens it instead of killing the poll
+    let deadline = Number.MAX_SAFE_INTEGER;
 
-    // Navigate the WebView to /sso-callback?created_session_id=<id>.
-    // Clerk JS initialises on that page and activates the session through
-    // the production proxy — no cookie sharing with the Chrome Tab needed.
-    // Navigating away automatically kills the setInterval, so no cleanup needed.
-    const goToCallback = (sessionId: string) => {
-      if (done) return;
-      done = true;
-      try { Browser.close(); } catch { /* ignore */ }
-      window.location.href = `${SSO_CALLBACK_URL}?created_session_id=${sessionId}`;
+    const cleanup = async () => {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      await urlHandle?.remove();
+      await finishedHandle?.remove();
+      await resumeHandle?.remove();
+      urlHandle = finishedHandle = resumeHandle = null;
     };
 
-    let urlHandle: { remove: () => Promise<void> } | null = null;
+    // Redeem the sign-in ticket on THIS WebView's own Clerk client.
+    // The Chrome Tab's session can never be activated here (separate cookie
+    // jars = separate Clerk clients), but a sign-in token is client-agnostic:
+    // signIn.create({ strategy:'ticket' }) creates a NEW session bound to the
+    // WebView. No navigation to remote URLs, no cookie sharing needed.
+    const redeem = async (ticket: string) => {
+      if (done) return;
+      done = true;
+      await cleanup();
+      try { await Browser.close(); } catch { /* Android: not implemented — tab bounces back via intent */ }
+      try {
+        const attempt = await signIn.create({ strategy: 'ticket', ticket } as any);
+        let a = attempt as any;
+        if (a && ('result' in a || 'error' in a)) {
+          if (a.error) throw a.error;
+          a = a.result ?? signIn;
+        }
+        const sid: string | undefined = a?.createdSessionId;
+        if (!sid) throw new Error(`Ticket sign-in incomplete (status: ${a?.status ?? 'unknown'})`);
+        await setSignInActive?.({ session: sid });
+        window.location.replace(basePath || '/');
+      } catch (e: any) {
+        setError(e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? 'Could not complete sign-in.');
+        setGoogleLoading(false);
+      }
+    };
+
+    // One poll tick — also called immediately on app resume so sign-in
+    // completes the instant the user lands back in the app.
+    const pollOnce = async () => {
+      if (done) return;
+      try {
+        for (const key of [nonce, 'latest']) {
+          const resp = await fetch(`${relayUrl}?nonce=${key}`, { cache: 'no-store' });
+          if (!resp.ok) continue;
+          const data = await resp.json() as { ticket: string | null };
+          if (data.ticket) { await redeem(data.ticket); return; }
+        }
+      } catch { /* transient — retry next tick */ }
+    };
 
     try {
-      // appUrlOpen: fires when Android App Links intercepts the /sso-callback
-      // redirect from Clerk. We do NOT call cleanup() here — the navigation
-      // itself unloads the page and kills the poll automatically.
+      // appUrlOpen: Android App Links may intercept the OAuth callback before
+      // the Chrome Tab loads our page. If so, WE post the session ID to the
+      // relay ourselves; the server exchanges it for a ticket and the poll
+      // picks it up. CRITICAL: never navigate the WebView to the callback URL
+      // — that unloads the app (and its poll) mid-flow.
       urlHandle = await App.addListener('appUrlOpen', (data) => {
         if (!data.url.startsWith(SSO_CALLBACK_URL)) return;
-        const sid = new URL(data.url).searchParams.get('created_session_id');
-        if (sid) goToCallback(sid);
+        try {
+          const sid = new URL(data.url).searchParams.get('created_session_id');
+          if (sid) {
+            fetch(relayUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nonce, sessionId: sid }),
+            }).then(() => pollOnce()).catch(() => { /* poll continues anyway */ });
+          }
+        } catch { /* unparseable URL — poll continues */ }
       });
 
-      // browserFinished: user dismissed the tab without completing sign-in
-      finishedHandle = await Browser.addListener('browserFinished', async () => {
-        if (done) return;
-        done = true;
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-        await urlHandle?.remove();
-        await finishedHandle?.remove();
-        setGoogleLoading(false);
+      // resume: app came back to foreground (intent bounce or manual return)
+      // — poll immediately instead of waiting for the next throttled tick.
+      resumeHandle = await App.addListener('resume', () => { void pollOnce(); });
+
+      // browserFinished: tab closed. Sign-in may still be landing (the relay
+      // fills ~1-2s after the redirect), so give it 12 more seconds of
+      // polling before resetting the button instead of bailing instantly.
+      finishedHandle = await Browser.addListener('browserFinished', () => {
+        deadline = Math.min(deadline, performance.now() + 12_000);
+        void pollOnce();
       });
 
       // Ask Clerk for the Google OAuth redirect URL.
@@ -121,33 +172,23 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
 
       await Browser.open({ url: finalUrl, presentationStyle: 'popover' });
 
-      // Relay poll: the sso-callback page (running in Chrome Custom Tab) POSTs
-      // {nonce, sessionId} here. We pick it up and navigate the WebView.
-      // IMPORTANT: fetch with cache:'no-store' — without it the browser caches
-      // the {sessionId:null} response and returns 304 for all subsequent polls,
-      // hiding the session ID even after the relay has been filled.
-      const startedAt = performance.now();
+      // Relay poll: the server exchanges the Chrome Tab's session ID for a
+      // single-use sign-in ticket; we redeem it here on the WebView's client.
+      // cache:'no-store' is critical — without it the browser serves stale
+      // 304 nulls even after the relay has been filled.
+      deadline = performance.now() + 3 * 60 * 1000;
       pollTimer = setInterval(async () => {
-        if (done) { clearInterval(pollTimer!); return; }
-        if (performance.now() - startedAt > 3 * 60 * 1000) {
-          clearInterval(pollTimer!);
-          if (!done) setGoogleLoading(false);
+        if (done) { if (pollTimer) clearInterval(pollTimer); return; }
+        if (performance.now() > deadline) {
+          await cleanup();
+          setGoogleLoading(false);
           return;
         }
-        try {
-          for (const key of [nonce, 'latest']) {
-            const resp = await fetch(`${relayUrl}?nonce=${key}`, { cache: 'no-store' });
-            if (!resp.ok) continue;
-            const data = await resp.json() as { sessionId: string | null };
-            if (data.sessionId) { goToCallback(data.sessionId); return; }
-          }
-        } catch { /* transient — retry next tick */ }
+        await pollOnce();
       }, 1500);
 
     } catch (e: any) {
-      if (pollTimer) clearInterval(pollTimer);
-      await urlHandle?.remove();
-      await finishedHandle?.remove();
+      await cleanup();
       const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
       setError(msg);
       setGoogleLoading(false);
