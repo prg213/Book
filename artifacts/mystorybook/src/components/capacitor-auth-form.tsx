@@ -53,14 +53,20 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         redirectUrl: SSO_CALLBACK_URL,
         redirectUrlComplete: PROD_URL + '/',
       });
-      const ffv   = (probe as any)?.firstFactorVerification;
+      const p     = probe as any;
+      const ffv   = p?.firstFactorVerification;
+      const err   = p?.error;
       const info  = {
-        status:      probe?.status,
+        status:      p?.status,
         ffvStatus:   ffv?.status,
         redirectUrl: ffv?.externalVerificationRedirectURL,
-        probeType:   typeof probe,
-        keys:        probe ? Object.keys(probe as any).slice(0, 12).join(',') : 'null/undefined',
         origin:      window.location.origin,
+        // The error object that came back
+        errMsg:      err?.message ?? err?.longMessage ?? String(err),
+        errCode:     err?.code ?? err?.clerkError,
+        errMeta:     err?.meta ? JSON.stringify(err.meta).slice(0, 120) : undefined,
+        // Raw first 200 chars of the whole probe
+        raw:         JSON.stringify(p).slice(0, 200),
       };
       setGoogleLoading(false);
       setError('DEBUG: ' + JSON.stringify(info));
