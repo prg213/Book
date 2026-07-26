@@ -710,33 +710,53 @@ function PortraitCover({ story }: { story: any }) {
         background: '#0d0705',
       }}>
         {story.coverImageUrl ? (
-          <img
-            src={story.coverImageUrl}
-            alt={story.title}
-            draggable={false}
-            style={{
-              display: 'block',
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center top',
-            }}
-          />
+          /* Shift image up 25% to crop the AI title-band that used to sit at the top,
+             then scale height to 150% so the bottom still fills the container */
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+            <img
+              src={story.coverImageUrl}
+              alt={story.title}
+              draggable={false}
+              style={{
+                position: 'absolute',
+                top: '-25%',
+                left: 0,
+                width: '100%',
+                height: '150%',
+                objectFit: 'cover',
+                objectPosition: 'center center',
+              }}
+            />
+          </div>
         ) : (
           <div style={{
-            width: '100%', height: '100%',
+            position: 'absolute', inset: 0,
             background: 'linear-gradient(150deg, #92400e 0%, #b45309 60%, #92400e 100%)',
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '1rem',
           }}>
-            <p style={{
-              textAlign: 'center', color: '#fde68a', fontWeight: 700,
-              fontSize: 'clamp(0.85rem, 4vw, 1.1rem)', lineHeight: 1.3,
-            }}>
-              {story.title}
-            </p>
           </div>
         )}
+
+        {/* Title overlay — rendered as HTML so it's always crisp and correctly sized */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          padding: '10px 10px 28px',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.30) 65%, transparent 100%)',
+          pointerEvents: 'none',
+        }}>
+          <p style={{
+            textAlign: 'center',
+            color: '#fff',
+            fontWeight: 800,
+            fontSize: 'clamp(0.7rem, 3.2vw, 1rem)',
+            lineHeight: 1.25,
+            textShadow: '0 1px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.7)',
+            letterSpacing: '0.01em',
+          }}>
+            {story.title}
+          </p>
+        </div>
 
         {/* Binding shadow — darkens left edge where cover meets spine */}
         <div style={{
@@ -747,7 +767,7 @@ function PortraitCover({ story }: { story: any }) {
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: '80px',
           pointerEvents: 'none',
-          background: 'linear-gradient(160deg, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 60%, transparent 100%)',
+          background: 'linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 60%, transparent 100%)',
         }} />
       </div>
 
@@ -925,18 +945,39 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
               }}>
               <div className="absolute inset-0 overflow-hidden" style={{ background: '#0d0705' }}>
                 {story.coverImageUrl ? (
-                  <img src={story.coverImageUrl} alt={story.title}
-                    className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: 'cover', objectPosition: 'top center' }}
-                    data-testid="img-cover-ls" draggable={false} />
+                  /* Shift image up 25% to crop the AI title-band, scale to 150% height so bottom fills */
+                  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+                    <img src={story.coverImageUrl} alt={story.title}
+                      style={{
+                        position: 'absolute',
+                        top: '-25%', left: 0,
+                        width: '100%', height: '150%',
+                        objectFit: 'cover', objectPosition: 'center center',
+                      }}
+                      data-testid="img-cover-ls" draggable={false} />
+                  </div>
                 ) : (
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-                    <div className="text-center text-amber-200">
-                      <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="font-display text-2xl font-bold">{story.title}</p>
-                    </div>
+                    <BookOpen className="w-16 h-16 text-amber-200 opacity-50" />
                   </div>
                 )}
+
+                {/* Title overlay */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0,
+                  padding: '10px 12px 28px',
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.30) 65%, transparent 100%)',
+                  pointerEvents: 'none',
+                }}>
+                  <p style={{
+                    textAlign: 'center', color: '#fff', fontWeight: 800,
+                    fontSize: 'clamp(0.75rem, 2.8vw, 1.1rem)', lineHeight: 1.25,
+                    textShadow: '0 1px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.7)',
+                  }}>
+                    {story.title}
+                  </p>
+                </div>
+
                 {/* Binding shadow — left edge where cover meets spine */}
                 <div className="absolute inset-0 pointer-events-none"
                   style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.1) 8%, transparent 20%)' }} />
