@@ -393,10 +393,10 @@ export default function Read() {
           className="absolute inset-0 pointer-events-none transition-opacity duration-300"
           style={{ opacity: overlayVisible ? 1 : 0 }}
         >
-          {/* Top-left: back button */}
+          {/* Top-left: back button — offset by safe-area-inset-top so it clears the status bar */}
           <button
-            className="absolute top-3 left-3 pointer-events-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
-            style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
+            className="absolute left-3 pointer-events-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+            style={{ top: 'calc(env(safe-area-inset-top) + 10px)', background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
             onClick={(e) => { e.stopPropagation(); setLocation('/library'); }}
             data-testid="button-back-library"
           >
@@ -405,7 +405,8 @@ export default function Read() {
           </button>
 
           {/* Top-right: page label + view contents button */}
-          <div className="absolute top-3 right-3 flex items-center gap-2 pointer-events-auto">
+          <div className="absolute right-3 flex items-center gap-2 pointer-events-auto"
+            style={{ top: 'calc(env(safe-area-inset-top) + 10px)' }}>
             <Link href={`/story-view?storyId=${storyId}`} onClick={(e) => e.stopPropagation()}>
               <button
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
@@ -528,8 +529,9 @@ export default function Read() {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Top bar */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 bg-[#120a05]/90 border-b border-amber-900/30">
+      {/* Top bar — paddingTop pushes content below the system status bar */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 bg-[#120a05]/90 border-b border-amber-900/30"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 10px)' }}>
         <Link href="/library">
           <button className="flex items-center gap-1.5 text-amber-300/80 hover:text-amber-200 text-sm font-medium transition-colors" data-testid="button-back-library">
             <ArrowLeft className="w-4 h-4" />
@@ -813,8 +815,9 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
             }}>
 
             {/* ── Back layer: page 1 — always mounted, never remounted ── */}
+            {/* Dark background so any sub-pixel leak is invisible against the screen */}
             <div className="absolute inset-0 overflow-hidden"
-              style={{ background: '#e0ceaa' }}>
+              style={{ background: '#1a0e08' }}>
               <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
             </div>
 
