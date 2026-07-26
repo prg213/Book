@@ -134,12 +134,12 @@ jobs:
       # ── Patch MainActivity: remove WebView user-agent "wv" flag ──────────
       # Google blocks OAuth inside standard WebViews based on this flag.
       # Removing it lets Google OAuth work in-page without a Chrome Custom Tab.
-      - name: Patch MainActivity user agent
+      - name: Copy custom Java sources (MainActivity + plugins)
         run: |
-          DEST="artifacts/mystorybook/android/app/src/main/java/com/mystorybook/app/MainActivity.java"
-          cp "artifacts/mystorybook/android-extras/com/mystorybook/app/MainActivity.java" "$DEST"
-          echo "Patched MainActivity.java:"
-          cat "$DEST"
+          DEST_DIR="artifacts/mystorybook/android/app/src/main/java/com/mystorybook/app"
+          cp artifacts/mystorybook/android-extras/com/mystorybook/app/*.java "$DEST_DIR/"
+          echo "Copied Java files:"
+          ls "$DEST_DIR/"
 
       # ── Java 17 (required by modern Gradle / AGP) ─────────────────────────
       - uses: actions/setup-java@v4
@@ -163,3 +163,4 @@ jobs:
           name: MyStoryBook-debug
           path: artifacts/mystorybook/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+
