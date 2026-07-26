@@ -34,9 +34,17 @@ const store = new Map<string, Entry>();
 // several times (retries / double-render). Mint one ticket per session.
 const minted = new Map<string, Entry>();
 
-// Global mint rate limit — tickets grant sign-in, so cap the blast radius.
+// Nonce must be the exact 128-bit hex string the app generated. This also
+// forbids any shared/guessable slot ('latest', etc.) — every exchange is
+// bound to one unguessable per-attempt key.
+const NONCE_RE = /^[0-9a-f]{32}$/;
+
+// Rate limits: bound Clerk API lookups from unauthenticated callers, but
+// count the strict mint quota only on SUCCESSFUL verification — otherwise
+// garbage POSTs could exhaust the counter and lock real users out.
+let lookupsThisMinute = 0;
 let mintsThisMinute = 0;
-setInterval(() => { mintsThisMinute = 0; }, 60_000).unref?.();
+setInterval(() => { lookupsThisMinute = 0; mintsThisMinute = 0; }, 60_000).unref?.();
 
 setInterval(() => {
   const now = Date.now();
@@ -48,21 +56,21 @@ setInterval(() => {
 router.post('/', async (req, res) => {
   const { nonce, sessionId } = req.body ?? {};
   if (
-    typeof nonce !== 'string' || !nonce ||
+    typeof nonce !== 'string' || !NONCE_RE.test(nonce) ||
     typeof sessionId !== 'string' || !sessionId.startsWith('sess_')
   ) {
-    res.status(400).json({ error: 'nonce and sessionId are required' });
+    res.status(400).json({ error: 'invalid nonce or sessionId' });
     return;
   }
 
   try {
     let entry = minted.get(sessionId);
     if (!entry) {
-      if (mintsThisMinute >= 30) {
+      if (lookupsThisMinute >= 120 || mintsThisMinute >= 30) {
         res.status(429).json({ error: 'rate limited' });
         return;
       }
-      mintsThisMinute++;
+      lookupsThisMinute++;
 
       // Verify the session is real and active before minting anything.
       const session = await clerkClient.sessions.getSession(sessionId);
@@ -70,6 +78,7 @@ router.post('/', async (req, res) => {
         res.status(400).json({ error: `session not active (${session.status})` });
         return;
       }
+      mintsThisMinute++; // only verified mints count against the strict cap
 
       const tok = await clerkClient.signInTokens.createSignInToken({
         userId: session.userId,
@@ -96,6 +105,10 @@ router.get('/', (req, res) => {
   // caching turns the poll into a stream of stale 304 nulls.
   res.setHeader('Cache-Control', 'no-store');
   const nonce = String(req.query.nonce ?? '');
+  if (!NONCE_RE.test(nonce)) {
+    res.json({ ticket: null });
+    return;
+  }
   const entry = store.get(nonce);
   if (!entry || entry.expiresAt < Date.now()) {
     res.json({ ticket: null });

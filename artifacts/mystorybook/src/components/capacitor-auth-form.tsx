@@ -42,6 +42,7 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
   /* ── Google ──────────────────────────────────────────────────────── */
   const handleGoogle = async () => {
     if (!signIn) { setError('Clerk not loaded — try again.'); return; }
+    if (googleLoading) return; // re-entry guard: one attempt at a time
 
     setError('');
     setGoogleLoading(true);
@@ -96,15 +97,15 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
 
     // One poll tick — also called immediately on app resume so sign-in
     // completes the instant the user lands back in the app.
+    // Poll ONLY our own nonce: a shared fallback slot (e.g. 'latest') would
+    // let concurrent sign-ins swap tickets — wrong-account sign-in.
     const pollOnce = async () => {
       if (done) return;
       try {
-        for (const key of [nonce, 'latest']) {
-          const resp = await fetch(`${relayUrl}?nonce=${key}`, { cache: 'no-store' });
-          if (!resp.ok) continue;
-          const data = await resp.json() as { ticket: string | null };
-          if (data.ticket) { await redeem(data.ticket); return; }
-        }
+        const resp = await fetch(`${relayUrl}?nonce=${nonce}`, { cache: 'no-store' });
+        if (!resp.ok) return;
+        const data = await resp.json() as { ticket: string | null };
+        if (data.ticket) await redeem(data.ticket);
       } catch { /* transient — retry next tick */ }
     };
 
@@ -307,7 +308,7 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         subtitle={isSignIn ? 'Sign in to see your storybooks' : 'Start building magical storybooks'}
       >
         {/* Google */}
-        <button style={googleBtnStyle} onClick={handleGoogle}>
+        <button style={googleBtnStyle} onClick={handleGoogle} disabled={googleLoading}>
           {googleLoading ? <Spinner /> : <GoogleLogo />}
           <span>{googleLoading ? 'Redirecting to Google…' : 'Continue with Google'}</span>
         </button>

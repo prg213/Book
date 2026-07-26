@@ -60,26 +60,36 @@ export default function SsoCallbackPage() {
     if (!isRelayFlow || posted.current) return;
     posted.current = true;
 
-    fetch(RELAY_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nonce: relayNonce, sessionId }),
-    })
-      .then(async r => {
-        if (!r.ok) throw new Error(`relay ${r.status}`);
-        // Fill the nonce-less slot too, in case the redirect lost our param
-        await fetch(RELAY_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nonce: 'latest', sessionId }),
-        }).catch(() => { /* best effort */ });
-        setRelayDone(true);
-        // Bounce back into the app. JS-initiated intent navigations are
-        // sometimes blocked without a user gesture — the visible button
-        // below is the fallback.
-        setTimeout(() => { window.location.href = RETURN_INTENT_URL; }, 400);
-      })
-      .catch(err => setRelayError(err.message));
+    // This single POST is the only bridge between the two auth contexts —
+    // retry with backoff, mobile networks drop requests.
+    // NOTE: post ONLY under our own nonce. A shared fallback slot would let
+    // concurrent sign-ins consume each other's tickets (wrong account!).
+    const post = async () => {
+      let lastErr = '';
+      for (let i = 0; i < 3; i++) {
+        try {
+          const r = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nonce: relayNonce, sessionId }),
+          });
+          if (r.ok) {
+            setRelayDone(true);
+            // Bounce back into the app. JS-initiated intent navigations are
+            // sometimes blocked without a user gesture — the visible button
+            // below is the fallback.
+            setTimeout(() => { window.location.href = RETURN_INTENT_URL; }, 400);
+            return;
+          }
+          lastErr = `relay ${r.status}`;
+        } catch (e: any) {
+          lastErr = e?.message ?? 'network error';
+        }
+        await new Promise(res => setTimeout(res, 800 * (i + 1)));
+      }
+      setRelayError(lastErr);
+    };
+    void post();
   }, []);
 
   const Spinner = () => (
