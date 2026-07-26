@@ -63,11 +63,16 @@ function usePageAudio(storyId: string, audioKey: string) {
   }, [uploadAudio]);
 
   const startRecording = useCallback(async () => {
-    // If getUserMedia isn't available at all, go straight to native capture
-    if (!navigator.mediaDevices?.getUserMedia) {
+    const isCapacitor = typeof (window as any).Capacitor !== 'undefined';
+
+    // Capacitor WebView always blocks getUserMedia regardless of Android permissions —
+    // skip it entirely and use the native Android audio recorder via file capture.
+    if (isCapacitor || !navigator.mediaDevices?.getUserMedia) {
       triggerNativeCapture();
       return;
     }
+
+    // Regular browser: use getUserMedia
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
@@ -88,8 +93,7 @@ function usePageAudio(storyId: string, audioKey: string) {
     } catch (e: unknown) {
       const err = e as DOMException;
       if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        // WebView blocked getUserMedia — silently fall back to native file capture
-        triggerNativeCapture();
+        alert('Please allow microphone access and try again.');
       } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
         alert('No microphone found on this device.');
       } else {
