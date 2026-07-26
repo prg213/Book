@@ -666,6 +666,7 @@ function PortraitCover({ story }: { story: any }) {
         maxHeight: '88dvh',
         borderRadius: '0 16px 16px 0',
         filter: 'drop-shadow(-6px 14px 32px rgba(0,0,0,0.9))',
+        background: '#1a0e08', // prevent browser-default white showing through image edges
       }}
     >
       {story.coverImageUrl ? (
