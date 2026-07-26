@@ -3,14 +3,14 @@
  *
  * Two contexts:
  *
- * A) created_session_id + relay_nonce in URL (Capacitor Chrome Custom Tab)
- *    The session already exists on Clerk's servers — we don't need to run
- *    AuthenticateWithRedirectCallback. Just POST the ID to the relay so the
- *    WebView can activate it, then show "Returning to app…".
- *    Skipping AWRC prevents it from issuing a redirect to accounts.* which
- *    was causing ERR_CONNECTION_CLOSED.
+ * A) Chrome Custom Tab (Capacitor OAuth flow)
+ *    Detected by: created_session_id in URL AND window.Capacitor not present.
+ *    The session already exists on Clerk's servers. We POST the ID to the
+ *    server relay so the WebView can activate it, then show "Returning…".
+ *    We deliberately do NOT run AuthenticateWithRedirectCallback here because
+ *    it would issue a redirect to accounts.* which causes ERR_CONNECTION_CLOSED.
  *
- * B) Everything else (normal browser, or WebView with __clerk_ticket)
+ * B) Normal browser / Capacitor WebView
  *    Run AuthenticateWithRedirectCallback as usual.
  */
 import { useEffect, useRef, useState } from 'react';
@@ -19,13 +19,19 @@ import { AuthenticateWithRedirectCallback } from '@clerk/react';
 const PROD_URL = 'https://grok-canvas-copy.replit.app';
 const RELAY_URL = `${PROD_URL}/api/auth/mobile-relay`;
 
+function isInCapacitorWebView(): boolean {
+  return !!(window as any).Capacitor?.isNativePlatform?.();
+}
+
 export default function SsoCallbackPage() {
   const params = new URLSearchParams(window.location.search);
   const sessionId = params.get('created_session_id');
-  const nonce = params.get('relay_nonce');
+  // Use relay_nonce if Clerk preserved it, fall back to 'latest' key so the
+  // WebView can also poll the nonce-less slot.
+  const nonce = params.get('relay_nonce') || 'latest';
 
-  // If both are present we're in the Chrome Custom Tab Capacitor flow.
-  const isRelayFlow = !!(sessionId && nonce);
+  // Chrome Custom Tab: has a session ID and is NOT running inside Capacitor.
+  const isRelayFlow = !!(sessionId && !isInCapacitorWebView());
 
   const posted = useRef(false);
   const [relayDone, setRelayDone] = useState(false);
@@ -43,13 +49,21 @@ export default function SsoCallbackPage() {
       .then(r => {
         if (!r.ok) throw new Error(`relay ${r.status}`);
         setRelayDone(true);
+        // Also store under 'latest' so the WebView can poll without the nonce
+        if (nonce !== 'latest') {
+          return fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nonce: 'latest', sessionId }),
+          });
+        }
       })
       .catch(err => setRelayError(err.message));
   }, []);
 
-  const spinner = (
+  const Spinner = () => (
     <span
-      className="h-10 w-10 animate-spin rounded-full border-4 border-t-transparent"
+      className="h-10 w-10 animate-spin rounded-full border-4"
       style={{ borderColor: 'hsl(15,85%,65%)', borderTopColor: 'transparent' }}
     />
   );
@@ -73,14 +87,14 @@ export default function SsoCallbackPage() {
             </>
           ) : relayError ? (
             <>
-              {spinner}
+              <Spinner />
               <p style={{ color: 'hsl(0,60%,60%)' }} className="text-sm text-center px-6">
                 Almost there… ({relayError})
               </p>
             </>
           ) : (
             <>
-              {spinner}
+              <Spinner />
               <p style={{ color: 'hsl(25,20%,50%)' }} className="text-sm">
                 Completing sign-in…
               </p>
@@ -91,14 +105,13 @@ export default function SsoCallbackPage() {
     );
   }
 
-  // Normal browser / WebView flow — let Clerk handle the callback.
   return (
     <div
       className="flex min-h-[100dvh] items-center justify-center"
       style={{ background: 'hsl(28,45%,97%)' }}
     >
       <div className="flex flex-col items-center gap-4">
-        {spinner}
+        <Spinner />
         <p style={{ color: 'hsl(25,20%,50%)' }} className="text-sm">
           Completing sign-in…
         </p>

@@ -187,12 +187,16 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
           return;
         }
         try {
-          const resp = await fetch(`${relayUrl}?nonce=${nonce}`);
-          if (!resp.ok) return;
-          const data = await resp.json() as { sessionId: string | null };
-          if (data.sessionId) {
-            await finishSignIn(data.sessionId);
+          // Poll with our nonce first; also try 'latest' in case Clerk
+          // didn't preserve the relay_nonce query param in the redirect URL.
+          let sessionId: string | null = null;
+          for (const key of [nonce, 'latest']) {
+            const resp = await fetch(`${relayUrl}?nonce=${key}`);
+            if (!resp.ok) continue;
+            const data = await resp.json() as { sessionId: string | null };
+            if (data.sessionId) { sessionId = data.sessionId; break; }
           }
+          if (sessionId) await finishSignIn(sessionId);
         } catch { /* transient network error — keep polling */ }
       }, 1500);
 
