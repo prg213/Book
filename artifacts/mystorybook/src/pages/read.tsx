@@ -550,7 +550,7 @@ export default function Read() {
       </div>
 
       {/* Book stage */}
-      <div className={`flex-1 min-h-0 flex items-center justify-center ${isCover ? 'p-0' : 'p-2'}`}>
+      <div className={`flex-1 min-h-0 flex items-center justify-center ${isCover ? 'p-0 overflow-hidden' : 'p-2'}`}>
         {isCover ? (
           <PortraitCover story={story} />
         ) : isEndPage ? (
@@ -660,7 +660,7 @@ export default function Read() {
 function PortraitCover({ story }: { story: any }) {
   return (
     <div
-      className="relative overflow-hidden w-full h-full"
+      className="relative overflow-hidden w-full"
       style={{
         background: '#1a0e08',
       }}
@@ -669,7 +669,7 @@ function PortraitCover({ story }: { story: any }) {
         <img
           src={story.coverImageUrl}
           alt={story.title}
-          style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ display: 'block', width: '100%', height: 'auto' }}
           data-testid="img-cover"
           draggable={false}
         />
