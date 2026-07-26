@@ -50,14 +50,32 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     // Listeners we must clean up on exit
     let urlListenerHandle: { remove: () => Promise<void> } | null = null;
     let finishedListenerHandle: { remove: () => Promise<void> } | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
     // Guard: prevents browserFinished from cancelling a successful deep-link return
     let oauthHandled = false;
 
     const cleanup = async () => {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       await urlListenerHandle?.remove();
       await finishedListenerHandle?.remove();
       urlListenerHandle = null;
       finishedListenerHandle = null;
+    };
+
+    // Completes sign-in once the OAuth session exists: closes the tab,
+    // activates the session in THIS WebView, and navigates home.
+    const finishSignIn = async (sessionId: string) => {
+      if (oauthHandled) return;
+      oauthHandled = true;
+      await cleanup();
+      try { await Browser.close(); } catch { /* already closed */ }
+      try {
+        await setSignInActive?.({ session: sessionId });
+        window.location.replace(basePath || '/');
+      } catch (e: any) {
+        setError(e?.errors?.[0]?.longMessage ?? e?.message ?? 'Could not activate session.');
+        setGoogleLoading(false);
+      }
     };
 
     try {
@@ -67,17 +85,12 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       //    assetlinks.json) and routes it back into this app.
       urlListenerHandle = await App.addListener('appUrlOpen', async (data) => {
         if (!data.url.startsWith(SSO_CALLBACK_URL)) return;
-        if (oauthHandled) return;
-        oauthHandled = true;
-
-        // Remove listeners first so browserFinished can't race with us
-        await cleanup();
-        try { await Browser.close(); } catch { /* ignore if already closed */ }
-
-        // Navigate the WebView to /sso-callback with Clerk's params so
-        // <AuthenticateWithRedirectCallback> can process the token.
-        const params = data.url.slice(SSO_CALLBACK_URL.length); // keeps ?query#hash
-        window.location.href = `${SSO_CALLBACK_URL}${params}`;
+        // Clerk's callback includes ?created_session_id=... — activate it
+        // directly instead of loading the web sso-callback page.
+        try {
+          const sid = new URL(data.url).searchParams.get('created_session_id');
+          if (sid) { await finishSignIn(sid); return; }
+        } catch { /* fall through to polling */ }
       });
 
       // 2. If the user closes the tab without signing in, reset the button.
@@ -150,6 +163,29 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
       //    After auth, Clerk redirects to our sso-callback URL, which Android
       //    App Links routes back into the app.
       await Browser.open({ url: finalUrl, presentationStyle: 'popover' });
+
+      // 6. Fallback that doesn't depend on App Links: the sign-in attempt
+      //    belongs to THIS WebView's Clerk client, so once the user finishes
+      //    OAuth in the tab, reloading the attempt shows status 'complete'.
+      //    Poll for it, then close the tab and activate the session here.
+      const startedAt = performance.now();
+      pollTimer = setInterval(async () => {
+        if (oauthHandled) return;
+        if (performance.now() - startedAt > 3 * 60 * 1000) {
+          await cleanup();
+          setGoogleLoading(false);
+          return;
+        }
+        try {
+          const reloaded: any = await (signIn as any).reload();
+          let r = reloaded;
+          if (r && ('result' in r || 'error' in r)) r = r.result ?? signIn;
+          r = r ?? signIn;
+          if (r?.status === 'complete' && r?.createdSessionId) {
+            await finishSignIn(r.createdSessionId);
+          }
+        } catch { /* transient network error — keep polling */ }
+      }, 1500);
 
     } catch (e: any) {
       await cleanup();
