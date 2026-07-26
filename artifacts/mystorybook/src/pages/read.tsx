@@ -551,8 +551,8 @@ export default function Read() {
         </Link>
       </div>
 
-      {/* Book stage — cover fills the stage fully; other pages are centred with padding */}
-      <div className={isCover ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 min-h-0 flex items-center justify-center p-2'}>
+      {/* Book stage */}
+      <div className="flex-1 min-h-0 flex items-center justify-center p-4">
         {isCover ? (
           <PortraitCover story={story} />
         ) : isEndPage ? (
@@ -656,38 +656,77 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// Shown as a contained book cover — 78% of stage width, natural aspect ratio,
+// 3D book: spine on left + cover face (AI image) on right, perspective-rotated.
+// Sized with CSS min() so it always fits within the stage bounds.
 function PortraitCover({ story }: { story: any }) {
+  // Cover face is square. Use min() so neither dimension overflows the stage.
+  // 72vw / 56vh leaves room for the spine + safe-area padding.
+  const faceSize = 'min(72vw, 56vh)';
+  // Spine is ~11% of the face size
+  const spineWidth = 'min(8vw, 6.2vh)';
+
   return (
-    <div
-      className="relative overflow-hidden w-full h-full"
-      style={{ background: '#1a0e08' }}
-    >
-      {story.coverImageUrl ? (
-        <img
-          src={story.coverImageUrl}
-          alt={story.title}
-          className="absolute inset-0 w-full h-full"
-          style={{ objectFit: 'cover', objectPosition: 'center top' }}
-          data-testid="img-cover"
-          draggable={false}
-        />
-      ) : (
-        <div className="bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center p-6"
-          style={{ aspectRatio: '3 / 4' }}>
-          <div className="text-center text-amber-200">
-            <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="font-display text-lg font-bold">{story.title}</p>
+    <div style={{ perspective: '900px' }}>
+      {/* Outer drop-shadow applied here so it renders outside the clip */}
+      <div style={{ filter: 'drop-shadow(-6px 24px 40px rgba(0,0,0,0.88))' }}>
+        {/* 3-D rotation */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'stretch',
+          transform: 'rotateY(-18deg)',
+          transformStyle: 'preserve-3d',
+          borderRadius: '6px 10px 10px 6px',
+        }}>
+          {/* Spine */}
+          <div style={{
+            width: spineWidth,
+            flexShrink: 0,
+            background: 'linear-gradient(to right, #060302 0%, #1e0c06 55%, #2e1208 100%)',
+            borderRadius: '6px 0 0 6px',
+          }} />
+
+          {/* Cover face — AI image fills this exactly, zero gap */}
+          <div
+            data-testid="img-cover"
+            style={{
+              width: faceSize,
+              height: faceSize,
+              flexShrink: 0,
+              overflow: 'hidden',
+              borderRadius: '0 10px 10px 0',
+            }}
+          >
+            {story.coverImageUrl ? (
+              <img
+                src={story.coverImageUrl}
+                alt={story.title}
+                draggable={false}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center top',
+                }}
+              />
+            ) : (
+              <div style={{
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(135deg, #92400e, #b45309)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1.5rem',
+              }}>
+                <div style={{ textAlign: 'center', color: '#fde68a' }}>
+                  <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>{story.title}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* Spine overlay */}
-      <div className="absolute inset-y-0 left-0 pointer-events-none"
-        style={{ width: '24px', background: 'linear-gradient(to right, rgba(5,2,0,0.95) 0%, rgba(40,18,6,0.6) 55%, transparent 100%)' }} />
-      {/* Bottom page-edge shadow */}
-      <div className="absolute inset-x-0 bottom-0 h-5 pointer-events-none"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' }} />
+      </div>
     </div>
   );
 }
