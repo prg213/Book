@@ -66,7 +66,7 @@ function usePageAudio(storyId: string, audioKey: string) {
       mr.start(250);
       setIsRecording(true);
     } catch {
-      alert('Microphone access needed. Please allow it in your browser settings.');
+      alert('Microphone access needed. Please go to your device Settings → Apps → MyStoryBook → Permissions and enable Microphone.');
     }
   }, [base, audioKey]);
 
