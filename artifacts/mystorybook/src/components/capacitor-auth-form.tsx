@@ -124,10 +124,22 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         throw new Error('No OAuth URL. Debug: ' + JSON.stringify(dbg));
       }
 
-      // 4. Open the Google OAuth URL in Chrome Custom Tab (real browser —
-      //    no WebView restrictions). After auth, Clerk redirects to our
-      //    sso-callback URL, which Android App Links routes back into the app.
-      await Browser.open({ url: String(oauthUrl), presentationStyle: 'popover' });
+      // 4. Rewrite the OAuth URL to go through the Clerk proxy.
+      //    In production, Replit-managed Clerk runs behind a proxy at
+      //    PROD_URL/api/__clerk — Clerk's own domains (accounts.<domain>,
+      //    clerk.<domain>) don't actually exist and refuse connections.
+      let finalUrl = String(oauthUrl);
+      try {
+        const u = new URL(finalUrl);
+        if (u.hostname.startsWith('accounts.') || u.hostname.startsWith('clerk.')) {
+          finalUrl = `${PROD_URL}/api/__clerk${u.pathname}${u.search}${u.hash}`;
+        }
+      } catch { /* leave as-is if unparseable */ }
+
+      // 5. Open in Chrome Custom Tab (real browser — no WebView restrictions).
+      //    After auth, Clerk redirects to our sso-callback URL, which Android
+      //    App Links routes back into the app.
+      await Browser.open({ url: finalUrl, presentationStyle: 'popover' });
 
     } catch (e: any) {
       await cleanup();
