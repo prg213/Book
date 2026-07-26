@@ -792,58 +792,67 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
     : 0; // idle — cover fully closed
   const animated = flipPhase === 'completing' || flipPhase === 'reverting';
 
+  const bookRadius = '16px';
+
   return (
     <div className="w-full h-full flex items-center justify-center">
-      {/* Perspective container — 1:1 square, same footprint as the old cover */}
+      {/* Drop-shadow wrapper — outside the clip so shadow is visible */}
       <div className="relative h-full"
         style={{
           aspectRatio: '1 / 1',
-          perspective: '900px',
-          perspectiveOrigin: 'left center',
           filter: 'drop-shadow(-6px 12px 28px rgba(0,0,0,0.95))',
         }}>
-
-        {/* ── Back layer: page 1 — always mounted, never remounted ── */}
+        {/* Clip wrapper — enforces the book shape so no layer bleeds outside */}
         <div className="absolute inset-0 overflow-hidden"
-          style={{ borderRadius: '0 14px 14px 0', background: '#e0ceaa' }}>
-          <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
-        </div>
+          style={{ borderRadius: bookRadius }}>
+          {/* Perspective container — 3D context lives here, inside the clip */}
+          <div className="absolute inset-0"
+            style={{
+              perspective: '900px',
+              perspectiveOrigin: 'left center',
+            }}>
 
-        {/* ── Cover — rotates around left edge, hides back-layer at rest ── */}
-        {/* NO overflow-hidden here; that would flatten the 3D transform */}
-        <div className="absolute inset-0"
-          style={{
-            transformOrigin: 'left center',
-            transform: `rotateY(-${rawAngle}deg)`,
-            transition: animated ? 'transform 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-          }}>
-          {/* Inner div handles border-radius + image clipping without collapsing 3D */}
-          <div className="absolute inset-0 overflow-hidden"
-            style={{ borderRadius: '0 14px 14px 0' }}>
-            {story.coverImageUrl ? (
-              <img src={story.coverImageUrl} alt={story.title}
-                className="absolute inset-0 w-full h-full"
-                style={{ objectFit: 'cover', objectPosition: 'top center' }}
-                data-testid="img-cover-ls" draggable={false} />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-                <div className="text-center text-amber-200">
-                  <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="font-display text-2xl font-bold">{story.title}</p>
-                </div>
-              </div>
-            )}
-            {/* Spine — rotates with cover as part of the 1:1 unit */}
-            <div className="absolute inset-y-0 left-0 pointer-events-none"
-              style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
-            {/* Cover darkens as it swings away from light */}
-            <div className="absolute inset-0 pointer-events-none"
+            {/* ── Back layer: page 1 — always mounted, never remounted ── */}
+            <div className="absolute inset-0 overflow-hidden"
+              style={{ background: '#e0ceaa' }}>
+              <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
+            </div>
+
+            {/* ── Cover — rotates around left edge, hides back-layer at rest ── */}
+            <div className="absolute inset-0"
               style={{
-                background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
-                transition: animated ? 'background 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
-              }} />
+                transformOrigin: 'left center',
+                transform: `rotateY(-${rawAngle}deg)`,
+                transition: animated ? 'transform 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+              }}>
+              {/* Inner div clips image — border-radius no longer needed here (parent clip handles it) */}
+              <div className="absolute inset-0 overflow-hidden">
+                {story.coverImageUrl ? (
+                  <img src={story.coverImageUrl} alt={story.title}
+                    className="absolute inset-0 w-full h-full"
+                    style={{ objectFit: 'cover', objectPosition: 'top center' }}
+                    data-testid="img-cover-ls" draggable={false} />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
+                    <div className="text-center text-amber-200">
+                      <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p className="font-display text-2xl font-bold">{story.title}</p>
+                    </div>
+                  </div>
+                )}
+                {/* Spine — rotates with cover as part of the 1:1 unit */}
+                <div className="absolute inset-y-0 left-0 pointer-events-none"
+                  style={{ width: '22px', background: 'linear-gradient(to right, rgba(5,2,0,0.92) 0%, rgba(40,18,6,0.65) 55%, transparent 100%)' }} />
+                {/* Cover darkens as it swings away from light */}
+                <div className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
+                    transition: animated ? 'background 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
+                  }} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
