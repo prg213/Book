@@ -551,8 +551,8 @@ export default function Read() {
         </Link>
       </div>
 
-      {/* Book stage */}
-      <div className={`flex-1 min-h-0 flex items-center justify-center ${isCover ? 'p-0 overflow-hidden' : 'p-2'}`}>
+      {/* Book stage — cover fills the stage fully; other pages are centred with padding */}
+      <div className={isCover ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 min-h-0 flex items-center justify-center p-2'}>
         {isCover ? (
           <PortraitCover story={story} />
         ) : isEndPage ? (
@@ -657,21 +657,18 @@ export default function Read() {
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
 // Shown as a contained book cover — 78% of stage width, natural aspect ratio,
-// fully visible (no cropping). Stage centres it with dark background visible
-// around it so it reads as a proper physical book cover display.
 function PortraitCover({ story }: { story: any }) {
   return (
     <div
-      className="relative overflow-hidden w-full"
-      style={{
-        background: '#1a0e08',
-      }}
+      className="relative overflow-hidden w-full h-full"
+      style={{ background: '#1a0e08' }}
     >
       {story.coverImageUrl ? (
         <img
           src={story.coverImageUrl}
           alt={story.title}
-          style={{ display: 'block', width: '100%', height: 'auto' }}
+          className="absolute inset-0 w-full h-full"
+          style={{ objectFit: 'cover', objectPosition: 'center top' }}
           data-testid="img-cover"
           draggable={false}
         />
