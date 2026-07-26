@@ -97,17 +97,20 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
         redirectUrl: SSO_CALLBACK_URL,
       });
       // Clerk may resolve with a { result, error } wrapper instead of the
-      // SignIn resource itself — unwrap it.
+      // SignIn resource itself — unwrap it. If the wrapper is empty, fall back
+      // to the signIn resource, which Clerk mutates in place.
       let a = attempt as any;
       if (a && ('result' in a || 'error' in a)) {
         if (a.error) throw a.error;
-        a = a.result;
+        a = a.result ?? signIn;
       }
       const ffv = a?.firstFactorVerification;
       const oauthUrl: string | null | undefined =
         ffv?.externalVerificationRedirectURL;
       if (!oauthUrl) {
         // Surface everything Clerk gave us so the real failure isn't swallowed
+        let raw = '';
+        try { raw = JSON.stringify(attempt).slice(0, 400); } catch { raw = 'unserializable'; }
         const dbg = {
           status: a?.status,
           ffvStatus: ffv?.status,
@@ -115,8 +118,8 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
           ffvError: ffv?.error
             ? { code: ffv.error.code, message: ffv.error.longMessage ?? ffv.error.message }
             : null,
-          errors: a?.errors?.map((er: any) => ({ code: er.code, message: er.longMessage ?? er.message })),
-          keys: a ? Object.keys(a).filter(k => typeof a[k] !== 'function').join(',') : null,
+          signInStatus: (signIn as any)?.status,
+          raw,
         };
         throw new Error('No OAuth URL. Debug: ' + JSON.stringify(dbg));
       }
