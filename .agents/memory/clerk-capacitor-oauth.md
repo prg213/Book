@@ -10,6 +10,8 @@ description: Root cause and working pattern for Google OAuth in the Android APK 
 **How to apply:** For mobile OAuth: `signIn.create({ strategy, redirectUrl })` → open `firstFactorVerification.externalVerificationRedirectURL` in Chrome Custom Tab (`@capacitor/browser`), return via Android App Links (HTTPS sso-callback URL + `assetlinks.json` + fixed PKCS12 signing keystore committed in android-extras, restored in the GitHub Actions build). Clerk dev instances refuse Account Portal redirects to non-localhost URLs and reject custom URL schemes — don't retry those paths.
 
 Other constraints learned:
+- `signIn.create()` may resolve with a `{ result, error }` envelope (both possibly null) instead of the SignIn resource — unwrap it and fall back to the mutated `signIn` hook resource.
+- Replit-managed Clerk in production runs behind a proxy at `<prod-url>/api/__clerk`; Clerk's `accounts.<domain>` / `clerk.<domain>` hosts don't exist. Rewrite any Clerk-generated OAuth URL origin to the proxy before opening it.
 - Capacitor blocks `window.location.href` to external domains unless in `server.allowNavigation`.
 - Google returns 400 for OAuth started inside a WebView even with the `wv` UA flag patched — must use Chrome Custom Tab.
 - APK loads JS from the production URL: JS changes need a Replit republish; native changes (capacitor.config.ts, manifest, keystore) need a new APK from GitHub Actions.
