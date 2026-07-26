@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid, Mic, Square, Play, Pause } from 'lucide-react';
@@ -42,19 +41,28 @@ function usePageAudio(storyId: string, audioKey: string) {
     } catch { /* ignore upload errors */ }
   }, [base, audioKey]);
 
-  // ── Capacitor path: use VoiceRecorder native plugin ──────────────────────────
+  // ── Capacitor path: use our custom AudioRecorderPlugin (native MediaRecorder) ─
+  // Calls window.Capacitor.Plugins.AudioRecorder which is registered in MainActivity.
+  // This bypasses the WebView getUserMedia path entirely.
+  const nativePlugin = () => (window as any).Capacitor?.Plugins?.AudioRecorder;
+
   const startRecordingNative = useCallback(async () => {
+    const plugin = nativePlugin();
+    if (!plugin) {
+      alert('Audio plugin not available. Please reinstall the app.');
+      return;
+    }
     try {
-      // Request permission if not already granted
-      const hasPerm = await VoiceRecorder.hasAudioRecordingPermission();
-      if (!hasPerm.value) {
-        const granted = await VoiceRecorder.requestAudioRecordingPermission();
-        if (!granted.value) {
+      // Ensure permission
+      const { granted: already } = await plugin.checkPermission();
+      if (!already) {
+        const { granted } = await plugin.requestPermission();
+        if (!granted) {
           alert('Microphone permission is required. Please allow it in Android Settings.');
           return;
         }
       }
-      await VoiceRecorder.startRecording();
+      await plugin.startRecording();
       setIsRecording(true);
     } catch (e: unknown) {
       alert(`Could not start recording: ${(e as Error)?.message ?? 'unknown error'}`);
@@ -62,13 +70,14 @@ function usePageAudio(storyId: string, audioKey: string) {
   }, []);
 
   const stopRecordingNative = useCallback(async () => {
+    const plugin = nativePlugin();
+    if (!plugin) { setIsRecording(false); return; }
     try {
-      const result = await VoiceRecorder.stopRecording();
+      const { base64, mimeType } = await plugin.stopRecording();
       setIsRecording(false);
-      const { recordDataBase64, mimeType } = result.value;
-      if (!recordDataBase64) return;
+      if (!base64) return;
       // Convert base64 → Blob and upload
-      const byteChars = atob(recordDataBase64);
+      const byteChars = atob(base64);
       const bytes = new Uint8Array(byteChars.length);
       for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
       const blob = new Blob([bytes], { type: mimeType || 'audio/aac' });
