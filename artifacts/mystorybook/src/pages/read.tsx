@@ -665,9 +665,7 @@ function PortraitCover({ story }: { story: any }) {
   return (
     <div style={{
       display: 'flex',
-      /* subtle perspective — just enough to hint at depth without distortion */
-      transform: 'perspective(1600px) rotateY(-4deg)',
-      /* outer shadow: bottom-right depth + left spine shadow */
+      /* NO rotation — book faces perfectly straight forward */
       boxShadow: '6px 18px 48px rgba(0,0,0,0.75), -3px 4px 12px rgba(0,0,0,0.5)',
       borderRadius: '10px 6px 6px 10px',
     }}>
