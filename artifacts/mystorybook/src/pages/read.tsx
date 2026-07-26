@@ -34,18 +34,12 @@ function usePageAudio(storyId: string, audioKey: string) {
   }, [base, audioKey]);
 
   const startRecording = useCallback(async () => {
+    // Some WebViews (including Capacitor on Android) don't expose mediaDevices
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert('Audio recording is not available in this view. Open the story in Chrome browser to use narration.');
+      return;
+    }
     try {
-      // On Android (Capacitor) request the native RECORD_AUDIO permission first
-      if (typeof (window as any).Capacitor !== 'undefined') {
-        const { Permissions } = await import('@capacitor/core') as any;
-        if (Permissions?.query) {
-          const { state } = await Permissions.query({ name: 'microphone' });
-          if (state === 'denied') {
-            alert('Microphone permission is denied. Please enable it in Android Settings → Apps → MyStoryBook → Permissions.');
-            return;
-          }
-        }
-      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
       mrRef.current = mr;
@@ -65,8 +59,18 @@ function usePageAudio(storyId: string, audioKey: string) {
       };
       mr.start(250);
       setIsRecording(true);
-    } catch {
-      alert('Microphone access needed. Please go to your device Settings → Apps → MyStoryBook → Permissions and enable Microphone.');
+    } catch (e: unknown) {
+      const err = e as DOMException;
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        // Android OS permission is granted but the WebView still blocked it —
+        // this happens in Capacitor when onPermissionRequest isn't wired up.
+        // Chrome browser handles this correctly so we point the user there.
+        alert('Microphone was blocked by the app browser.\n\nTo record narration, open this story in Chrome instead:\n1. Copy the URL from the address bar\n2. Paste it into Chrome\n3. Allow microphone when Chrome asks');
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        alert('No microphone found on this device.');
+      } else {
+        alert(`Microphone error: ${err?.name ?? 'unknown'}. Try opening the story in Chrome browser.`);
+      }
     }
   }, [base, audioKey]);
 
