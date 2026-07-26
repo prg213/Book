@@ -222,9 +222,9 @@ router.get("/stories/:id/status", async (req: any, res: any): Promise<void> => {
     generationProgress: story.generationProgress,
     generationStatusMessage: story.generationStatusMessage ?? null,
     errorMessage: story.errorMessage ?? null,
-    characterImageUrl: story.characterImagePath ? `/api/uploads/${story.characterImagePath}` : null,
-    coverImageUrl: story.coverImagePath ? `/api/uploads/${story.coverImagePath}` : null,
-    characterVideoUrl: (story as any).characterVideoPath ? `/api/uploads/${(story as any).characterVideoPath}` : null,
+    characterImageUrl: story.characterImagePath ? resolveUrl(story.characterImagePath) : null,
+    coverImageUrl: story.coverImagePath ? resolveUrl(story.coverImagePath) : null,
+    characterVideoUrl: (story as any).characterVideoPath ? resolveUrl((story as any).characterVideoPath) : null,
   });
 });
 
