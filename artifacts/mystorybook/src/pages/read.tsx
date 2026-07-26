@@ -656,75 +656,69 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// 3D book: spine on left + cover face (AI image) on right, perspective-rotated.
-// Sized with CSS min() so it always fits within the stage bounds.
+// 3D book: spine on left + AI cover face on right.
+// IMPORTANT: filter must wrap the transformed element (not the perspective
+// parent) — nesting filter inside perspective breaks the CSS 3D engine.
 function PortraitCover({ story }: { story: any }) {
-  // Cover face is square. Use min() so neither dimension overflows the stage.
-  // 72vw / 56vh leaves room for the spine + safe-area padding.
-  const faceSize = 'min(72vw, 56vh)';
-  // Spine is ~11% of the face size
-  const spineWidth = 'min(8vw, 6.2vh)';
+  // Square face sized to fit the stage on any phone.
+  const faceSize = 'min(74vw, 54vh)';
+  const spineW   = 'min(8.5vw, 6.2vh)';
 
   return (
-    <div style={{ perspective: '900px' }}>
-      {/* Outer drop-shadow applied here so it renders outside the clip */}
-      <div style={{ filter: 'drop-shadow(-6px 24px 40px rgba(0,0,0,0.88))' }}>
-        {/* 3-D rotation */}
+    // drop-shadow wraps the whole book — rendered after the 3D transform so
+    // the shadow follows the tilted shape.
+    <div style={{ filter: 'drop-shadow(-8px 22px 44px rgba(0,0,0,0.9))' }}>
+      {/* perspective() in the transform shorthand avoids a separate wrapper
+          and keeps the 3D engine working correctly alongside filter. */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        transform: 'perspective(900px) rotateY(-22deg)',
+      }}>
+        {/* Spine */}
         <div style={{
-          display: 'flex',
-          alignItems: 'stretch',
-          transform: 'rotateY(-18deg)',
-          transformStyle: 'preserve-3d',
-          borderRadius: '6px 10px 10px 6px',
-        }}>
-          {/* Spine */}
-          <div style={{
-            width: spineWidth,
-            flexShrink: 0,
-            background: 'linear-gradient(to right, #060302 0%, #1e0c06 55%, #2e1208 100%)',
-            borderRadius: '6px 0 0 6px',
-          }} />
+          width: spineW,
+          height: faceSize,          /* explicit height = face height */
+          flexShrink: 0,
+          background: 'linear-gradient(to right, #060302 0%, #1c0a05 55%, #2a1008 100%)',
+          borderRadius: '6px 0 0 6px',
+        }} />
 
-          {/* Cover face — AI image fills this exactly, zero gap */}
-          <div
-            data-testid="img-cover"
-            style={{
-              width: faceSize,
-              height: faceSize,
-              flexShrink: 0,
-              overflow: 'hidden',
-              borderRadius: '0 10px 10px 0',
-            }}
-          >
-            {story.coverImageUrl ? (
-              <img
-                src={story.coverImageUrl}
-                alt={story.title}
-                draggable={false}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center top',
-                }}
-              />
-            ) : (
-              <div style={{
+        {/* Cover face — AI image fills this with zero gaps */}
+        <div
+          data-testid="img-cover"
+          style={{
+            width: faceSize,
+            height: faceSize,
+            flexShrink: 0,
+            overflow: 'hidden',
+            borderRadius: '0 8px 8px 0',
+            background: '#0d0705',   /* dark fallback — never white */
+          }}
+        >
+          {story.coverImageUrl ? (
+            <img
+              src={story.coverImageUrl}
+              alt={story.title}
+              draggable={false}
+              style={{
+                display: 'block',
                 width: '100%',
                 height: '100%',
-                background: 'linear-gradient(135deg, #92400e, #b45309)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '1.5rem',
-              }}>
-                <div style={{ textAlign: 'center', color: '#fde68a' }}>
-                  <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>{story.title}</p>
-                </div>
-              </div>
-            )}
-          </div>
+                objectFit: 'cover',
+                objectPosition: 'center top',
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '100%', height: '100%',
+              background: 'linear-gradient(135deg, #92400e, #b45309)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '1.5rem',
+            }}>
+              <p style={{ textAlign: 'center', color: '#fde68a', fontWeight: 700 }}>{story.title}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
