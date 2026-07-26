@@ -46,175 +46,108 @@ export function CapacitorAuthForm({ initialMode = 'sign-in' }: { initialMode?: '
     setError('');
     setGoogleLoading(true);
 
-
-    // Unique nonce for this OAuth attempt — threaded through the redirect URL
-    // so the sso-callback page can key its relay POST, and we can poll for it.
     const nonce = Array.from(
       crypto.getRandomValues(new Uint8Array(16))
     ).map(b => b.toString(16).padStart(2, '0')).join('');
     const relayUrl = `${PROD_URL}/api/auth/mobile-relay`;
 
-    // Listeners we must clean up on exit
-    let urlListenerHandle: { remove: () => Promise<void> } | null = null;
-    let finishedListenerHandle: { remove: () => Promise<void> } | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
-    // Guard: prevents double-completion
-    let oauthHandled = false;
+    let finishedHandle: { remove: () => Promise<void> } | null = null;
+    // Prevents both appUrlOpen AND the poll from both navigating
+    let done = false;
 
-    const cleanup = async () => {
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-      await urlListenerHandle?.remove();
-      await finishedListenerHandle?.remove();
-      urlListenerHandle = null;
-      finishedListenerHandle = null;
+    // Navigate the WebView to /sso-callback?created_session_id=<id>.
+    // Clerk JS initialises on that page and activates the session through
+    // the production proxy — no cookie sharing with the Chrome Tab needed.
+    // Navigating away automatically kills the setInterval, so no cleanup needed.
+    const goToCallback = (sessionId: string) => {
+      if (done) return;
+      done = true;
+      try { Browser.close(); } catch { /* ignore */ }
+      window.location.href = `${SSO_CALLBACK_URL}?created_session_id=${sessionId}`;
     };
 
-    // Completes sign-in once the OAuth session exists: closes the tab,
-    // activates the session in THIS WebView, and navigates home.
-    const finishSignIn = async (sessionId: string) => {
-      if (oauthHandled) return;
-      oauthHandled = true;
-      await cleanup();
-      try { await Browser.close(); } catch { /* already closed */ }
-      try {
-        await setSignInActive?.({ session: sessionId });
-        window.location.replace(basePath || '/');
-      } catch (e: any) {
-        setError(e?.errors?.[0]?.longMessage ?? e?.message ?? 'Could not activate session.');
-        setGoogleLoading(false);
-      }
-    };
+    let urlHandle: { remove: () => Promise<void> } | null = null;
 
     try {
-      // 1. Listen for the App Links callback BEFORE opening the browser.
-      //    Android fires appUrlOpen when it intercepts the Clerk redirect to
-      //    https://grok-canvas-copy.replit.app/sso-callback (verified via
-      //    assetlinks.json) and routes it back into this app.
-      urlListenerHandle = await App.addListener('appUrlOpen', async (data) => {
+      // appUrlOpen: fires when Android App Links intercepts the /sso-callback
+      // redirect from Clerk. We do NOT call cleanup() here — the navigation
+      // itself unloads the page and kills the poll automatically.
+      urlHandle = await App.addListener('appUrlOpen', (data) => {
         if (!data.url.startsWith(SSO_CALLBACK_URL)) return;
-        if (oauthHandled) return;
-        oauthHandled = true;
-        await cleanup();
-        try { await Browser.close(); } catch { /* already closed */ }
-        // Navigate THIS WebView to the sso-callback URL so Clerk JS running
-        // in the WebView's own context (with the production proxy) can
-        // process the created_session_id and activate the session properly.
-        // setActive(sessionId) alone fails because the session token lives
-        // in the Chrome Tab's cookie jar, not the WebView's.
-        const params = data.url.slice(PROD_URL.length); // e.g. /sso-callback?created_session_id=...
-        window.location.href = PROD_URL + params;
+        const sid = new URL(data.url).searchParams.get('created_session_id');
+        if (sid) goToCallback(sid);
       });
 
-      // 2. If the user closes the tab without signing in, reset the button.
-      //    Skip if App Links already handled the flow (oauthHandled = true).
-      finishedListenerHandle = await Browser.addListener('browserFinished', async () => {
-        if (oauthHandled) return; // App Links fired first — don't reset
-        await cleanup();
+      // browserFinished: user dismissed the tab without completing sign-in
+      finishedHandle = await Browser.addListener('browserFinished', async () => {
+        if (done) return;
+        done = true;
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        await urlHandle?.remove();
+        await finishedHandle?.remove();
         setGoogleLoading(false);
       });
 
-      // 3. Ask Clerk for the Google OAuth URL.
-      //    NOTE: redirectUrlComplete is NOT a valid param for signIn.create()
-      //    — passing it made Clerk return a swallowed 422 (form_param_unknown)
-      //    which was the root cause of every silent OAuth failure.
-      // Include the nonce in the redirect URL so the sso-callback page can
-      // key its relay POST. Clerk appends its own params (?created_session_id)
-      // to whatever redirect URL we provide, preserving our query string.
+      // Ask Clerk for the Google OAuth redirect URL.
       const attempt = await signIn.create({
         strategy: 'oauth_google',
         redirectUrl: `${SSO_CALLBACK_URL}?relay_nonce=${nonce}`,
       });
-      // Clerk may resolve with a { result, error } wrapper instead of the
-      // SignIn resource itself — unwrap it. If the wrapper is empty, fall back
-      // to the signIn resource, which Clerk mutates in place.
       let a = attempt as any;
       if (a && ('result' in a || 'error' in a)) {
         if (a.error) throw a.error;
         a = a.result ?? signIn;
       }
       const ffv = a?.firstFactorVerification;
-      const oauthUrl: string | null | undefined =
-        ffv?.externalVerificationRedirectURL;
+      const oauthUrl: string | null | undefined = ffv?.externalVerificationRedirectURL;
       if (!oauthUrl) {
-        // Surface everything Clerk gave us so the real failure isn't swallowed
         let raw = '';
-        try { raw = JSON.stringify(attempt).slice(0, 400); } catch { raw = 'unserializable'; }
-        const dbg = {
-          status: a?.status,
-          ffvStatus: ffv?.status,
-          ffvStrategy: ffv?.strategy,
-          ffvError: ffv?.error
-            ? { code: ffv.error.code, message: ffv.error.longMessage ?? ffv.error.message }
-            : null,
-          signInStatus: (signIn as any)?.status,
-          raw,
-        };
-        throw new Error('No OAuth URL. Debug: ' + JSON.stringify(dbg));
+        try { raw = JSON.stringify(attempt).slice(0, 300); } catch { raw = 'unserializable'; }
+        throw new Error(`No OAuth URL — ${JSON.stringify({ ffvStatus: ffv?.status, ffvError: ffv?.error, raw })}`);
       }
 
-      // 4. Rewrite the OAuth URL to go through the Clerk proxy.
-      //    In production, Replit-managed Clerk runs behind a proxy at
-      //    PROD_URL/api/__clerk — Clerk's own domains (accounts.<domain>,
-      //    clerk.<domain>) don't actually exist and refuse connections.
+      // Rewrite mangled proxy subdomains back to their real hosts.
       let finalUrl = String(oauthUrl);
       try {
         const u = new URL(finalUrl);
         const prodHost = new URL(PROD_URL).hostname;
-        // Only fix hostnames the proxy mangled onto OUR domain (e.g.
-        // accounts.grok-canvas-copy.replit.app). Never touch real hosts
-        // like accounts.google.com.
         if (u.hostname !== prodHost && u.hostname.endsWith(`.${prodHost}`)) {
-          if (u.pathname.startsWith('/o/oauth2')) {
-            // Google's authorize endpoint with a mangled host — restore it.
-            finalUrl = `https://accounts.google.com${u.pathname}${u.search}${u.hash}`;
-          } else {
-            // Clerk FAPI endpoint — route through the production proxy.
-            finalUrl = `${PROD_URL}/api/__clerk${u.pathname}${u.search}${u.hash}`;
-          }
+          finalUrl = u.pathname.startsWith('/o/oauth2')
+            ? `https://accounts.google.com${u.pathname}${u.search}${u.hash}`
+            : `${PROD_URL}/api/__clerk${u.pathname}${u.search}${u.hash}`;
         }
-      } catch { /* leave as-is if unparseable */ }
+      } catch { /* leave as-is */ }
 
-      // 5. Open in Chrome Custom Tab (real browser — no WebView restrictions).
-      //    After auth, Clerk redirects to our sso-callback URL, which Android
-      //    App Links routes back into the app.
       await Browser.open({ url: finalUrl, presentationStyle: 'popover' });
 
-      // 6. Relay poll: once Google OAuth completes in the Chrome Custom Tab,
-      //    the sso-callback page POSTs {nonce, sessionId} to the relay.
-      //    We poll here and activate the session directly in this WebView
-      //    — completely independent of App Links or cookie sharing.
+      // Relay poll: the sso-callback page (running in Chrome Custom Tab) POSTs
+      // {nonce, sessionId} here. We pick it up and navigate the WebView.
+      // IMPORTANT: fetch with cache:'no-store' — without it the browser caches
+      // the {sessionId:null} response and returns 304 for all subsequent polls,
+      // hiding the session ID even after the relay has been filled.
       const startedAt = performance.now();
       pollTimer = setInterval(async () => {
-        if (oauthHandled) return;
+        if (done) { clearInterval(pollTimer!); return; }
         if (performance.now() - startedAt > 3 * 60 * 1000) {
-          await cleanup();
-          setGoogleLoading(false);
+          clearInterval(pollTimer!);
+          if (!done) setGoogleLoading(false);
           return;
         }
         try {
-          // Poll with our nonce first; also try 'latest' in case Clerk
-          // didn't preserve the relay_nonce query param in the redirect URL.
-          let sessionId: string | null = null;
           for (const key of [nonce, 'latest']) {
-            const resp = await fetch(`${relayUrl}?nonce=${key}`);
+            const resp = await fetch(`${relayUrl}?nonce=${key}`, { cache: 'no-store' });
             if (!resp.ok) continue;
             const data = await resp.json() as { sessionId: string | null };
-            if (data.sessionId) { sessionId = data.sessionId; break; }
+            if (data.sessionId) { goToCallback(data.sessionId); return; }
           }
-          if (sessionId) {
-            if (oauthHandled) return;
-            oauthHandled = true;
-            await cleanup();
-            try { await Browser.close(); } catch { /* already closed */ }
-            // Navigate WebView to sso-callback with the session ID so Clerk
-            // JS activates the session in the WebView's own proxy context.
-            window.location.href = `${SSO_CALLBACK_URL}?created_session_id=${sessionId}`;
-          }
-        } catch { /* transient network error — keep polling */ }
+        } catch { /* transient — retry next tick */ }
       }, 1500);
 
     } catch (e: any) {
-      await cleanup();
+      if (pollTimer) clearInterval(pollTimer);
+      await urlHandle?.remove();
+      await finishedHandle?.remove();
       const msg = e?.errors?.[0]?.longMessage ?? e?.errors?.[0]?.message ?? e?.message ?? String(e);
       setError(msg);
       setGoogleLoading(false);
