@@ -319,6 +319,11 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Push all content below the device status bar on iOS/Android */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 

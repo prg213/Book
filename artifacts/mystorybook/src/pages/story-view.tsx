@@ -263,6 +263,11 @@ export default function StoryView() {
       .sheet { width: 148mm; height: 210mm; overflow: hidden; page-break-after: always; break-after: page; background: white; }
       .sheet:last-child { page-break-after: avoid; break-after: avoid; }
       .sheet img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .cover-sheet { width: 148mm; height: 210mm; overflow: hidden; page-break-after: always; break-after: page; background: white; position: relative; }
+      .cover-sheet:last-child { page-break-after: avoid; break-after: avoid; }
+      .cover-sheet img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .cover-title { position: absolute; bottom: 0; left: 0; right: 0; padding: 8mm 10mm 6mm; background: linear-gradient(transparent, rgba(0,0,0,0.7)); text-align: center; }
+      .cover-title h1 { font-family: Georgia, serif; font-size: 18pt; font-weight: bold; color: white; margin: 0; text-shadow: 0 1px 4px rgba(0,0,0,0.8); line-height: 1.3; }
       .text-sheet { width: 148mm; height: 210mm; padding: 12mm 14mm 10mm; display: flex; flex-direction: column; page-break-after: always; break-after: page; background: white; }
       .text-sheet:last-child { page-break-after: avoid; break-after: avoid; }
       .text-title { font-family: Georgia, serif; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(0,0,0,0.4); text-align: center; border-bottom: 0.5pt solid rgba(0,0,0,0.15); padding-bottom: 4mm; margin-bottom: 0; }
@@ -271,7 +276,7 @@ export default function StoryView() {
       .text-footer { font-family: Georgia, serif; font-size: 8pt; color: rgba(0,0,0,0.3); text-align: center; padding-top: 4mm; }
     `;
     const sheets: string[] = [];
-    if (coverUrl) sheets.push(`<div class="sheet"><img src="${coverUrl}" alt="Cover" /></div>`);
+    if (coverUrl) sheets.push(`<div class="cover-sheet"><img src="${coverUrl}" alt="Cover" /><div class="cover-title"><h1>${story.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h1></div></div>`);
     for (const p of storyPages) {
       if (p.imageUrl) sheets.push(`<div class="sheet"><img src="${p.imageUrl}" alt="Page ${p.num}" /></div>`);
       if (p.text) sheets.push(`<div class="text-sheet"><div class="text-title">${story.title}</div><div class="text-body"><p>${p.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p></div><div class="text-footer">${p.num}</div></div>`);
@@ -360,7 +365,7 @@ export default function StoryView() {
   return (
     <div className="min-h-[100dvh] bg-[#1a0e08]">
       {showOrderModal && <OrderModal storyId={storyId} onClose={() => setShowOrderModal(false)} />}
-      <div className="sticky top-0 z-20 bg-[#120a05]/95 border-b border-amber-900/30 backdrop-blur-md">
+      <div className="sticky z-20 bg-[#120a05]/95 border-b border-amber-900/30 backdrop-blur-md" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href={`/read?storyId=${storyId}`}>
             <button className="flex items-center gap-1.5 text-amber-300/70 hover:text-amber-200 transition-colors text-sm font-medium">
@@ -392,11 +397,9 @@ export default function StoryView() {
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-12">
         <section>
           <SectionHeading icon={BookOpen} title="Cover" />
-          <div className="flex justify-center">
-            <div className="w-full max-w-[220px] sm:max-w-[260px]">
-              <A5ImageCard src={story.coverImageUrl} alt={story.title}
-                entry={story.coverImageUrl ? colouringMap.get(story.coverImageUrl) : undefined} />
-            </div>
+          <div className={gridClass}>
+            <A5ImageCard src={story.coverImageUrl} alt={story.title}
+              entry={story.coverImageUrl ? colouringMap.get(story.coverImageUrl) : undefined} />
           </div>
         </section>
 
