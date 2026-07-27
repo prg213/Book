@@ -154,9 +154,10 @@ jobs:
           mkdir -p "$RES_DIR/mipmap-anydpi-v26"
           cp artifacts/mystorybook/android-extras/res/mipmap-anydpi-v26/ic_launcher.xml       "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml"
           cp artifacts/mystorybook/android-extras/res/mipmap-anydpi-v26/ic_launcher_round.xml "$RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml"
-          # Background gradient + foreground vector drawable
+          # Background gradient + foreground bitmap drawable
           cp artifacts/mystorybook/android-extras/res/drawable/ic_launcher_background.xml "$RES_DIR/drawable/ic_launcher_background.xml"
           cp artifacts/mystorybook/android-extras/res/drawable/ic_launcher_foreground.xml "$RES_DIR/drawable/ic_launcher_foreground.xml"
+          cp artifacts/mystorybook/android-extras/res/drawable/ic_launcher_fg.png         "$RES_DIR/drawable/ic_launcher_fg.png"
           echo "App icons applied (legacy + adaptive)"
 
       # ── Java 17 (required by modern Gradle / AGP) ─────────────────────────
