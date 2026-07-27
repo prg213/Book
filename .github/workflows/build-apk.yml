@@ -141,6 +141,16 @@ jobs:
           echo "Copied Java files:"
           ls "$DEST_DIR/"
 
+      # ── Apply custom app icon ─────────────────────────────────────────────
+      - name: Copy app icon mipmap resources
+        run: |
+          RES_DIR="artifacts/mystorybook/android/app/src/main/res"
+          for density in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            cp artifacts/mystorybook/android-extras/res/${density}/ic_launcher.png       "$RES_DIR/${density}/ic_launcher.png"
+            cp artifacts/mystorybook/android-extras/res/${density}/ic_launcher_round.png "$RES_DIR/${density}/ic_launcher_round.png"
+          done
+          echo "App icons applied"
+
       # ── Java 17 (required by modern Gradle / AGP) ─────────────────────────
       - uses: actions/setup-java@v4
         with:
