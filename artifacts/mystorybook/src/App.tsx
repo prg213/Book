@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import Home from '@/pages/home';
+import Landing from '@/pages/landing';
 import Create from '@/pages/create';
 import Generating from '@/pages/generating';
 import Library from '@/pages/library';
@@ -143,7 +144,7 @@ function ClerkQueryClientCacheInvalidator() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/">{() => isCapacitor() ? <Home /> : <Landing />}</Route>
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
       <Route path="/create">{() => <ProtectedRoute component={Create} />}</Route>

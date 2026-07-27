@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:   # also lets you trigger it manually from GitHub
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -188,11 +191,28 @@ jobs:
       - name: Rename APK
         run: mv artifacts/mystorybook/android/app/build/outputs/apk/release/app-release.apk artifacts/mystorybook/android/app/build/outputs/apk/release/mystorybook.apk
 
-      # ── Upload APK as a downloadable artifact ─────────────────────────────
-      - name: Upload APK
+      # ── Upload APK as a workflow artifact ────────────────────────────────
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: MyStoryBook-release
           path: artifacts/mystorybook/android/app/build/outputs/apk/release/mystorybook.apk
           retention-days: 30
+
+      # ── Publish to GitHub Releases (stable download URL) ─────────────────
+      # Always updates the "latest" release so the landing page download link
+      # (https://github.com/prg213/Book/releases/latest/download/mystorybook.apk)
+      # always points to the newest build.
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes --repo prg213/Book 2>/dev/null || true
+          git -C artifacts/mystorybook push origin :refs/tags/latest 2>/dev/null || true
+          gh release create latest \
+            --repo prg213/Book \
+            --title "MyStoryBook — Latest Release" \
+            --notes "Latest release build. Download and install on any Android device." \
+            --latest \
+            artifacts/mystorybook/android/app/build/outputs/apk/release/mystorybook.apk
 
