@@ -125,8 +125,10 @@ function A5ImageCard({
 }: {
   src?: string | null; alt: string; label?: string; entry?: ColouringEntry;
 }) {
-  const isLoading = !entry || entry.status === 'loading';
-  const displaySrc = entry?.status === 'done' ? entry.url : src;
+  // Show the colouring version once done, otherwise fall back to the original colour image
+  const isDone = entry?.status === 'done';
+  const isGenerating = !entry || entry.status === 'loading';
+  const displaySrc = isDone ? entry!.url : src;
   return (
     <div className="flex flex-col gap-2">
       {label && <p className="text-xs font-medium text-amber-400/70 tracking-wider uppercase">{label}</p>}
@@ -135,17 +137,18 @@ function A5ImageCard({
         style={{ aspectRatio: `${148}/${210}` }}
       >
         {displaySrc ? (
-          <img src={displaySrc} alt={alt} className="w-full h-full object-contain transition-opacity duration-500"
-            style={{ opacity: isLoading ? 0.25 : 1 }} />
+          <img src={displaySrc} alt={alt} className="w-full h-full object-contain transition-opacity duration-700"
+            style={{ opacity: 1 }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-amber-50">
             <Image className="w-12 h-12 text-amber-200" />
           </div>
         )}
-        {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70">
-            <Loader2 className="w-7 h-7 text-gray-400 animate-spin mb-1.5" />
-            <p className="text-[10px] text-gray-500 font-medium tracking-wide">Drawing lines…</p>
+        {/* Small corner badge while the colouring version is being generated */}
+        {isGenerating && displaySrc && (
+          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">
+            <Loader2 className="w-3 h-3 text-white animate-spin" />
+            <span className="text-[9px] text-white/80 font-medium">Converting…</span>
           </div>
         )}
       </div>
@@ -247,7 +250,8 @@ export default function StoryView() {
     ? [...(story.coverImageUrl ? [story.coverImageUrl] : []), ...pages.map(p => p.imageUrl).filter(Boolean) as string[]]
     : [];
 
-  const anyLoading = allImageUrls.some(u => { const s = colouringMap.get(u)?.status; return !s || s === 'loading'; });
+  const doneCount = allImageUrls.filter(u => colouringMap.get(u)?.status === 'done').length;
+  const anyLoading = allImageUrls.length > 0 && doneCount < allImageUrls.length;
 
   function handlePrint() {
     if (!story) return;
@@ -376,16 +380,13 @@ export default function StoryView() {
             <h1 className="font-display text-base font-bold text-amber-100 truncate">{story.title}</h1>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {anyLoading ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400/60 bg-amber-500/10 border border-amber-500/15">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparing…
-              </div>
-            ) : !isCapacitor() ? (
-              <button onClick={handlePrint}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200">
+            {!isCapacitor() && (
+              <button onClick={handlePrint} disabled={anyLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                title={anyLoading ? 'Wait for colouring pages to finish' : 'Print colouring book'}>
                 <Printer className="w-3.5 h-3.5" /> Print
               </button>
-            ) : null}
+            )}
             <button onClick={() => setShowOrderModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition-all duration-200">
               <ShoppingCart className="w-3.5 h-3.5" /> Order
@@ -393,6 +394,24 @@ export default function StoryView() {
           </div>
         </div>
       </div>
+
+      {/* Progress banner — shown while colouring pages are being generated */}
+      {anyLoading && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2">
+          <div className="max-w-5xl mx-auto flex items-center gap-2.5">
+            <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
+            <p className="text-xs text-amber-300/80 font-medium flex-1">
+              Creating colouring pages… {doneCount} of {allImageUrls.length} ready
+            </p>
+            <div className="h-1.5 w-24 bg-amber-900/40 rounded-full overflow-hidden shrink-0">
+              <div
+                className="h-full bg-amber-400/60 rounded-full transition-all duration-500"
+                style={{ width: `${allImageUrls.length > 0 ? (doneCount / allImageUrls.length) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-12">
         <section>
