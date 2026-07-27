@@ -747,14 +747,10 @@ function PortraitCover({ story, firstPage, isOpening }: {
         height: 'min(62vh, 380px)',
         display: 'flex',
         alignItems: 'stretch',
-        transform: isOpening
-          ? 'rotateX(2deg) rotateY(-5deg)'
-          : 'rotateX(4deg) rotateY(-16deg)',
         transformStyle: 'preserve-3d',
-        transition: 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)',
         filter: isOpening
-          ? 'drop-shadow(-20px 36px 70px rgba(0,0,0,0.97))'
-          : 'drop-shadow(-8px 28px 52px rgba(0,0,0,0.92))',
+          ? 'drop-shadow(0px 36px 70px rgba(0,0,0,0.97))'
+          : 'drop-shadow(0px 28px 52px rgba(0,0,0,0.92))',
       }}>
 
         {/* ── Spine ── */}
@@ -876,26 +872,6 @@ function PortraitCover({ story, firstPage, isOpening }: {
           </div>
         </div>
 
-        {/* ── Fore-edge (right — page stack) ── */}
-        <div style={{
-          width: FORE_W, height: '100%', flexShrink: 0,
-          borderRadius: '0 5px 5px 0',
-          position: 'relative', overflow: 'hidden',
-          background: 'repeating-linear-gradient(to bottom,#ede0c4 0px,#ede0c4 1.5px,#d6c49e 1.5px,#d6c49e 3px)',
-        }}>
-          <div style={{
-            position: 'absolute', top: 0, left: 0, bottom: 0, width: '5px',
-            background: 'linear-gradient(to right,rgba(0,0,0,0.42),transparent)',
-          }} />
-          <div style={{
-            position: 'absolute', top: 0, right: 0, bottom: 0, width: '3px',
-            background: 'linear-gradient(to left,rgba(0,0,0,0.22),transparent)',
-          }} />
-          <div style={{
-            position: 'absolute', top: 0, right: '2px', bottom: 0, width: '1.5px',
-            background: 'rgba(255,255,255,0.28)',
-          }} />
-        </div>
 
       </div>
     </div>
