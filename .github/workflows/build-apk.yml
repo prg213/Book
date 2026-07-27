@@ -150,15 +150,14 @@ jobs:
             cp artifacts/mystorybook/android-extras/res/${density}/ic_launcher.png       "$RES_DIR/${density}/ic_launcher.png"
             cp artifacts/mystorybook/android-extras/res/${density}/ic_launcher_round.png "$RES_DIR/${density}/ic_launcher_round.png"
           done
-          # Adaptive icons (Android 8+ — takes priority over the PNGs above)
-          mkdir -p "$RES_DIR/mipmap-anydpi-v26"
-          cp artifacts/mystorybook/android-extras/res/mipmap-anydpi-v26/ic_launcher.xml       "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml"
-          cp artifacts/mystorybook/android-extras/res/mipmap-anydpi-v26/ic_launcher_round.xml "$RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml"
-          # Background gradient + foreground bitmap drawable
-          cp artifacts/mystorybook/android-extras/res/drawable/ic_launcher_background.xml "$RES_DIR/drawable/ic_launcher_background.xml"
-          cp artifacts/mystorybook/android-extras/res/drawable/ic_launcher_foreground.xml "$RES_DIR/drawable/ic_launcher_foreground.xml"
-          cp artifacts/mystorybook/android-extras/res/drawable/ic_launcher_fg.png         "$RES_DIR/drawable/ic_launcher_fg.png"
-          echo "App icons applied (legacy + adaptive)"
+          # Remove adaptive-icon XMLs so ALL Android versions use the PNG directly.
+          # The adaptive-icon foreground kept reverting to the Android robot because the
+          # Capacitor-generated vector drawable overrides our custom one. Without these
+          # XML files the OS falls back to the density-specific mipmap PNGs above, which
+          # contain our correct coral/pink gradient book icon.
+          rm -f "$RES_DIR/mipmap-anydpi-v26/ic_launcher.xml"
+          rm -f "$RES_DIR/mipmap-anydpi-v26/ic_launcher_round.xml"
+          echo "App icons applied (PNG only, no adaptive-icon XML)"
 
       # ── Java 17 (required by modern Gradle / AGP) ─────────────────────────
       - uses: actions/setup-java@v4

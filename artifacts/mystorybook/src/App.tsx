@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { ClerkProvider, SignIn, SignUp, useClerk } from '@clerk/react';
+import React, { useEffect, useRef } from 'react';
+import { ClerkProvider, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { isCapacitor } from '@/lib/capacitor';
@@ -105,6 +105,21 @@ const clerkAppearance = {
   },
 };
 
+// Blocks a route for unauthenticated users — redirects to /sign-in
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isSignedIn, isLoaded } = useUser();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      setLocation('/sign-in');
+    }
+  }, [isLoaded, isSignedIn, setLocation]);
+
+  if (!isLoaded || !isSignedIn) return null;
+  return <Component />;
+}
+
 // Invalidates the React Query cache when the signed-in user changes
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
@@ -131,7 +146,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
-      <Route path="/create" component={Create} />
+      <Route path="/create">{() => <ProtectedRoute component={Create} />}</Route>
       <Route path="/generating" component={Generating} />
       <Route path="/library" component={Library} />
       <Route path="/read" component={Read} />
