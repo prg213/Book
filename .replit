@@ -26,6 +26,7 @@ channel = "stable-25_05"
 
 [userenv.shared]
 KLING_API_KEY = "api-key-kling-4E6YyHBPMjjzcQZfppWiI38-8V_ev0lcWjCtDAfmGCk"
+ADMIN_EMAILS = "prgriffiths123@gmail.com"
 
 [[ports]]
 localPort = 8080
