@@ -219,6 +219,17 @@ export default function Read() {
     setCurrentPage(p => (p >= 0 ? p - 1 : p));
   }, []);
 
+  // Portrait cover-open animation — plays before advancing to page 1
+  const [coverOpening, setCoverOpening] = useState(false);
+  const handleCoverOpen = useCallback(() => {
+    if (coverOpening) return;
+    setCoverOpening(true);
+    setTimeout(() => {
+      handleNext();
+      setCoverOpening(false);
+    }, 560);
+  }, [coverOpening, handleNext]);
+
   const showOverlay = useCallback(() => {
     setOverlayVisible(true);
     if (overlayTimer.current) clearTimeout(overlayTimer.current);
@@ -338,8 +349,10 @@ export default function Read() {
       if (isLandscape) showOverlay();
     } else if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
       if (!isLandscape) {
-        if (dx < 0) handleNext();
-        else handlePrev();
+        if (dx < 0) {
+          if (currentPage === -1) handleCoverOpen();
+          else handleNext();
+        } else handlePrev();
       }
     }
     touchStartX.current = null;
@@ -610,7 +623,7 @@ export default function Read() {
       {/* Book stage */}
       <div className="flex-1 min-h-0 flex items-center justify-center p-4">
         {isCover ? (
-          <PortraitCover story={story} />
+          <PortraitCover story={story} firstPage={pages[0] ?? null} isOpening={coverOpening} />
         ) : isEndPage ? (
           <PortraitEndPage story={story} />
         ) : (
@@ -686,12 +699,12 @@ export default function Read() {
           </div>
 
           {isCover ? (
-            <button onClick={handleNext}
+            <button onClick={handleCoverOpen}
               className="flex items-center gap-1 px-3 py-2.5 rounded-xl font-medium text-sm"
               style={{ background: '#f5c97a', color: '#1a0e08', minWidth: '80px' }}
               data-testid="button-start-reading"
             >
-              <span>Start</span>
+              <span>Open</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0" />
             </button>
           ) : (
@@ -712,144 +725,178 @@ export default function Read() {
 }
 
 // ── Portrait cover ────────────────────────────────────────────────────────────
-// Realistic hardcover book — portrait 5:7 proportions, AI image fills the face,
-// dark leather spine on left, cream page fore-edge stack on right, heavy drop shadow.
-function PortraitCover({ story }: { story: any }) {
-  // Book height drives everything — cover face derives its width via aspect-ratio
-  const BOOK_H  = 'min(64vh, 360px)';
-  const SPINE_W = 26; // px
-  const FORE_W  = 14; // px — visible page stack on right (fore-edge)
+// 3D hardcover book viewed in perspective. Cover face fills with AI image and
+// flips open around the spine (left edge) revealing page 1 beneath.
+function PortraitCover({ story, firstPage, isOpening }: {
+  story: any; firstPage: any; isOpening: boolean;
+}) {
+  const SPINE_W = 36;
+  const FORE_W  = 22;
 
   return (
     <div
       data-testid="img-cover"
       style={{
-        display: 'flex',
-        height: BOOK_H,
-        // Multi-layer shadow: left offset = spine casting shadow, bottom = book on surface
-        filter: [
-          'drop-shadow(-5px 0px 6px rgba(0,0,0,0.7))',
-          'drop-shadow(3px 16px 32px rgba(0,0,0,0.85))',
-          'drop-shadow(0px 4px 8px rgba(0,0,0,0.5))',
-        ].join(' '),
+        width: '100%', height: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        perspective: '1800px',
       }}
     >
-      {/* ── Spine (left edge) ── */}
+      {/* Book group — slight 3D tilt so spine thickness is visible */}
       <div style={{
-        width: SPINE_W,
-        height: '100%',
-        flexShrink: 0,
-        borderRadius: '10px 0 0 10px',
-        background: 'linear-gradient(to right, #0b0401 0%, #1c0c06 35%, #2d1409 75%, #3c1a0b 100%)',
-        position: 'relative',
-        overflow: 'hidden',
+        height: 'min(62vh, 380px)',
+        display: 'flex',
+        alignItems: 'stretch',
+        transform: isOpening
+          ? 'rotateX(2deg) rotateY(-5deg)'
+          : 'rotateX(4deg) rotateY(-16deg)',
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)',
+        filter: isOpening
+          ? 'drop-shadow(-20px 36px 70px rgba(0,0,0,0.97))'
+          : 'drop-shadow(-8px 28px 52px rgba(0,0,0,0.92))',
       }}>
-        {/* Gloss highlight — left edge of spine */}
-        <div style={{
-          position: 'absolute', top: 0, left: '2px', bottom: 0, width: '3px',
-          background: 'linear-gradient(to bottom, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.10) 45%, transparent 100%)',
-        }} />
-        {/* Shadow where spine meets cover face */}
-        <div style={{
-          position: 'absolute', top: 0, right: 0, bottom: 0, width: '7px',
-          background: 'linear-gradient(to right, transparent, rgba(0,0,0,0.55))',
-        }} />
-      </div>
 
-      {/* ── Cover face — portrait 5:7, AI image fills it ── */}
-      <div style={{
-        aspectRatio: '5 / 7',
-        height: '100%',
-        flexShrink: 0,
-        overflow: 'hidden',
-        position: 'relative',
-        background: '#0d0705',
-      }}>
-        {story.coverImageUrl ? (
-          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-            <img
-              src={story.coverImageUrl}
-              alt={story.title}
-              draggable={false}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center center',
-              }}
-            />
-          </div>
-        ) : (
+        {/* ── Spine ── */}
+        <div style={{
+          width: SPINE_W, height: '100%', flexShrink: 0,
+          borderRadius: '8px 0 0 8px',
+          background: 'linear-gradient(to right, #110401 0%, #2e1007 28%, #4a1d0d 54%, #3a1508 78%, #1e0905 100%)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          {/* Cloth horizontal weave */}
           <div style={{
             position: 'absolute', inset: 0,
-            background: 'linear-gradient(150deg, #92400e 0%, #b45309 60%, #92400e 100%)',
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', padding: '1.5rem', gap: '1rem',
-          }}>
-          </div>
-        )}
-
-        {/* Title overlay — rendered as HTML so it's always crisp and correctly sized */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0,
-          padding: '10px 10px 28px',
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.30) 65%, transparent 100%)',
-          pointerEvents: 'none',
-        }}>
-          <p style={{
-            textAlign: 'center',
-            color: '#fff',
-            fontWeight: 800,
-            fontSize: 'clamp(0.7rem, 3.2vw, 1rem)',
-            lineHeight: 1.25,
-            textShadow: '0 1px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.7)',
-            letterSpacing: '0.01em',
-          }}>
-            {story.title}
-          </p>
+            background: 'repeating-linear-gradient(0deg,transparent 0px,transparent 4px,rgba(0,0,0,0.2) 4px,rgba(0,0,0,0.2) 5px)',
+          }} />
+          {/* Left-edge highlight */}
+          <div style={{
+            position: 'absolute', top: 0, left: '3px', bottom: 0, width: '4px',
+            background: 'linear-gradient(to bottom,rgba(255,255,255,0.25),rgba(255,255,255,0.07) 55%,transparent)',
+          }} />
+          {/* Shadow toward cover */}
+          <div style={{
+            position: 'absolute', top: 0, right: 0, bottom: 0, width: '12px',
+            background: 'linear-gradient(to right,transparent,rgba(0,0,0,0.75))',
+          }} />
+          {/* Gilt top/bottom bands */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'rgba(200,160,40,0.5)' }} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: 'rgba(200,160,40,0.5)' }} />
         </div>
 
-        {/* Binding shadow — darkens left edge where cover meets spine */}
+        {/* ── Cover + page-1 stack ── */}
         <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'linear-gradient(to right, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.20) 10%, transparent 24%)',
-        }} />
-        {/* Gloss sheen — diagonal highlight across cover */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: '80px',
-          pointerEvents: 'none',
-          background: 'linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 60%, transparent 100%)',
-        }} />
-      </div>
+          height: '100%', aspectRatio: '5/7', flexShrink: 0,
+          position: 'relative', transformStyle: 'preserve-3d',
+        }}>
 
-      {/* ── Page fore-edge (right) — visible stack of pages ── */}
-      <div style={{
-        width: FORE_W,
-        height: '100%',
-        flexShrink: 0,
-        borderRadius: '0 5px 5px 0',
-        position: 'relative',
-        overflow: 'hidden',
-        // Repeating stripes simulate individual page edges
-        background: 'repeating-linear-gradient(to bottom, #ede0c4 0px, #ede0c4 1.5px, #e0d0b0 1.5px, #e0d0b0 3px)',
-      }}>
-        {/* Shadow where pages meet cover face */}
+          {/* Page 1 — always rendered behind the cover */}
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#e8d8b8' }}>
+            {firstPage?.imageUrl ? (
+              <img src={firstPage.imageUrl} alt="Page 1" draggable={false}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
+            ) : (
+              <div style={{
+                width: '100%', height: '100%',
+                background: 'linear-gradient(160deg,#f0e4c8,#e4d4b0)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <BookOpen style={{ width: 48, height: 48, color: 'rgba(139,69,19,0.2)' }} />
+              </div>
+            )}
+            {/* Binding shadow on left side of revealed page */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'linear-gradient(to right,rgba(0,0,0,0.45) 0%,rgba(0,0,0,0.1) 10%,transparent 22%)',
+            }} />
+          </div>
+
+          {/* ── Cover flap — rotates around left (spine) edge ── */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            transformOrigin: 'left center',
+            transformStyle: 'preserve-3d',
+            transform: isOpening
+              ? 'perspective(1100px) rotateY(-90deg)'
+              : 'perspective(1100px) rotateY(0deg)',
+            transition: isOpening
+              ? 'transform 0.55s cubic-bezier(0.55,0,0.45,1)'
+              : 'none',
+          }}>
+
+            {/* Front face: AI image */}
+            <div style={{
+              position: 'absolute', inset: 0, overflow: 'hidden', background: '#120806',
+              backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+            }}>
+              {story.coverImageUrl && (
+                <img src={story.coverImageUrl} alt={story.title} draggable={false}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+              )}
+              {/* Title at bottom */}
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                padding: '28px 14px 13px',
+                background: 'linear-gradient(transparent,rgba(0,0,0,0.84))',
+                pointerEvents: 'none',
+              }}>
+                <p style={{
+                  color: '#fff', textAlign: 'center', fontWeight: 800, margin: 0,
+                  fontSize: 'clamp(0.78rem, 3.5vw, 1.08rem)', lineHeight: 1.2,
+                  textShadow: '0 1px 8px rgba(0,0,0,0.99),0 0 20px rgba(0,0,0,0.6)',
+                  letterSpacing: '0.01em',
+                }}>
+                  {story.title}
+                </p>
+              </div>
+              {/* Gloss sheen */}
+              <div style={{
+                position: 'absolute', inset: 0, pointerEvents: 'none',
+                background: 'linear-gradient(140deg,rgba(255,255,255,0.13) 0%,rgba(255,255,255,0.04) 36%,transparent 56%)',
+              }} />
+              {/* Binding shadow */}
+              <div style={{
+                position: 'absolute', inset: 0, pointerEvents: 'none',
+                background: 'linear-gradient(to right,rgba(0,0,0,0.62) 0%,rgba(0,0,0,0.16) 6%,transparent 15%)',
+              }} />
+              {/* Top edge */}
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: '12px', pointerEvents: 'none',
+                background: 'linear-gradient(to bottom,rgba(0,0,0,0.32),transparent)',
+              }} />
+            </div>
+
+            {/* Inside cover (cream) — visible as cover crosses 90° */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              transform: 'rotateY(180deg)',
+              backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+              background: 'linear-gradient(160deg,#f9f3ea,#f0e8d6)',
+            }} />
+          </div>
+        </div>
+
+        {/* ── Fore-edge (right — page stack) ── */}
         <div style={{
-          position: 'absolute', top: 0, left: 0, bottom: 0, width: '6px',
-          background: 'linear-gradient(to right, rgba(0,0,0,0.40), transparent)',
-        }} />
-        {/* Outer right edge highlight */}
-        <div style={{
-          position: 'absolute', top: 0, right: '1px', bottom: 0, width: '2px',
-          background: 'rgba(255,255,255,0.30)',
-        }} />
-        {/* Inset shadow on far right */}
-        <div style={{
-          position: 'absolute', top: 0, right: 0, bottom: 0, width: '5px',
-          background: 'linear-gradient(to left, rgba(0,0,0,0.30), transparent)',
-        }} />
+          width: FORE_W, height: '100%', flexShrink: 0,
+          borderRadius: '0 5px 5px 0',
+          position: 'relative', overflow: 'hidden',
+          background: 'repeating-linear-gradient(to bottom,#ede0c4 0px,#ede0c4 1.5px,#d6c49e 1.5px,#d6c49e 3px)',
+        }}>
+          <div style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0, width: '5px',
+            background: 'linear-gradient(to right,rgba(0,0,0,0.42),transparent)',
+          }} />
+          <div style={{
+            position: 'absolute', top: 0, right: 0, bottom: 0, width: '3px',
+            background: 'linear-gradient(to left,rgba(0,0,0,0.22),transparent)',
+          }} />
+          <div style={{
+            position: 'absolute', top: 0, right: '2px', bottom: 0, width: '1.5px',
+            background: 'rgba(255,255,255,0.28)',
+          }} />
+        </div>
+
       </div>
     </div>
   );
@@ -953,92 +1000,76 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
     : flipPhase === 'tracking' ? Math.min(89, (Math.abs(swipeDx) / halfWidth) * 90)
     : 0;
   const animated = flipPhase === 'completing' || flipPhase === 'reverting';
-  const SPINE = 24; // px — fixed-width spine strip
+  const SPINE = 32;
 
   return (
-    <div className="w-full h-full flex items-center justify-center">
-      {/* Drop-shadow wrapper — outside the clip so shadow renders past rounded edges */}
+    <div className="w-full h-full flex items-center justify-center" style={{ background: '#0d0603' }}>
+      {/* Book — portrait proportions centred in landscape screen */}
       <div className="relative h-full"
-        style={{ aspectRatio: '1 / 1', filter: 'drop-shadow(-4px 10px 24px rgba(0,0,0,0.92))', background: 'black' }}>
+        style={{ aspectRatio: '5/7', filter: 'drop-shadow(-12px 20px 48px rgba(0,0,0,0.97))' }}>
 
-        {/* Clip wrapper — dark bg so rounded corners never show white */}
-        <div className="absolute inset-0 overflow-hidden"
-          style={{ borderRadius: '14px', background: '#060301' }}>
+        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: '10px', background: '#0a0300' }}>
 
-          {/* ── Back layer: page 1 (revealed as cover swings open) ── */}
-          <div className="absolute inset-0" style={{ background: '#1a0e08' }}>
+          {/* Page 1 — revealed beneath the cover */}
+          <div className="absolute inset-0">
             <PageIllustration imgPage={firstPage} pageNumber={1} testId="img-cover-peek" />
           </div>
+          {/* Binding shadow on revealed page */}
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: 'linear-gradient(to right,rgba(0,0,0,0.5) 0%,rgba(0,0,0,0.1) 10%,transparent 22%)', zIndex: 1 }} />
 
-          {/* ── Spine — fixed strip, NOT inside the rotating cover ── */}
+          {/* ── Spine — always visible, above back layer ── */}
           <div className="absolute top-0 bottom-0 left-0 pointer-events-none"
-            style={{
-              width: `${SPINE}px`,
-              zIndex: 3,
-              borderRadius: '14px 0 0 14px',
-              background: 'linear-gradient(to right, #060302 0%, #1c0a05 55%, #2a1008 100%)',
-            }}>
-            {/* Gloss highlight on spine edge */}
-            <div style={{
-              position: 'absolute', top: 0, left: '3px', bottom: 0, width: '2px',
-              background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.08) 50%, transparent)',
-            }} />
+            style={{ width: SPINE, zIndex: 4, borderRadius: '10px 0 0 10px',
+              background: 'linear-gradient(to right,#110401 0%,#2e1007 30%,#4a1d0d 58%,#2e1007 80%,#170603 100%)' }}>
+            <div style={{ position:'absolute',top:0,left:'3px',bottom:0,width:'4px',
+              background:'linear-gradient(to bottom,rgba(255,255,255,0.22),rgba(255,255,255,0.06) 55%,transparent)' }} />
+            <div style={{ position:'absolute',top:0,right:0,bottom:0,width:'10px',
+              background:'linear-gradient(to right,transparent,rgba(0,0,0,0.72))' }} />
+            <div style={{ position:'absolute',top:0,left:0,right:0,height:'3px',background:'rgba(200,160,40,0.45)' }} />
+            <div style={{ position:'absolute',bottom:0,left:0,right:0,height:'3px',background:'rgba(200,160,40,0.45)' }} />
           </div>
 
-          {/* ── Cover face — sits to the RIGHT of the spine, rotates on flip ── */}
+          {/* ── Cover face — rotates around spine (left edge) ── */}
           <div className="absolute top-0 bottom-0 right-0"
-            style={{ left: `${SPINE}px`, zIndex: 2, perspective: '900px', perspectiveOrigin: 'left center' }}>
+            style={{ left: SPINE, zIndex: 3, perspective: '1100px', perspectiveOrigin: 'left center' }}>
             <div className="absolute inset-0"
               style={{
                 transformOrigin: 'left center',
                 transform: `rotateY(-${rawAngle}deg)`,
-                transition: animated ? 'transform 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
+                transition: animated ? 'transform 0.28s cubic-bezier(0.4,0,1,1)' : 'none',
+                backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
               }}>
-              <div className="absolute inset-0 overflow-hidden" style={{ background: '#0d0705' }}>
+              <div className="absolute inset-0 overflow-hidden" style={{ background: '#120806' }}>
                 {story.coverImageUrl ? (
-                  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-                    <img src={story.coverImageUrl} alt={story.title}
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%', height: '100%',
-                        objectFit: 'cover', objectPosition: 'center center',
-                      }}
-                      data-testid="img-cover-ls" draggable={false} />
-                  </div>
+                  <img src={story.coverImageUrl} alt={story.title}
+                    style={{ position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center' }}
+                    data-testid="img-cover-ls" draggable={false} />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-900 to-amber-700 flex items-center justify-center">
-                    <BookOpen className="w-16 h-16 text-amber-200 opacity-50" />
+                  <div className="absolute inset-0 flex items-center justify-center"
+                    style={{ background: 'linear-gradient(150deg,#92400e,#b45309)' }}>
+                    <BookOpen className="w-16 h-16 text-amber-200 opacity-40" />
                   </div>
                 )}
-
-                {/* Title overlay */}
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0,
-                  padding: '10px 12px 28px',
-                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.30) 65%, transparent 100%)',
-                  pointerEvents: 'none',
-                }}>
-                  <p style={{
-                    textAlign: 'center', color: '#fff', fontWeight: 800,
-                    fontSize: 'clamp(0.75rem, 2.8vw, 1.1rem)', lineHeight: 1.25,
-                    textShadow: '0 1px 6px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.7)',
-                  }}>
+                {/* Title */}
+                <div style={{ position:'absolute',bottom:0,left:0,right:0,padding:'28px 14px 14px',
+                  background:'linear-gradient(transparent,rgba(0,0,0,0.84))',pointerEvents:'none' }}>
+                  <p style={{ textAlign:'center',color:'#fff',fontWeight:800,margin:0,
+                    fontSize:'clamp(0.8rem,2.8vw,1.1rem)',lineHeight:1.2,
+                    textShadow:'0 1px 8px rgba(0,0,0,0.99)' }}>
                     {story.title}
                   </p>
                 </div>
-
-                {/* Binding shadow — left edge where cover meets spine */}
+                {/* Gloss */}
+                <div style={{ position:'absolute',inset:0,pointerEvents:'none',
+                  background:'linear-gradient(140deg,rgba(255,255,255,0.13) 0%,rgba(255,255,255,0.04) 36%,transparent 55%)' }} />
+                {/* Binding shadow */}
+                <div style={{ position:'absolute',inset:0,pointerEvents:'none',
+                  background:'linear-gradient(to right,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0.12) 6%,transparent 14%)' }} />
+                {/* Darken as cover swings */}
                 <div className="absolute inset-0 pointer-events-none"
-                  style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.1) 8%, transparent 20%)' }} />
-                {/* Cover darkens as it swings away */}
-                <div className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: `rgba(0,0,0,${Math.min(0.55, rawAngle / 150)})`,
-                    transition: animated ? 'background 0.26s cubic-bezier(0.4, 0, 1, 1)' : 'none',
-                  }} />
+                  style={{ background:`rgba(0,0,0,${Math.min(0.55, rawAngle/140)})`,
+                    transition: animated ? 'background 0.28s ease' : 'none' }} />
               </div>
             </div>
           </div>
