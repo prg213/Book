@@ -121,9 +121,9 @@ async function fetchColouringPage(imageUrl: string): Promise<string> {
 // ─── A5 Image card ────────────────────────────────────────────────────────────
 
 function A5ImageCard({
-  src, alt, label, entry,
+  src, alt, label, entry, titleOverlay,
 }: {
-  src?: string | null; alt: string; label?: string; entry?: ColouringEntry;
+  src?: string | null; alt: string; label?: string; entry?: ColouringEntry; titleOverlay?: string;
 }) {
   // Show the colouring version once done, otherwise fall back to the original colour image
   const isDone = entry?.status === 'done';
@@ -137,16 +137,25 @@ function A5ImageCard({
         style={{ aspectRatio: `${148}/${210}` }}
       >
         {displaySrc ? (
-          <img src={displaySrc} alt={alt} className="w-full h-full object-contain transition-opacity duration-700"
-            style={{ opacity: 1 }} />
+          <img src={displaySrc} alt={alt} className="w-full h-full object-cover transition-opacity duration-700" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-amber-50">
             <Image className="w-12 h-12 text-amber-200" />
           </div>
         )}
+        {/* Title overlay for the cover card */}
+        {titleOverlay && (
+          <div className="absolute bottom-0 left-0 right-0 px-3 py-2"
+            style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.72))' }}>
+            <p className="text-white text-center font-bold text-xs leading-tight"
+              style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+              {titleOverlay}
+            </p>
+          </div>
+        )}
         {/* Small corner badge while the colouring version is being generated */}
         {isGenerating && displaySrc && (
-          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">
+          <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">
             <Loader2 className="w-3 h-3 text-white animate-spin" />
             <span className="text-[9px] text-white/80 font-medium">Converting…</span>
           </div>
@@ -418,7 +427,8 @@ export default function StoryView() {
           <SectionHeading icon={BookOpen} title="Cover" />
           <div className={gridClass}>
             <A5ImageCard src={story.coverImageUrl} alt={story.title}
-              entry={story.coverImageUrl ? colouringMap.get(story.coverImageUrl) : undefined} />
+              entry={story.coverImageUrl ? colouringMap.get(story.coverImageUrl) : undefined}
+              titleOverlay={story.title} />
           </div>
         </section>
 

@@ -766,8 +766,6 @@ function PortraitCover({ story }: { story: any }) {
         background: '#0d0705',
       }}>
         {story.coverImageUrl ? (
-          /* Shift image up 25% to crop the AI title-band that used to sit at the top,
-             then scale height to 150% so the bottom still fills the container */
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
             <img
               src={story.coverImageUrl}
@@ -775,10 +773,9 @@ function PortraitCover({ story }: { story: any }) {
               draggable={false}
               style={{
                 position: 'absolute',
-                top: '-25%',
-                left: 0,
+                inset: 0,
                 width: '100%',
-                height: '150%',
+                height: '100%',
                 objectFit: 'cover',
                 objectPosition: 'center center',
               }}
@@ -1001,13 +998,12 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
               }}>
               <div className="absolute inset-0 overflow-hidden" style={{ background: '#0d0705' }}>
                 {story.coverImageUrl ? (
-                  /* Shift image up 25% to crop the AI title-band, scale to 150% height so bottom fills */
                   <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
                     <img src={story.coverImageUrl} alt={story.title}
                       style={{
                         position: 'absolute',
-                        top: '-25%', left: 0,
-                        width: '100%', height: '150%',
+                        inset: 0,
+                        width: '100%', height: '100%',
                         objectFit: 'cover', objectPosition: 'center center',
                       }}
                       data-testid="img-cover-ls" draggable={false} />
