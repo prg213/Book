@@ -10,8 +10,23 @@ import { useToast } from '@/hooks/use-toast';
 import { useClerk, useUser } from '@clerk/react';
 import {
   BookOpen, Plus, Trash2, Eye, Clock, CheckCircle,
-  AlertCircle, Loader2, LayoutGrid, LogOut, LogIn,
+  AlertCircle, Loader2, LayoutGrid, LogOut, LogIn, ShieldCheck,
 } from 'lucide-react';
+
+// ── Admin check ───────────────────────────────────────────────────────────────
+function useIsAdmin() {
+  const { isSignedIn, isLoaded } = useUser();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    fetch(`${base}/api/admin/me`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.isAdmin) setIsAdmin(true); })
+      .catch(() => {});
+  }, [isLoaded, isSignedIn, base]);
+  return isAdmin;
+}
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -24,7 +39,7 @@ function UserMenu() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const [, setLocation] = useLocation();
-  const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const isAdmin = useIsAdmin();
 
   if (!isLoaded) return null;
 
@@ -43,6 +58,13 @@ function UserMenu() {
       <span className="text-sm text-muted-foreground hidden md:block">
         {user.firstName ?? user.emailAddresses[0]?.emailAddress}
       </span>
+      {isAdmin && (
+        <Link href="/admin">
+          <Button variant="outline" size="sm" className="rounded-xl gap-2">
+            <ShieldCheck className="h-4 w-4" /> Admin
+          </Button>
+        </Link>
+      )}
       <Button
         variant="outline" size="sm" className="rounded-xl gap-2"
         onClick={() => signOut(() => setLocation('/'))}
