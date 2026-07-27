@@ -41,16 +41,6 @@ jobs:
         working-directory: artifacts/mystorybook
         run: npx cap sync android
 
-      # ── Restore fixed signing keystore ────────────────────────────────────
-      # A repo-committed PKCS12 keystore ensures every build produces the same
-      # certificate fingerprint, which is required for Android App Links.
-      # The SHA-256 of this cert is in public/.well-known/assetlinks.json.
-      - name: Restore signing keystore
-        run: |
-          base64 -d artifacts/mystorybook/android-extras/debug.keystore.p12.b64 \
-            > /tmp/mystorybook-debug.p12
-          echo "Keystore restored at /tmp/mystorybook-debug.p12"
-
       # ── Patch AndroidManifest: permissions + App Links intent filter ───────
       # App Links (autoVerify) let Android intercept the Clerk OAuth callback
       # URL (https://grok-canvas-copy.replit.app/sso-callback) and route it
@@ -92,26 +82,42 @@ jobs:
           print(xml)
           EOF
 
-      # ── Configure Gradle to sign with our fixed keystore ──────────────────
+      # ── Restore release keystore from secret ─────────────────────────────
+      - name: Restore release keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > /tmp/mystorybook-release.p12
+          echo "Release keystore restored at /tmp/mystorybook-release.p12"
+
+      # ── Configure Gradle to sign the release build ────────────────────────
       - name: Configure Gradle signing
         working-directory: artifacts/mystorybook/android/app
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           python3 - <<'EOF'
-          import pathlib, re
+          import pathlib, os
 
           path = pathlib.Path("build.gradle")
           content = path.read_text()
 
-          signing_block = """
-              signingConfigs {
-                  fixedDebug {
-                      storeFile file('/tmp/mystorybook-debug.p12')
-                      storePassword 'android'
-                      keyAlias 'androiddebugkey'
-                      keyPassword 'android'
+          ks_pass  = os.environ["RELEASE_KEYSTORE_PASSWORD"]
+          key_alias = os.environ["RELEASE_KEY_ALIAS"]
+          key_pass  = os.environ["RELEASE_KEY_PASSWORD"]
+
+          signing_block = f"""
+              signingConfigs {{
+                  release {{
+                      storeFile file('/tmp/mystorybook-release.p12')
+                      storePassword '{ks_pass}'
+                      keyAlias '{key_alias}'
+                      keyPassword '{key_pass}'
                       storeType 'PKCS12'
-                  }
-              }
+                  }}
+              }}
           """
 
           # Insert signingConfigs before buildTypes
@@ -120,15 +126,22 @@ jobs:
               signing_block + "    buildTypes {"
           )
 
-          # Override the debug build to use our fixed signing config
+          # Add release buildType with signing config
+          release_build_type = """
+              release {
+                  signingConfig signingConfigs.release
+                  minifyEnabled false
+                  proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+              }
+          """
           content = content.replace(
-              "debug {",
-              "debug {\n            signingConfig signingConfigs.fixedDebug",
-              1
+              "    }",
+              release_build_type + "    }",
+              1  # only first closing brace of buildTypes
           )
 
           path.write_text(content)
-          print("Patched app/build.gradle with fixed signing config")
+          print("Patched app/build.gradle with release signing config")
           EOF
 
       # ── Patch MainActivity: remove WebView user-agent "wv" flag ──────────
@@ -169,16 +182,16 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # ── Build debug APK ───────────────────────────────────────────────────
-      - name: Build debug APK
+      # ── Build release APK ─────────────────────────────────────────────────
+      - name: Build release APK
         working-directory: artifacts/mystorybook/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
       # ── Upload APK as a downloadable artifact ─────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MyStoryBook-debug
-          path: artifacts/mystorybook/android/app/build/outputs/apk/debug/app-debug.apk
+          name: MyStoryBook-release
+          path: artifacts/mystorybook/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
