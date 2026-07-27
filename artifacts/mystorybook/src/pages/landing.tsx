@@ -1,6 +1,7 @@
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Sparkles, Wand2, BookOpen, Palette, Star, ChevronRight } from 'lucide-react';
 import { useGetLibraryStats } from '@workspace/api-client-react';
+import { useUser, useClerk } from '@clerk/react';
 
 const APK_URL = 'https://github.com/prg213/Book/releases/latest/download/mystorybook.apk';
 
@@ -16,6 +17,21 @@ const BASE = import.meta.env.BASE_URL;
 
 export default function Landing() {
   const { data: stats } = useGetLibraryStats();
+  const { isSignedIn, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  const [, setLocation] = useLocation();
+
+  const handleGetStarted = () => {
+    if (isSignedIn) {
+      setLocation('/create');
+    } else {
+      setLocation('/sign-up');
+    }
+  };
+
+  const handleSignOut = () => {
+    signOut(() => setLocation('/'));
+  };
 
   return (
     <div style={{ minHeight: '100dvh', background: '#fdf8f0', fontFamily: 'system-ui, sans-serif', overflowX: 'hidden' }}>
@@ -32,16 +48,36 @@ export default function Landing() {
             <span style={{ fontFamily: 'Fredoka, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: '#1a0e08' }}>MyStoryBook</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Link href="/sign-in">
-              <button style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#6b4a30' }}>
-                Sign in
-              </button>
-            </Link>
-            <Link href="/sign-up">
-              <button style={{ padding: '7px 16px', borderRadius: 10, border: 'none', background: '#e8855a', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(232,133,90,0.3)' }}>
-                Get started
-              </button>
-            </Link>
+            {isLoaded && isSignedIn ? (
+              <>
+                <Link href="/library">
+                  <button style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#6b4a30', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <BookOpen style={{ width: 15, height: 15 }} />
+                    My Books
+                  </button>
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  style={{ padding: '7px 16px', borderRadius: 10, border: '1.5px solid rgba(232,133,90,0.35)', background: 'transparent', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#6b4a30' }}
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/sign-in">
+                  <button style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#6b4a30' }}>
+                    Sign in
+                  </button>
+                </Link>
+                <button
+                  onClick={handleGetStarted}
+                  style={{ padding: '7px 16px', borderRadius: 10, border: 'none', background: '#e8855a', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(232,133,90,0.3)' }}
+                >
+                  Get started
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
