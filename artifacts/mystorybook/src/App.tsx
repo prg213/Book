@@ -19,6 +19,7 @@ import SsoCallbackPage from '@/pages/sso-callback';
 import CheckoutSuccess from '@/pages/checkout-success';
 import CheckoutCancel from '@/pages/checkout-cancel';
 import Orders from '@/pages/orders';
+import Admin from '@/pages/admin';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 
 const queryClient = new QueryClient();
@@ -139,6 +140,7 @@ function Router() {
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/checkout/cancel" component={CheckoutCancel} />
       <Route path="/orders" component={Orders} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );
