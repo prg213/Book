@@ -126,11 +126,12 @@ jobs:
               signing_block + "    buildTypes {"
           )
 
-          # Inject signingConfig into the existing release {} block
-          # (Capacitor already generates a release block; we just add the signing line)
+          # Inject signingConfig into the existing release {} block.
+          # Target minifyEnabled (only in buildTypes.release, never in signingConfigs)
+          # to avoid accidentally matching the signingConfigs.release { block we just added.
           content = content.replace(
-              "release {",
-              "release {\n            signingConfig signingConfigs.release",
+              "minifyEnabled false",
+              "signingConfig signingConfigs.release\n            minifyEnabled false",
               1
           )
 
