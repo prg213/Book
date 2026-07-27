@@ -1,7 +1,7 @@
 import { Link } from 'wouter';
 import { useGetLibraryStats } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Sparkles, Image, Wand2 } from 'lucide-react';
+import { Sparkles, Image, Wand2, BookOpen } from 'lucide-react';
 import { useUser } from '@clerk/react';
 
 export default function Home() {
@@ -14,9 +14,11 @@ export default function Home() {
       <div className="container mx-auto px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <div className="inline-block animate-float">
-            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-accent rounded-3xl flex items-center justify-center shadow-lg">
-              <BookOpen className="w-10 h-10 text-primary-foreground" />
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}app-icon.png`}
+              alt="MyStoryBook"
+              className="w-24 h-24 mx-auto rounded-3xl shadow-2xl"
+            />
           </div>
           
           <h1 className="font-display text-5xl md:text-7xl font-bold text-foreground leading-tight">

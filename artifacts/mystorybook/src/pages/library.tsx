@@ -396,8 +396,8 @@ export default function Library() {
         {/* Empty */}
         {!isLoading && (!stories || stories.length === 0) && (
           <div className="bg-card rounded-3xl shadow-xl border border-card-border p-16 text-center max-w-2xl mx-auto">
-            <div className="w-24 h-24 bg-gradient-to-br from-primary to-accent rounded-3xl flex items-center justify-center mx-auto mb-8">
-              <BookOpen className="w-12 h-12 text-primary-foreground" />
+            <div className="w-24 h-24 mx-auto mb-8">
+              <img src={`${import.meta.env.BASE_URL}app-icon.png`} alt="MyStoryBook" className="w-full h-full rounded-3xl shadow-lg" />
             </div>
             <h2 className="font-display text-3xl font-bold mb-4">No Stories Yet</h2>
             <p className="text-muted-foreground text-lg mb-8">Start creating magical adventures for your loved ones!</p>
