@@ -104,9 +104,11 @@ jobs:
           path = pathlib.Path("build.gradle")
           content = path.read_text()
 
-          ks_pass  = os.environ["RELEASE_KEYSTORE_PASSWORD"]
+          ks_pass   = os.environ["RELEASE_KEYSTORE_PASSWORD"]
           key_alias = os.environ["RELEASE_KEY_ALIAS"]
-          key_pass  = os.environ["RELEASE_KEY_PASSWORD"]
+          # PKCS12 uses a single password for both the store and every key entry.
+          # Using a different keyPassword causes "Given final block not properly padded".
+          key_pass  = ks_pass
 
           signing_block = f"""
               signingConfigs {{
