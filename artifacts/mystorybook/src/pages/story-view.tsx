@@ -1,8 +1,106 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Link } from 'wouter';
-import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2, Printer, ShoppingCart, Package, Sparkles, X } from 'lucide-react';
 import { isCapacitor } from '@/lib/capacitor';
+import { useUser } from '@clerk/react';
+
+// ── Order modal ───────────────────────────────────────────────────────────────
+function OrderModal({ storyId, onClose }: { storyId: string; onClose: () => void }) {
+  const [loading, setLoading] = useState<'digital' | 'print' | null>(null);
+  const [products, setProducts] = useState<any[]>([]);
+  const { isSignedIn } = useUser();
+
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}api/stripe/products`)
+      .then(r => r.json())
+      .then(d => setProducts(d.data ?? []))
+      .catch(() => {});
+  }, []);
+
+  const getPriceId = (type: 'digital' | 'print') => {
+    const name = type === 'digital' ? 'Story Generation' : 'Printed Storybook';
+    const product = products.find((p: any) => p.name === name);
+    return product?.prices?.[0]?.id ?? null;
+  };
+
+  const checkout = async (type: 'digital' | 'print') => {
+    const priceId = getPriceId(type);
+    if (!priceId) { alert('Products not available yet. Please try again shortly.'); return; }
+    setLoading(type);
+    try {
+      const r = await fetch(`${import.meta.env.BASE_URL}api/stripe/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceId, storyId, productType: type }),
+      });
+      const { url, error } = await r.json();
+      if (error) throw new Error(error);
+      window.location.href = url;
+    } catch (e: any) {
+      alert(e.message ?? 'Checkout failed. Please try again.');
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+         onClick={onClose}>
+      <div className="w-full max-w-sm bg-[#1e1008] border border-amber-800/40 rounded-2xl p-6 shadow-2xl"
+           onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-lg font-bold text-amber-100">Order This Story</h2>
+          <button onClick={onClose} className="text-amber-400/60 hover:text-amber-300 rounded-full p-1">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {/* Digital */}
+          <button
+            onClick={() => checkout('digital')}
+            disabled={!!loading}
+            className="w-full flex items-start gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all text-left disabled:opacity-50">
+            <div className="rounded-lg bg-amber-500/20 p-2 mt-0.5 shrink-0">
+              {loading === 'digital' ? <Loader2 className="h-5 w-5 text-amber-400 animate-spin" /> : <Sparkles className="h-5 w-5 text-amber-400" />}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-amber-100 text-sm">Story Generation</p>
+                <p className="font-bold text-amber-300">£4.99</p>
+              </div>
+              <p className="text-amber-400/60 text-xs mt-0.5">Generate your personalised AI storybook</p>
+            </div>
+          </button>
+
+          {/* Print */}
+          <button
+            onClick={() => checkout('print')}
+            disabled={!!loading}
+            className="w-full flex items-start gap-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-left disabled:opacity-50">
+            <div className="rounded-lg bg-blue-500/20 p-2 mt-0.5 shrink-0">
+              {loading === 'print' ? <Loader2 className="h-5 w-5 text-blue-400 animate-spin" /> : <Package className="h-5 w-5 text-blue-400" />}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-amber-100 text-sm">Printed Storybook</p>
+                <p className="font-bold text-blue-300">£14.99</p>
+              </div>
+              <p className="text-amber-400/60 text-xs mt-0.5">Professionally printed &amp; delivered to your door</p>
+            </div>
+          </button>
+        </div>
+
+        {!isSignedIn && (
+          <p className="text-amber-400/50 text-xs text-center mt-4">
+            You'll be asked to enter your details at checkout
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Coloring helpers ────────────────────────────────────────────────────────
 
@@ -255,10 +353,12 @@ export default function StoryView() {
     );
   }
 
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const gridClass = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4';
 
   return (
     <div className="min-h-[100dvh] bg-[#1a0e08]">
+      {showOrderModal && <OrderModal storyId={storyId} onClose={() => setShowOrderModal(false)} />}
       <div className="sticky top-0 z-20 bg-[#120a05]/95 border-b border-amber-900/30 backdrop-blur-md">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href={`/read?storyId=${storyId}`}>
@@ -269,16 +369,22 @@ export default function StoryView() {
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-base font-bold text-amber-100 truncate">{story.title}</h1>
           </div>
-          {anyLoading ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400/60 bg-amber-500/10 border border-amber-500/15 flex-shrink-0">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparing…
-            </div>
-          ) : !isCapacitor() ? (
-            <button onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200 flex-shrink-0">
-              <Printer className="w-3.5 h-3.5" /> Print
+          <div className="flex items-center gap-2 shrink-0">
+            {anyLoading ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400/60 bg-amber-500/10 border border-amber-500/15">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparing…
+              </div>
+            ) : !isCapacitor() ? (
+              <button onClick={handlePrint}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200">
+                <Printer className="w-3.5 h-3.5" /> Print
+              </button>
+            ) : null}
+            <button onClick={() => setShowOrderModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition-all duration-200">
+              <ShoppingCart className="w-3.5 h-3.5" /> Order
             </button>
-          ) : null}
+          </div>
         </div>
       </div>
 

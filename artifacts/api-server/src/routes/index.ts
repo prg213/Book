@@ -8,6 +8,7 @@ import audioRouter from "./audio";
 import videoRouter from "./video";
 import mobileRelayRouter from "./mobile-relay";
 import imagesRouter from "./images";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(colouringRouter);
 router.use(audioRouter);
 router.use(videoRouter);
 router.use("/auth/mobile-relay", mobileRelayRouter);
+router.use(stripeRouter);
 
 export default router;

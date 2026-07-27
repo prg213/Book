@@ -16,6 +16,9 @@ import StoryView from '@/pages/story-view';
 import SignInPage from '@/pages/sign-in';
 import SignUpPage from '@/pages/sign-up';
 import SsoCallbackPage from '@/pages/sso-callback';
+import CheckoutSuccess from '@/pages/checkout-success';
+import CheckoutCancel from '@/pages/checkout-cancel';
+import Orders from '@/pages/orders';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 
 const queryClient = new QueryClient();
@@ -133,6 +136,9 @@ function Router() {
       <Route path="/read" component={Read} />
       <Route path="/story-view" component={StoryView} />
       <Route path="/sso-callback" component={SsoCallbackPage} />
+      <Route path="/checkout/success" component={CheckoutSuccess} />
+      <Route path="/checkout/cancel" component={CheckoutCancel} />
+      <Route path="/orders" component={Orders} />
       <Route component={NotFound} />
     </Switch>
   );
