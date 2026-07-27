@@ -224,6 +224,8 @@ export default function StoryView() {
   const params = new URLSearchParams(window.location.search);
   const storyId = params.get('storyId') || '';
 
+  const [showOrderModal, setShowOrderModal] = useState(false);
+
   const [colouringMap, setColouringMap] = useState<Map<string, ColouringEntry>>(() => {
     const cache = loadCache(storyId);
     const map = new Map<string, ColouringEntry>();
@@ -353,7 +355,6 @@ export default function StoryView() {
     );
   }
 
-  const [showOrderModal, setShowOrderModal] = useState(false);
   const gridClass = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4';
 
   return (
