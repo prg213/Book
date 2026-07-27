@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
+import { useUser } from '@clerk/react';
 import { useCreateStory, useGenerateStory } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -265,8 +266,18 @@ interface CharacterData {
 
 export default function Create() {
   const [, setLocation] = useLocation();
+  const { isSignedIn, isLoaded } = useUser();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
+
+  // Redirect unauthenticated users to sign-in before they can create a book
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      setLocation('/sign-in');
+    }
+  }, [isLoaded, isSignedIn, setLocation]);
+
+  if (!isLoaded || !isSignedIn) return null;
 
   // Photo state
   const [photo1, setPhoto1] = useState<File | null>(null);
