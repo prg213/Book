@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
-import { Link } from 'wouter';
+import { Link, useSearch } from 'wouter';
 import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2, Printer, ShoppingCart, Package, Sparkles, X } from 'lucide-react';
 import { isCapacitor } from '@/lib/capacitor';
 import { useUser } from '@clerk/react';
@@ -224,8 +224,8 @@ function saveCache(storyId: string, record: Record<string, string>) {
 }
 
 export default function StoryView() {
-  const params = new URLSearchParams(window.location.search);
-  const storyId = params.get('storyId') || '';
+  const search = useSearch();
+  const storyId = new URLSearchParams(search).get('storyId') || '';
 
   const [showOrderModal, setShowOrderModal] = useState(false);
 
