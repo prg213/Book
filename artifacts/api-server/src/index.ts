@@ -30,10 +30,45 @@ async function runAppMigrations() {
   logger.info("App migrations complete");
 }
 
+/** Returns true only when the Stripe integration credentials are reachable. */
+async function canReachStripe(): Promise<boolean> {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY
+    ? "repl " + process.env.REPL_IDENTITY
+    : process.env.WEB_REPL_RENEWAL
+      ? "depl " + process.env.WEB_REPL_RENEWAL
+      : null;
+
+  if (!hostname || !xReplitToken) return false;
+
+  try {
+    const resp = await fetch(
+      `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=stripe`,
+      {
+        headers: { Accept: "application/json", X_REPLIT_TOKEN: xReplitToken },
+        signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    return !!data.items?.[0]?.settings?.secret_key;
+  } catch {
+    return false;
+  }
+}
+
 async function initStripe() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    logger.warn("DATABASE_URL not set — skipping Stripe init");
+    logger.info("Stripe: DATABASE_URL not set — skipping");
+    return;
+  }
+
+  // Only proceed if credentials are actually available — this prevents
+  // stripe-replit-sync from touching the DB schema when not configured,
+  // which would block Replit's publishing flow with an unreviewed schema diff.
+  if (!(await canReachStripe())) {
+    logger.info("Stripe: integration not configured — skipping (payments inactive)");
     return;
   }
 
