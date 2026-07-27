@@ -184,11 +184,15 @@ jobs:
         working-directory: artifacts/mystorybook/android
         run: ./gradlew assembleRelease --no-daemon
 
+      # ── Rename APK ────────────────────────────────────────────────────────
+      - name: Rename APK
+        run: mv artifacts/mystorybook/android/app/build/outputs/apk/release/app-release.apk artifacts/mystorybook/android/app/build/outputs/apk/release/mystorybook.apk
+
       # ── Upload APK as a downloadable artifact ─────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MyStoryBook-release
-          path: artifacts/mystorybook/android/app/build/outputs/apk/release/app-release.apk
+          path: artifacts/mystorybook/android/app/build/outputs/apk/release/mystorybook.apk
           retention-days: 30
 
