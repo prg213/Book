@@ -2,6 +2,7 @@ import { Link, useLocation } from 'wouter';
 import { Sparkles, Wand2, BookOpen, Palette, Star, ChevronRight } from 'lucide-react';
 import { useGetLibraryStats } from '@workspace/api-client-react';
 import { useUser, useClerk } from '@clerk/react';
+import { SupportButton } from '@/components/support-modal';
 
 const APK_URL = 'https://github.com/prg213/Book/releases/latest/download/mystorybook.apk';
 
@@ -48,6 +49,7 @@ export default function Landing() {
             <span style={{ fontFamily: 'Fredoka, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: '#1a0e08' }}>MyStoryBook</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <SupportButton />
             {isLoaded && isSignedIn ? (
               <>
                 <Link href="/library">
@@ -264,6 +266,7 @@ export default function Landing() {
             <Link href="/sign-in"><span style={{ color: '#a07055', cursor: 'pointer' }}>Sign in</span></Link>
             <Link href="/sign-up"><span style={{ color: '#a07055', cursor: 'pointer' }}>Sign up</span></Link>
             <a href={APK_URL} style={{ color: '#a07055' }}>Download</a>
+            <Link href="/terms"><span style={{ color: '#a07055', cursor: 'pointer' }}>Terms</span></Link>
           </div>
           <span>© {new Date().getFullYear()} MyStoryBook</span>
         </div>

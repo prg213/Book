@@ -10,6 +10,7 @@ import mobileRelayRouter from "./mobile-relay";
 import imagesRouter from "./images";
 import stripeRouter from "./stripe";
 import adminRouter from "./admin";
+import supportRouter from "./support";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(videoRouter);
 router.use("/auth/mobile-relay", mobileRelayRouter);
 router.use(stripeRouter);
 router.use(adminRouter);
+router.use(supportRouter);
 
 export default router;

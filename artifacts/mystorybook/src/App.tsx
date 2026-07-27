@@ -21,6 +21,7 @@ import CheckoutSuccess from '@/pages/checkout-success';
 import CheckoutCancel from '@/pages/checkout-cancel';
 import Orders from '@/pages/orders';
 import Admin from '@/pages/admin';
+import Terms from '@/pages/terms';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 
 const queryClient = new QueryClient();
@@ -157,6 +158,7 @@ function Router() {
       <Route path="/checkout/cancel" component={CheckoutCancel} />
       <Route path="/orders" component={Orders} />
       <Route path="/admin" component={Admin} />
+      <Route path="/terms" component={Terms} />
       <Route component={NotFound} />
     </Switch>
   );

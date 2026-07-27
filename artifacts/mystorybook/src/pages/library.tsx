@@ -12,6 +12,7 @@ import {
   BookOpen, Plus, Trash2, Eye, Clock, CheckCircle,
   AlertCircle, Loader2, LayoutGrid, LogOut, LogIn, ShieldCheck,
 } from 'lucide-react';
+import { SupportButton } from '@/components/support-modal';
 
 // ── Admin check ───────────────────────────────────────────────────────────────
 function useIsAdmin() {
@@ -65,6 +66,7 @@ function UserMenu() {
           </Button>
         </Link>
       )}
+      <SupportButton />
       <Button
         variant="outline" size="sm" className="rounded-xl gap-2"
         onClick={() => signOut(() => setLocation('/'))}

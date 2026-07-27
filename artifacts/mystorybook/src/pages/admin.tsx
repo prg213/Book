@@ -2,9 +2,19 @@ import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import {
   ArrowLeft, BookOpen, Clock, CheckCircle, AlertCircle,
-  Loader2, Search, Users, Library,
+  Loader2, Search, Users, Library, MessageCircleQuestion, Mail,
 } from 'lucide-react';
 import { useUser } from '@clerk/react';
+
+interface AdminTicket {
+  id: string;
+  userId: string | null;
+  email: string;
+  subject: string;
+  message: string;
+  status: string;
+  createdAt: string;
+}
 
 interface AdminStory {
   id: string;
@@ -37,15 +47,24 @@ function StatusLabel({ status }: { status: string }) {
 
 export default function Admin() {
   const { isSignedIn, isLoaded } = useUser();
+  const [tab, setTab] = useState<'books' | 'tickets'>('books');
+
+  // ── Books state ──
   const [stories, setStories] = useState<AdminStory[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [search, setSearch] = useState('');
 
+  // ── Tickets state ──
+  const [tickets, setTickets] = useState<AdminTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+
+  const base = import.meta.env.BASE_URL;
+
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
-    fetch(`${import.meta.env.BASE_URL}api/admin/stories`)
+    fetch(`${base}api/admin/stories`)
       .then(async r => {
         if (r.status === 403) { setForbidden(true); setLoading(false); return; }
         const d = await r.json();
@@ -54,7 +73,26 @@ export default function Admin() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, base]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || tab !== 'tickets') return;
+    setTicketsLoading(true);
+    fetch(`${base}api/support/tickets`)
+      .then(async r => r.ok ? r.json() : { tickets: [] })
+      .then(d => setTickets(d.tickets ?? []))
+      .catch(() => {})
+      .finally(() => setTicketsLoading(false));
+  }, [isLoaded, isSignedIn, tab, base]);
+
+  const resolveTicket = async (id: string, status: string) => {
+    await fetch(`${base}api/support/tickets/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+  };
 
   const filtered = stories.filter(s => {
     if (!search) return true;
@@ -83,18 +121,41 @@ export default function Admin() {
       <div className="max-w-5xl mx-auto p-4 pt-6">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <Link href="/library">
             <button className="text-amber-300/60 hover:text-amber-200 rounded-full p-1">
               <ArrowLeft className="h-5 w-5" />
             </button>
           </Link>
           <div className="flex-1">
-            <h1 className="font-display text-xl font-bold text-amber-100">Admin — All Books</h1>
-            {!loading && !forbidden && (
-              <p className="text-amber-400/50 text-xs mt-0.5">{total} total books</p>
-            )}
+            <h1 className="font-display text-xl font-bold text-amber-100">Admin</h1>
           </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          {([
+            { key: 'books', label: 'Books', icon: Library },
+            { key: 'tickets', label: 'Support Tickets', icon: MessageCircleQuestion },
+          ] as const).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                tab === key
+                  ? 'bg-amber-600/30 text-amber-200 border border-amber-600/40'
+                  : 'bg-amber-950/40 text-amber-400/60 border border-amber-800/20 hover:text-amber-300'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+              {key === 'tickets' && tickets.filter(t => t.status === 'open').length > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  {tickets.filter(t => t.status === 'open').length}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* States */}
@@ -119,6 +180,64 @@ export default function Admin() {
               </button>
             </Link>
           </div>
+        ) : tab === 'tickets' ? (
+          /* ── Tickets panel ── */
+          ticketsLoading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-8 w-8 text-amber-400 animate-spin" />
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="text-center py-20">
+              <MessageCircleQuestion className="h-10 w-10 text-amber-700/30 mx-auto mb-3" />
+              <p className="text-amber-400/40">No support tickets yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tickets.map(ticket => (
+                <div key={ticket.id} className="bg-amber-950/40 border border-amber-800/20 rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          ticket.status === 'open' ? 'bg-red-500/20 text-red-300' :
+                          ticket.status === 'resolved' ? 'bg-green-500/20 text-green-300' :
+                          'bg-amber-800/30 text-amber-400/60'
+                        }`}>
+                          {ticket.status.toUpperCase()}
+                        </span>
+                        <span className="text-amber-200 text-sm font-semibold truncate">{ticket.subject}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-amber-400/50 text-xs">
+                        <Mail className="h-3 w-3" />
+                        <span>{ticket.email}</span>
+                        <span>·</span>
+                        <span>{new Date(ticket.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      {ticket.status !== 'resolved' && (
+                        <button
+                          onClick={() => resolveTicket(ticket.id, 'resolved')}
+                          className="text-[11px] px-2.5 py-1 rounded-lg bg-green-700/20 text-green-300 hover:bg-green-700/40 transition-colors"
+                        >
+                          Resolve
+                        </button>
+                      )}
+                      {ticket.status !== 'closed' && (
+                        <button
+                          onClick={() => resolveTicket(ticket.id, 'closed')}
+                          className="text-[11px] px-2.5 py-1 rounded-lg bg-amber-800/20 text-amber-400/60 hover:bg-amber-800/40 transition-colors"
+                        >
+                          Close
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-amber-300/70 text-sm leading-relaxed whitespace-pre-wrap">{ticket.message}</p>
+                </div>
+              ))}
+            </div>
+          )
         ) : (
           <>
             {/* Stats bar */}

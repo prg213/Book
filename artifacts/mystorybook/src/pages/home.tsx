@@ -3,6 +3,7 @@ import { useGetLibraryStats } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Image, Wand2, BookOpen } from 'lucide-react';
 import { useUser } from '@clerk/react';
+import { SupportButton } from '@/components/support-modal';
 
 export default function Home() {
   const { data: stats, isLoading } = useGetLibraryStats();
@@ -10,8 +11,12 @@ export default function Home() {
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-secondary/10 to-accent/10">
+      {/* Top bar */}
+      <div className="flex justify-end px-4 pt-4">
+        <SupportButton />
+      </div>
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16 md:py-24">
+      <div className="container mx-auto px-4 py-10 md:py-20">
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <div className="inline-block animate-float">
             <img
