@@ -3,6 +3,7 @@ import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid, Mic, Square, Play, Pause, Share2, Check } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
+import { useUser } from '@clerk/react';
 
 const isCapacitor = typeof (window as any).Capacitor !== 'undefined';
 
@@ -179,6 +180,8 @@ export default function Read() {
       queryKey: getGetStoryForReadingQueryKey(storyId),
     },
   });
+
+  const { isSignedIn } = useUser();
 
   const [currentPage, setCurrentPage] = useState(-1);
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -473,10 +476,10 @@ export default function Read() {
           className="absolute inset-0 pointer-events-none transition-opacity duration-300"
           style={{ opacity: overlayVisible ? 1 : 0 }}
         >
-          {/* Top-left: back button — offset by safe-area-inset-top so it clears the status bar */}
+          {/* Top-left: back button — only shown to signed-in users (owners) */}
           <button
             className="absolute left-3 pointer-events-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
-            style={{ top: 'calc(env(safe-area-inset-top) + 10px)', background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
+            style={{ top: 'calc(env(safe-area-inset-top) + 10px)', background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)', display: isSignedIn ? undefined : 'none' }}
             onClick={(e) => { e.stopPropagation(); setLocation('/library'); }}
             data-testid="button-back-library"
           >
@@ -487,23 +490,27 @@ export default function Read() {
           {/* Top-right: share + view contents + page label */}
           <div className="absolute right-3 flex items-center gap-2 pointer-events-auto"
             style={{ top: 'calc(env(safe-area-inset-top) + 10px)' }}>
-            <button
-              onClick={copyShareLink}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
-              style={{ background: 'rgba(0,0,0,0.6)', color: linkCopied ? '#86efac' : '#f5c97a', backdropFilter: 'blur(8px)', border: `1px solid ${linkCopied ? 'rgba(134,239,172,0.4)' : 'rgba(245,201,122,0.25)'}` }}
-              title="Copy share link"
-            >
-              {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-            </button>
-            <Link href={`/story-view?storyId=${storyId}`} onClick={(e) => e.stopPropagation()}>
-              <button
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
-                style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
-                title="View story contents"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-            </Link>
+            {isSignedIn && (
+              <>
+                <button
+                  onClick={copyShareLink}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                  style={{ background: 'rgba(0,0,0,0.6)', color: linkCopied ? '#86efac' : '#f5c97a', backdropFilter: 'blur(8px)', border: `1px solid ${linkCopied ? 'rgba(134,239,172,0.4)' : 'rgba(245,201,122,0.25)'}` }}
+                  title="Copy share link"
+                >
+                  {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                </button>
+                <Link href={`/story-view?storyId=${storyId}`} onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                    style={{ background: 'rgba(0,0,0,0.6)', color: '#f5c97a', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,201,122,0.25)' }}
+                    title="View story contents"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                </Link>
+              </>
+            )}
             <div
               className="px-3 py-2 rounded-xl text-xs font-medium tracking-wider uppercase"
               style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(245,201,122,0.7)', backdropFilter: 'blur(8px)' }}
@@ -620,33 +627,41 @@ export default function Read() {
       {/* Top bar — paddingTop pushes content below the system status bar */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 bg-[#120a05]/90 border-b border-amber-900/30"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 10px)' }}>
-        <Link href="/library">
-          <button className="flex items-center gap-1.5 text-amber-300/80 hover:text-amber-200 text-sm font-medium transition-colors" data-testid="button-back-library">
-            <ArrowLeft className="w-4 h-4" />
-            Library
-          </button>
-        </Link>
+        {isSignedIn ? (
+          <Link href="/library">
+            <button className="flex items-center gap-1.5 text-amber-300/80 hover:text-amber-200 text-sm font-medium transition-colors" data-testid="button-back-library">
+              <ArrowLeft className="w-4 h-4" />
+              Library
+            </button>
+          </Link>
+        ) : (
+          <div className="w-16" />
+        )}
         <span className="text-amber-200/50 text-xs font-medium tracking-wider truncate mx-4">
           {isCover ? story.title : isEndPage ? 'The End' : `Page ${currentPage + 1} of ${totalPages}`}
         </span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={copyShareLink}
-            className="flex items-center gap-1 transition-colors text-xs"
-            style={{ color: linkCopied ? '#86efac' : 'rgba(245,201,122,0.6)' }}
-            title="Copy share link"
-          >
-            {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-          </button>
-          <Link href={`/story-view?storyId=${storyId}`}>
+        {isSignedIn ? (
+          <div className="flex items-center gap-2">
             <button
-              className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs"
-              title="View story contents"
+              onClick={copyShareLink}
+              className="flex items-center gap-1 transition-colors text-xs"
+              style={{ color: linkCopied ? '#86efac' : 'rgba(245,201,122,0.6)' }}
+              title="Copy share link"
             >
-              <LayoutGrid className="w-4 h-4" />
+              {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
             </button>
-          </Link>
-        </div>
+            <Link href={`/story-view?storyId=${storyId}`}>
+              <button
+                className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs"
+                title="View story contents"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
+        ) : (
+          <div className="w-16" />
+        )}
       </div>
 
       {/* Book stage */}
