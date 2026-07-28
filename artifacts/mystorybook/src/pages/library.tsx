@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useClerk, useUser } from '@clerk/react';
 import {
   BookOpen, Plus, Trash2, Eye, Clock, CheckCircle,
-  AlertCircle, Loader2, LayoutGrid, LogOut, LogIn, ShieldCheck,
+  AlertCircle, Loader2, LayoutGrid, LogOut, LogIn, ShieldCheck, Share2,
 } from 'lucide-react';
 import { SupportButton } from '@/components/support-modal';
 
@@ -144,6 +144,16 @@ interface StoryCardProps {
 
 function StoryCard({ story, onDelete }: StoryCardProps) {
   const isActive = story.status === 'pending' || story.status === 'generating';
+  const [linkCopied, setLinkCopied] = useState(false);
+  const copyLink = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+    const url = `${window.location.origin}${base}/read?storyId=${story.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   // Live-poll status for in-progress stories; returns undefined for complete/error
   const liveStatus = useStoryLiveStatus(story.id, story.status);
@@ -269,6 +279,16 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
                     <Eye className="mr-2 h-4 w-4" /> Read
                   </Button>
                 </Link>
+                <Button
+                  variant="outline" size="icon"
+                  className="rounded-xl flex-shrink-0"
+                  title={linkCopied ? 'Link copied!' : 'Share book'}
+                  onClick={copyLink}
+                  data-testid={`button-share-${story.id}`}
+                  style={linkCopied ? { borderColor: '#86efac', color: '#16a34a' } : {}}
+                >
+                  {linkCopied ? <CheckCircle className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                </Button>
                 <Link href={`/story-view?storyId=${story.id}`}>
                   <Button
                     variant="outline" size="icon"

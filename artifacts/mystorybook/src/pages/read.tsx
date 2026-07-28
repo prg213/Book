@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid, Mic, Square, Play, Pause } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid, Mic, Square, Play, Pause, Share2, Check } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 
 const isCapacitor = typeof (window as any).Capacitor !== 'undefined';
@@ -183,6 +183,17 @@ export default function Read() {
   const [currentPage, setCurrentPage] = useState(-1);
   const [overlayVisible, setOverlayVisible] = useState(false);
   const overlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const copyShareLink = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+    const url = `${window.location.origin}${base}/read?storyId=${storyId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }).catch(() => {});
+  }, [storyId]);
 
   // ── Swipe-flip animation ─────────────────────────────────────────────────
   const [flipPhase, setFlipPhase] = useState<FlipPhase>('idle');
@@ -473,9 +484,17 @@ export default function Read() {
             Library
           </button>
 
-          {/* Top-right: page label + view contents button */}
+          {/* Top-right: share + view contents + page label */}
           <div className="absolute right-3 flex items-center gap-2 pointer-events-auto"
             style={{ top: 'calc(env(safe-area-inset-top) + 10px)' }}>
+            <button
+              onClick={copyShareLink}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+              style={{ background: 'rgba(0,0,0,0.6)', color: linkCopied ? '#86efac' : '#f5c97a', backdropFilter: 'blur(8px)', border: `1px solid ${linkCopied ? 'rgba(134,239,172,0.4)' : 'rgba(245,201,122,0.25)'}` }}
+              title="Copy share link"
+            >
+              {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+            </button>
             <Link href={`/story-view?storyId=${storyId}`} onClick={(e) => e.stopPropagation()}>
               <button
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
@@ -610,14 +629,24 @@ export default function Read() {
         <span className="text-amber-200/50 text-xs font-medium tracking-wider truncate mx-4">
           {isCover ? story.title : isEndPage ? 'The End' : `Page ${currentPage + 1} of ${totalPages}`}
         </span>
-        <Link href={`/story-view?storyId=${storyId}`}>
+        <div className="flex items-center gap-2">
           <button
-            className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs"
-            title="View story contents"
+            onClick={copyShareLink}
+            className="flex items-center gap-1 transition-colors text-xs"
+            style={{ color: linkCopied ? '#86efac' : 'rgba(245,201,122,0.6)' }}
+            title="Copy share link"
           >
-            <LayoutGrid className="w-4 h-4" />
+            {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
           </button>
-        </Link>
+          <Link href={`/story-view?storyId=${storyId}`}>
+            <button
+              className="flex items-center gap-1 text-amber-300/60 hover:text-amber-300 transition-colors text-xs"
+              title="View story contents"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* Book stage */}
