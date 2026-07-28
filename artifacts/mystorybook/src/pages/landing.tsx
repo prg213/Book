@@ -43,24 +43,26 @@ export default function Landing() {
         background: 'rgba(253,248,240,0.9)', backdropFilter: 'blur(16px)',
         borderBottom: '1px solid rgba(232,133,90,0.14)',
       }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 20px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src={`${BASE}app-icon.png`} alt="" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            <span style={{ fontFamily: 'Fredoka, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: '#1a0e08' }}>MyStoryBook</span>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          {/* Logo — icon always visible, text hidden on small screens */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <img src={`${BASE}app-icon.png`} alt="" style={{ width: 30, height: 30, borderRadius: 8 }} />
+            <span className="hidden sm:inline" style={{ fontFamily: 'Fredoka, sans-serif', fontWeight: 700, fontSize: '1.05rem', color: '#1a0e08', whiteSpace: 'nowrap' }}>MyStoryBook</span>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <SupportButton />
+          {/* Nav actions — Support hidden on mobile (available in page body) */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+            <span className="hidden sm:flex"><SupportButton /></span>
             {isLoaded && isSignedIn ? (
               <>
                 <Link href="/library">
-                  <button style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#6b4a30', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <BookOpen style={{ width: 15, height: 15 }} />
+                  <button style={{ padding: '7px 12px', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#6b4a30', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                    <BookOpen style={{ width: 14, height: 14 }} />
                     My Books
                   </button>
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  style={{ padding: '7px 16px', borderRadius: 10, border: '1.5px solid rgba(232,133,90,0.35)', background: 'transparent', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#6b4a30' }}
+                  style={{ padding: '7px 14px', borderRadius: 10, border: '1.5px solid rgba(232,133,90,0.35)', background: 'transparent', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#6b4a30', whiteSpace: 'nowrap' }}
                 >
                   Sign out
                 </button>
@@ -68,13 +70,13 @@ export default function Landing() {
             ) : (
               <>
                 <Link href="/sign-in">
-                  <button style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#6b4a30' }}>
+                  <button style={{ padding: '7px 12px', borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#6b4a30', whiteSpace: 'nowrap' }}>
                     Sign in
                   </button>
                 </Link>
                 <button
                   onClick={handleGetStarted}
-                  style={{ padding: '7px 16px', borderRadius: 10, border: 'none', background: '#e8855a', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(232,133,90,0.3)' }}
+                  style={{ padding: '7px 14px', borderRadius: 10, border: 'none', background: '#e8855a', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#fff', boxShadow: '0 2px 8px rgba(232,133,90,0.3)', whiteSpace: 'nowrap' }}
                 >
                   Get started
                 </button>
