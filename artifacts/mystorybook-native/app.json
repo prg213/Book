@@ -16,10 +16,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.mystorybook.native"
+      "bundleIdentifier": "com.mystorybook.app"
     },
     "android": {
-      "package": "com.mystorybook.native"
+      "package": "com.mystorybook.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
