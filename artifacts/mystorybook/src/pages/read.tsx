@@ -128,8 +128,11 @@ function usePageAudio(storyId: string, audioKey: string) {
   }, []);
 
   // ── Unified API ───────────────────────────────────────────────────────────────
-  const startRecording = isCapacitor ? startRecordingNative : startRecordingWeb;
-  const stopRecording  = isCapacitor ? stopRecordingNative  : stopRecordingWeb;
+  // Check the plugin is actually registered — window.Capacitor can exist in a
+  // browser context without the native AudioRecorder plugin being available.
+  const hasNativeAudio = isCapacitor && !!(window as any).Capacitor?.Plugins?.AudioRecorder;
+  const startRecording = hasNativeAudio ? startRecordingNative : startRecordingWeb;
+  const stopRecording  = hasNativeAudio ? stopRecordingNative  : stopRecordingWeb;
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current) audioRef.current = new Audio();
@@ -577,16 +580,18 @@ export default function Read() {
           {!isEndPage && (
             <>
               <div style={{ width: '1px', height: '20px', background: 'rgba(245,201,122,0.2)', margin: '0 2px' }} />
-              <button
-                onClick={(e) => { e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }}
-                className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-                style={{ background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.15)', border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.3)' }}
-                title={isRecording ? 'Stop recording' : 'Record narration'}
-              >
-                {isRecording
-                  ? <Square className="w-3 h-3 text-white fill-white" />
-                  : <Mic className="w-3.5 h-3.5" style={{ color: '#f5c97a' }} />}
-              </button>
+              {isSignedIn && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); isRecording ? stopRecording() : startRecording(); }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                  style={{ background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.15)', border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.3)' }}
+                  title={isRecording ? 'Stop recording' : 'Record narration'}
+                >
+                  {isRecording
+                    ? <Square className="w-3 h-3 text-white fill-white" />
+                    : <Mic className="w-3.5 h-3.5" style={{ color: '#f5c97a' }} />}
+                </button>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); togglePlay(); }}
                 disabled={!hasRecording}
@@ -678,21 +683,23 @@ export default function Read() {
       {/* Audio controls */}
       {!isEndPage && (
         <div className="flex-shrink-0 flex items-center justify-center gap-3 pb-1">
-          {/* Record / Stop */}
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
-            style={{
-              background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.12)',
-              border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.25)',
-            }}
-            title={isRecording ? 'Stop recording' : 'Record narration'}
-          >
-            {isRecording
-              ? <Square className="w-4 h-4 text-white fill-white" />
-              : <Mic className="w-4 h-4" style={{ color: '#f5c97a' }} />}
-          </button>
-          {/* Play / Pause */}
+          {/* Record / Stop — only shown to signed-in owners */}
+          {isSignedIn && (
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+              style={{
+                background: isRecording ? '#ef4444' : 'rgba(245,201,122,0.12)',
+                border: isRecording ? 'none' : '1px solid rgba(245,201,122,0.25)',
+              }}
+              title={isRecording ? 'Stop recording' : 'Record narration'}
+            >
+              {isRecording
+                ? <Square className="w-4 h-4 text-white fill-white" />
+                : <Mic className="w-4 h-4" style={{ color: '#f5c97a' }} />}
+            </button>
+          )}
+          {/* Play / Pause — always visible */}
           <button
             onClick={togglePlay}
             disabled={!hasRecording}
