@@ -34,6 +34,7 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+import { shareOrigin } from '@/lib/share';
 
 // ── User menu (sign-in / sign-out) ───────────────────────────────────────────
 function UserMenu() {
@@ -148,7 +149,7 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
   const copyLink = (e: React.MouseEvent) => {
     e.preventDefault();
     const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-    const url = `${window.location.origin}${base}/read?storyId=${story.id}`;
+    const url = `${shareOrigin()}${base}/read?storyId=${story.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen, LayoutGrid, Mic, Square, Play, Pause, Share2, Check } from 'lucide-react';
+import { shareOrigin } from '@/lib/share';
 import { Link, useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
 
@@ -194,7 +195,7 @@ export default function Read() {
   const copyShareLink = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-    const url = `${window.location.origin}${base}/read?storyId=${storyId}`;
+    const url = `${shareOrigin()}${base}/read?storyId=${storyId}`;
     navigator.clipboard.writeText(url).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
