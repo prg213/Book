@@ -56,23 +56,25 @@ function UserMenu() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2">
       <span className="text-sm text-muted-foreground hidden md:block">
         {user.firstName ?? user.emailAddresses[0]?.emailAddress}
       </span>
       {isAdmin && (
         <Link href="/admin">
-          <Button variant="outline" size="sm" className="rounded-xl gap-2">
-            <ShieldCheck className="h-4 w-4" /> Admin
+          <Button variant="outline" size="sm" className="rounded-xl gap-1.5 sm:gap-2 px-2.5 sm:px-3">
+            <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Admin</span>
           </Button>
         </Link>
       )}
       <SupportButton />
       <Button
-        variant="outline" size="sm" className="rounded-xl gap-2"
+        variant="outline" size="sm" className="rounded-xl gap-1.5 sm:gap-2 px-2.5 sm:px-3"
         onClick={() => signOut(() => setLocation('/'))}
       >
-        <LogOut className="h-4 w-4" /> Sign out
+        <LogOut className="h-4 w-4 flex-shrink-0" />
+        <span className="hidden sm:inline">Sign out</span>
       </Button>
     </div>
   );
@@ -413,11 +415,13 @@ export default function Library() {
             <h1 className="font-display text-5xl font-bold mb-2">Your Story Library</h1>
             <p className="text-muted-foreground text-lg">All your magical adventures in one place</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
             <UserMenu />
             <Link href="/create">
               <Button size="lg" className="rounded-xl font-display" data-testid="button-create-new">
-                <Plus className="mr-2 h-5 w-5" /> Create New Story
+                <Plus className="mr-1.5 h-5 w-5" />
+                <span className="hidden sm:inline">Create New Story</span>
+                <span className="sm:hidden">Create</span>
               </Button>
             </Link>
           </div>

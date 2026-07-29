@@ -37,7 +37,7 @@ export function SupportButton() {
         }}
       >
         <MessageCircleQuestion style={{ width: 15, height: 15, flexShrink: 0 }} />
-        Support
+        <span className="hidden sm:inline">Support</span>
       </button>
       {open && <SupportModal onClose={() => setOpen(false)} />}
     </>
