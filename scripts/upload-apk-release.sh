@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-BUILD_ID="52091367-5ff5-4f2b-af9e-d728ef75fc8f"
+BUILD_ID="2085e969-9fbf-42e3-9010-631acc4f5bf4"
 GITHUB_REPO="prg213/Book"
 APK_PATH="/tmp/mystorybook.apk"
 VERSION="v1.0.0-$(date +%Y%m%d)"

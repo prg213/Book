@@ -1,0 +1,7 @@
+node_modules/
+.expo/
+static-build/
+*.log
+*.map
+android/
+ios/
