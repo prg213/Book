@@ -881,11 +881,11 @@ function PortraitCover({ story, firstPage, isOpening }: {
                 <img src={story.coverImageUrl} alt={story.title} draggable={false}
                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
               )}
-              {/* Title at bottom */}
+              {/* Title at top */}
               <div style={{
-                position: 'absolute', bottom: 0, left: 0, right: 0,
-                padding: '28px 14px 13px',
-                background: 'linear-gradient(transparent,rgba(0,0,0,0.84))',
+                position: 'absolute', top: 0, left: 0, right: 0,
+                padding: '13px 14px 28px',
+                background: 'linear-gradient(rgba(0,0,0,0.84),transparent)',
                 pointerEvents: 'none',
               }}>
                 <p style={{
@@ -1079,9 +1079,9 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
                     <BookOpen className="w-16 h-16 text-amber-200 opacity-40" />
                   </div>
                 )}
-                {/* Title */}
-                <div style={{ position:'absolute',bottom:0,left:0,right:0,padding:'28px 14px 14px',
-                  background:'linear-gradient(transparent,rgba(0,0,0,0.84))',pointerEvents:'none' }}>
+                {/* Title at top */}
+                <div style={{ position:'absolute',top:0,left:0,right:0,padding:'14px 14px 28px',
+                  background:'linear-gradient(rgba(0,0,0,0.84),transparent)',pointerEvents:'none' }}>
                   <p style={{ textAlign:'center',color:'#fff',fontWeight:800,margin:0,
                     fontSize:'clamp(0.8rem,2.8vw,1.1rem)',lineHeight:1.2,
                     textShadow:'0 1px 8px rgba(0,0,0,0.99)' }}>
