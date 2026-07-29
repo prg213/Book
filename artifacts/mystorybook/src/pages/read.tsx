@@ -1342,7 +1342,7 @@ function OpenBookPortrait({ story, page, pageNumber, totalPages }: any) {
         {page?.imageUrl ? (
           <img src={page.imageUrl} alt={`Page ${pageNumber}`}
             className="w-full h-full"
-            style={{ objectFit: 'cover', objectPosition: 'center top' }}
+            style={{ objectFit: 'cover', objectPosition: 'center' }}
             data-testid={`img-page-${pageNumber}`} draggable={false} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-amber-800/30">

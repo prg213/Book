@@ -28,7 +28,7 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
     const out = `/tmp/img-out-${Date.now()}.png`;
     await writeFile(tmp, buf);
 
-    const args = [tmp, "-fuzz", "10%", "-trim", "+repage"];
+    const args = [tmp, "-fuzz", "18%", "-trim", "+repage"];
 
     if (toSquare) {
       args.push(

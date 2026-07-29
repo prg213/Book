@@ -36,7 +36,16 @@ const TITLE_SUGGESTIONS: Record<string, (name: string) => string[]> = {
   'winter wonderland':      (n) => [`${n}'s Snow Day`, `${n} & the Snowman`, `${n} in the Snow`],
   'desert safari':          (n) => [`${n}'s Safari`, `${n} in the Desert`, `${n} & the Camel`],
   'robot city':             (n) => [`${n} & the Robots`, `${n}'s Robot Day`, `${n} in Robot City`],
-  custom:                   (n) => [`${n}'s Adventure`, `${n}'s Big Day`, `${n} Explores`],
+  birthday:         (n) => [`${n}'s Birthday Bash`, `Happy Birthday ${n}!`, `${n}'s Special Day`],
+  christmas:        (n) => [`${n}'s Christmas Magic`, `${n} & Santa's Quest`, `${n}'s Christmas Wish`],
+  'valentines day': (n) => [`${n}'s Valentine Adventure`, `${n}'s Heart Story`, `Love & ${n}`],
+  wedding:          (n) => [`${n}'s Wedding Day`, `${n} Gets Married`, `The Big Day for ${n}`],
+  anniversary:      (n) => [`${n}'s Love Story`, `Together Always: ${n}`, `${n}'s Anniversary`],
+  'new baby':       (n) => [`Welcome, Baby ${n}!`, `${n}'s Tiny Adventure`, `${n} Meets the World`],
+  graduation:       (n) => [`${n} Graduates!`, `${n}'s Big Achievement`, `The Graduate: ${n}`],
+  halloween:        (n) => [`${n}'s Halloween Adventure`, `${n} & the Spooky Night`, `Trick or Treat with ${n}`],
+  easter:           (n) => [`${n}'s Easter Egg Hunt`, `${n} & the Easter Bunny`, `${n}'s Spring Adventure`],
+  custom:           (n) => [`${n}'s Adventure`, `${n}'s Big Day`, `${n} Explores`],
 };
 
 function pickTitle(theme: string, name: string, suggestionIndex: number): string {
@@ -246,6 +255,78 @@ const OUTFIT_OPTIONS: Record<string, Array<{ emoji: string; label: string; value
     { emoji: '🛡️', label: 'AI Guardian', value: 'AI guardian armour with energy shield projector and circuit patterns' },
     { emoji: '🔧', label: 'Gadget Gear', value: 'inventor gadget gear overalls with multitool belt and spark-proof gloves' },
     { emoji: '⚡', label: 'Circuit Costume', value: 'glowing circuit-pattern costume with LED accents and power core badge' },
+  ],
+  birthday: [
+    { emoji: '🎂', label: 'Birthday Star', value: 'colourful birthday outfit with party hat, star-print sash, and balloon wristband' },
+    { emoji: '👑', label: 'Birthday Crown', value: 'festive birthday crown with glitter tutu skirt or party trousers and confetti accessories' },
+    { emoji: '🎀', label: 'Party Dress', value: 'pretty party dress with ribbon sash, birthday badge, and sparkle shoes' },
+    { emoji: '🎉', label: 'Party Suit', value: 'smart party suit with bow tie, birthday badge, and confetti pocket square' },
+    { emoji: '🌟', label: 'Cake Baker', value: "baker's apron with birthday cake print, party hat, and candle accessories" },
+    { emoji: '🎈', label: 'Balloon Keeper', value: 'cheerful outfit with balloon-print top, coloured shorts, and rainbow trainers' },
+  ],
+  christmas: [
+    { emoji: '🎅', label: 'Santa Suit', value: 'mini Santa suit with red coat, white fur trim, black belt, and Santa hat' },
+    { emoji: '🧝', label: 'Elf Costume', value: "colourful Christmas elf costume with green tunic, red tights, jingle bells, and curly elf shoes" },
+    { emoji: '❄️', label: 'Winter Cosy', value: 'cosy winter outfit with chunky knit jumper, plaid scarf, warm mittens, and snow boots' },
+    { emoji: '🦌', label: 'Reindeer Outfit', value: 'brown reindeer costume with antler headband, red nose, and fluffy tail' },
+    { emoji: '⭐', label: 'Christmas Star', value: 'sparkling gold star costume with glitter tutu and star wand' },
+    { emoji: '🎄', label: 'Festive Pyjamas', value: 'cosy Christmas pyjamas with tree and snowflake print, warm socks, and hot-cocoa mug' },
+  ],
+  'valentines day': [
+    { emoji: '💝', label: 'Heart Dress', value: 'pink and red heart-print dress with rose accessories and glitter ballet flats' },
+    { emoji: '💌', label: 'Love Messenger', value: 'smart red outfit with heart-print bow tie, envelope satchel, and cupid wings' },
+    { emoji: '🌹', label: 'Rose Prince/ess', value: 'romantic rose-red gown or suit with rose crown, heart locket, and satin gloves' },
+    { emoji: '🏹', label: 'Cupid Costume', value: 'cute cupid costume with white tunic, feathered wings, golden bow and arrow, and halo' },
+    { emoji: '🍫', label: 'Chocolate Maker', value: 'pink baker outfit with heart-print apron, chocolate box prop, and chef hat' },
+    { emoji: '💕', label: 'Cosy Valentines', value: 'cosy pink jumper with heart pattern, heart-shaped sunglasses, and love-letter satchel' },
+  ],
+  wedding: [
+    { emoji: '👰', label: 'Wedding Dress', value: 'beautiful white wedding dress with lace veil, floral bouquet, and pearl accessories' },
+    { emoji: '🤵', label: 'Wedding Suit', value: 'smart wedding suit with bow tie, white pocket square, and boutonnière' },
+    { emoji: '💐', label: 'Flower Girl/Boy', value: 'pretty flower-girl dress with flower crown and petal basket, or smart page boy suit' },
+    { emoji: '🎩', label: 'Best Man', value: 'dapper best man suit with top hat, cane, and matching buttonhole flower' },
+    { emoji: '👑', label: 'Princess Bride', value: 'fairy-tale princess wedding gown with tiara, long veil, and sparkling accessories' },
+    { emoji: '🕊️', label: 'Ring Bearer', value: 'adorable ring bearer outfit with miniature suit, ring cushion, and satin bow tie' },
+  ],
+  anniversary: [
+    { emoji: '💕', label: 'Romantic Gown', value: 'elegant romantic gown with floral accessories, pearl jewellery, and satin gloves' },
+    { emoji: '🌹', label: 'Rose Suit', value: 'classic anniversary suit with rose boutonnière, matching tie, and polished shoes' },
+    { emoji: '✨', label: 'Sparkle Outfit', value: 'sparkling celebration outfit with sequin details, champagne-flute accessory, and heels' },
+    { emoji: '🥂', label: 'Celebration Wear', value: 'elegant celebration dress or suit with golden accessories and anniversary sash' },
+    { emoji: '💍', label: 'Diamond Dress', value: 'diamond-white gown with crystal accessories, elegant up-do, and strappy heels' },
+    { emoji: '🌸', label: 'Garden Party', value: 'floral garden-party dress with flower crown, wicker basket, and pastel accessories' },
+  ],
+  'new baby': [
+    { emoji: '👶', label: 'Baby Onesie', value: 'adorable star-print baby onesie with soft booties and knitted hat' },
+    { emoji: '🐣', label: 'Baby Animal', value: 'cute baby animal costume (duckling or bunny) with soft ears and fluffy tummy' },
+    { emoji: '🌙', label: 'Sleepy PJs', value: 'soft moon-and-stars pyjamas with sleep cap and cuddly toy accessory' },
+    { emoji: '🦋', label: 'Butterfly Baby', value: 'pastel butterfly costume with tiny wings, flower headband, and soft shoes' },
+    { emoji: '🍼', label: 'Nursery Outfit', value: 'sweet pastel nursery outfit with bib, nappy bag, and rattle accessory' },
+    { emoji: '🌈', label: 'Rainbow Romper', value: 'cheerful rainbow-stripe romper with cloud-print socks and sun-visor hat' },
+  ],
+  graduation: [
+    { emoji: '🎓', label: 'Gown & Cap', value: 'classic graduation gown with mortarboard cap, diploma scroll, and honour sash' },
+    { emoji: '⭐', label: 'Scholar Star', value: 'smart blazer with gold star badge, graduation cap, and achievement medal' },
+    { emoji: '📚', label: 'Book Lover', value: 'academic outfit with stack-of-books prop, round glasses, and university scarf' },
+    { emoji: '🏆', label: 'Champion', value: 'graduation gown with trophy, confetti, and champion sash' },
+    { emoji: '🌟', label: 'Future Leader', value: 'future-leader outfit with holographic briefcase, graduation cap, and innovation badge' },
+    { emoji: '🎉', label: 'Grad Party', value: 'celebration outfit with party hat, diploma, graduation gown, and confetti poppers' },
+  ],
+  halloween: [
+    { emoji: '🧛', label: 'Vampire', value: 'dramatic vampire cape with high collar, fangs, slicked-back hair, and medallion' },
+    { emoji: '🧙', label: 'Witch/Wizard', value: 'classic witch or wizard costume with pointed hat, broomstick, and cauldron prop' },
+    { emoji: '🦇', label: 'Bat Costume', value: 'black bat costume with wing cape, pointy ears headband, and glow-in-dark accessories' },
+    { emoji: '🎃', label: 'Pumpkin Suit', value: 'round orange pumpkin costume with green stem hat and jack-o-lantern smile' },
+    { emoji: '👻', label: 'Friendly Ghost', value: 'friendly ghost costume with white sheet, big eye holes, and candy-bucket accessory' },
+    { emoji: '🕷️', label: 'Spider Hero', value: 'spider superhero costume with web-print suit, mask, and web-shooter accessories' },
+  ],
+  easter: [
+    { emoji: '🐰', label: 'Easter Bunny', value: 'adorable Easter bunny costume with white fluffy ears, pink nose, and egg basket' },
+    { emoji: '🌷', label: 'Spring Dress', value: 'pretty spring dress with tulip print, flower crown, and pastel accessories' },
+    { emoji: '🐣', label: 'Baby Chick', value: 'yellow chick costume with fluffy wings, orange beak hat, and hatching egg prop' },
+    { emoji: '🥚', label: 'Egg Hunter', value: 'colourful egg-hunter outfit with striped top, wicker basket, and magnifying glass' },
+    { emoji: '🌸', label: 'Spring Lamb', value: 'fluffy white lamb costume with woolly suit, floppy ears, and spring flower posy' },
+    { emoji: '🦋', label: 'Butterfly', value: 'beautiful butterfly costume with pastel wings, flower headband, and dewdrop accessories' },
   ],
   custom: [
     { emoji: '🦸', label: 'Hero Outfit', value: 'custom hero outfit with personalised cape and unique emblem' },
@@ -801,8 +882,15 @@ export default function Create() {
                       <SelectValue placeholder="Who is this for?" />
                     </SelectTrigger>
                     <SelectContent>
-                      {['friend','sibling','parent','child','pet','grandparent','cousin'].map(r => (
-                        <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                      {[
+                        ['wife','Wife 💍'],['husband','Husband 💍'],
+                        ['girlfriend','Girlfriend 💕'],['boyfriend','Boyfriend 💕'],
+                        ['child','Child 🧒'],['parent','Parent 👨‍👩‍👧'],
+                        ['sibling','Sibling 👫'],['friend','Friend 🤝'],
+                        ['grandparent','Grandparent 👴👵'],['cousin','Cousin'],
+                        ['pet','Pet 🐾'],
+                      ].map(([v,l]) => (
+                        <SelectItem key={v} value={v}>{l}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -816,8 +904,15 @@ export default function Create() {
                         <SelectValue placeholder="Their relationship" />
                       </SelectTrigger>
                       <SelectContent>
-                        {['friend','sibling','parent','child','pet','grandparent','cousin'].map(r => (
-                          <SelectItem key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                        {[
+                          ['wife','Wife 💍'],['husband','Husband 💍'],
+                          ['girlfriend','Girlfriend 💕'],['boyfriend','Boyfriend 💕'],
+                          ['child','Child 🧒'],['parent','Parent 👨‍👩‍👧'],
+                          ['sibling','Sibling 👫'],['friend','Friend 🤝'],
+                          ['grandparent','Grandparent 👴👵'],['cousin','Cousin'],
+                          ['pet','Pet 🐾'],
+                        ].map(([v,l]) => (
+                          <SelectItem key={v} value={v}>{l}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -857,6 +952,15 @@ export default function Create() {
                         ['winter wonderland','❄️ Winter Wonderland'],
                         ['desert safari','🏜️ Desert Safari'],
                         ['robot city','🤖 Robot City'],
+                        ['birthday','🎂 Birthday Celebration'],
+                        ['christmas','🎄 Christmas Magic'],
+                        ['valentines day','💝 Valentine\'s Day'],
+                        ['wedding','💍 Wedding Day'],
+                        ['anniversary','💕 Anniversary'],
+                        ['new baby','👶 New Baby'],
+                        ['graduation','🎓 Graduation'],
+                        ['halloween','🎃 Halloween'],
+                        ['easter','🐣 Easter'],
                         ['custom','✏️ Custom Theme'],
                       ].map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                     </SelectContent>
