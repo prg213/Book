@@ -10,7 +10,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "mystorybook.world"
+        "EXPO_PUBLIC_DOMAIN": "mystorybook.world",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_bWFnaWNhbC1tYWtvLTU4LmNsZXJrLmFjY291bnRzLmRldiQ"
       }
     },
     "production": {
@@ -18,7 +19,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "mystorybook.world"
+        "EXPO_PUBLIC_DOMAIN": "mystorybook.world",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_bWFnaWNhbC1tYWtvLTU4LmNsZXJrLmFjY291bnRzLmRldiQ"
       }
     }
   },
