@@ -1,0 +1,11 @@
+# Exclude large files that are not needed for the native app build
+attached_assets/
+artifacts/api-server/uploads/
+artifacts/api-server/dist/
+artifacts/mystorybook/dist/
+artifacts/mockup-sandbox/dist/
+
+# Exclude all per-artifact node_modules (root node_modules is already handled by mystorybook-native/.easignore)
+artifacts/api-server/node_modules/
+artifacts/mystorybook/node_modules/
+artifacts/mockup-sandbox/node_modules/
