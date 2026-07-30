@@ -60,10 +60,11 @@
   "dependencies": {
     "@clerk/expo": "^4.1.1",
     "@expo-google-fonts/fredoka-one": "^0.2.3",
+    "expo": "~54.0.36",
     "expo-auth-session": "~7.0.11",
+    "expo-build-properties": "^1.0.10",
     "expo-crypto": "~15.0.9",
     "expo-secure-store": "~15.0.8",
-    "expo": "~54.0.36",
     "react": "19.1.0",
     "react-native": "0.81.5"
   }
