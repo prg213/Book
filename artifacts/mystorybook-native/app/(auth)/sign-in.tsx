@@ -69,14 +69,13 @@ export default function SignInScreen() {
         redirectUrl: AuthSession.makeRedirectUri({ scheme: 'mystorybook-native' }),
       });
       if (createdSessionId && setActive) {
-        // Existing account — activate session and navigate
+        // Activate the session — (auth)/_layout.tsx's isSignedIn guard
+        // will redirect to /(tabs) automatically once Clerk state settles.
+        // Do NOT call router.replace here: it races with the state update
+        // and (tabs)/_layout.tsx will bounce you back to sign-in.
         await setActive({ session: createdSessionId });
-        router.replace('/(tabs)');
       } else if (signUp?.status === 'missing_requirements') {
-        // New Google user — profile is complete enough, try to finalize
-        if (signUp.status === 'missing_requirements' && signUp.missingFields?.length === 0) {
-          await signUp.update({});
-        }
+        // New Google user — nothing missing, session should already be active
         // AuthLayout's isSignedIn guard will redirect once session is active
       } else if (signIn?.status === 'needs_first_factor' || signIn?.status === 'needs_second_factor') {
         setErrorMsg('Additional verification required. Please sign in with email instead.');
