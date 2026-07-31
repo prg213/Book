@@ -11,7 +11,6 @@ import {
   ScrollView,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
 import { useSSO, useSignIn, useSignUp } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -66,7 +65,9 @@ export default function SignInScreen() {
       setErrorMsg('');
       const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
         strategy: 'oauth_google',
-        redirectUrl: AuthSession.makeRedirectUri({ scheme: 'mystorybook-native' }),
+        // No custom redirectUrl — the @clerk/expo plugin registers its own
+        // clerk:// scheme in AndroidManifest and handles the OAuth callback.
+        // Overriding with mystorybook-native:// sent the callback to the wrong handler.
       });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });

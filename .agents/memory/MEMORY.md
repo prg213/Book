@@ -2,3 +2,4 @@
 - [Luma Agents API](luma-agents-api.md) — platform.lumalabs.ai keys need agents.lumalabs.ai/v1, NOT the old dream-machine endpoint
 - [Clerk OAuth in Capacitor](clerk-capacitor-oauth.md) — redirectUrlComplete is invalid for signIn.create(); Clerk swallows the 422, making OAuth fail silently
 - [Clerk Expo Gradle Kotlin fix](clerk-expo-gradle-kotlin-fix.md) — must add "@clerk/expo" to app.json plugins or Kotlin 2.3.x metadata mismatch silently breaks Gradle
+- [Clerk Expo OAuth redirect URL](clerk-expo-oauth-redirect.md) — never pass custom redirectUrl to startSSOFlow with shared Clerk credentials; @clerk/expo uses clerk:// scheme internally
