@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
 import { useAuth } from '@clerk/expo';
@@ -88,14 +88,34 @@ function ClassicTabLayout() {
 
 export default function TabLayout() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
+  const router = useRouter();
+  // Track whether we've seen isSignedIn:true at least once since mount.
+  // This prevents an immediate bounce-back to sign-in if Clerk's context
+  // hasn't fully propagated yet when the tab navigator first mounts.
+  const everSignedIn = useRef(false);
 
   // Wire up bearer token for all API calls (mobile has no cookie jar)
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
 
+  useEffect(() => {
+    if (isSignedIn) {
+      everSignedIn.current = true;
+    }
+    // Only redirect to sign-in once we're sure the user is not signed in:
+    // - Clerk must have finished loading (isLoaded)
+    // - We must have never seen an authenticated state (avoids bounce-back
+    //   on initial mount before Clerk propagates the new session)
+    if (isLoaded && !isSignedIn && everSignedIn.current) {
+      router.replace('/(auth)/sign-in');
+    }
+  }, [isLoaded, isSignedIn]);
+
   if (!isLoaded) return null;
-  if (!isSignedIn) return <Redirect href={'/(auth)/sign-in' as any} />;
+  // If not signed in yet, return null and let the useEffect handle redirect.
+  // This prevents a premature redirect before Clerk's session propagates.
+  if (!isSignedIn) return null;
 
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
