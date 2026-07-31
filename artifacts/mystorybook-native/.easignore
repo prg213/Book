@@ -5,3 +5,13 @@ static-build/
 *.map
 android/
 ios/
+
+# Monorepo large files not needed for the native build
+attached_assets/
+artifacts/api-server/uploads/
+artifacts/api-server/dist/
+artifacts/api-server/node_modules/
+artifacts/mystorybook/dist/
+artifacts/mystorybook/node_modules/
+artifacts/mockup-sandbox/dist/
+artifacts/mockup-sandbox/node_modules/
