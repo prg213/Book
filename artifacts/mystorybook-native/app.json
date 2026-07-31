@@ -33,19 +33,7 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "@clerk/expo",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
-            "minSdkVersion": 24,
-            "extraMavenRepos": [],
-            "kotlinVersion": "2.0.21"
-          }
-        }
-      ]
+      "@clerk/expo"
     ],
     "experiments": {
       "typedRoutes": true,
