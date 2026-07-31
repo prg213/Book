@@ -44,6 +44,27 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
 }
 
+/**
+ * Returns the currently configured base URL, or null if none is set.
+ * Useful for converting relative API paths (e.g. /api/images/...) to
+ * absolute URLs in environments without a browser base (e.g. React Native).
+ */
+export function getBaseUrl(): string | null {
+  return _baseUrl;
+}
+
+/**
+ * Converts a potentially relative API path to an absolute URL.
+ * Relative paths starting with "/" are prepended with the configured base URL.
+ * Absolute URLs and null values are returned as-is.
+ */
+export function resolveAbsoluteUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/") && _baseUrl) return `${_baseUrl}${url}`;
+  return url;
+}
+
 function isRequest(input: RequestInfo | URL): input is Request {
   return typeof Request !== "undefined" && input instanceof Request;
 }

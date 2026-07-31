@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { useListStories } from '@workspace/api-client-react';
+import { useListStories, resolveAbsoluteUrl } from '@workspace/api-client-react';
 import type { Story } from '@workspace/api-client-react';
 
 function StoryCard({ story }: { story: Story }) {
@@ -35,7 +35,7 @@ function StoryCard({ story }: { story: Story }) {
         {/* Cover */}
         <View style={[styles.coverArea, { backgroundColor: colors.muted }]}>
           {story.coverImageUrl ? (
-            <Image source={{ uri: story.coverImageUrl }} style={styles.coverImage} resizeMode="cover" />
+            <Image source={{ uri: resolveAbsoluteUrl(story.coverImageUrl) ?? undefined }} style={styles.coverImage} resizeMode="cover" />
           ) : (
             <View style={styles.coverPlaceholder}>
               <Ionicons name="book" size={36} color={colors.mutedForeground} />
@@ -103,7 +103,7 @@ export default function LibraryScreen() {
       <Ionicons name="library-outline" size={64} color={colors.mutedForeground} />
       <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No stories yet</Text>
       <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
-        Open the web app to create your first personalised storybook.
+        Your stories will appear here. Open the web app and make sure you're signed in with the same Google account — your stories will sync automatically.
       </Text>
     </View>
   );

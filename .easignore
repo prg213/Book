@@ -1,6 +1,7 @@
 # Deps are re-installed by EAS on the build server; exclude all local node_modules
 node_modules/
 .pnpm-store/
+.local/
 
 # Expo / build artefacts
 .expo/

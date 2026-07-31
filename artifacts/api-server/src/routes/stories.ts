@@ -106,6 +106,9 @@ function ownerFilter(userId: string | null, sessionId?: string) {
 router.get("/stories", async (req: any, res: any): Promise<void> => {
   const userId = getUserId(req);
   const sessionId = getSessionId(req, res);
+  // Log auth mode so we can diagnose native-app Bearer token issues
+  const hasBearer = !!req.headers?.authorization?.startsWith?.("Bearer ");
+  logger.info({ userId, sessionId: sessionId.slice(0, 8), hasBearer }, "GET /stories auth");
   if (userId) await migrateLegacyStories(userId, sessionId);
   const rows = await db
     .select()

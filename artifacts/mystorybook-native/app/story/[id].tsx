@@ -16,7 +16,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGetStoryForReading } from '@workspace/api-client-react';
+import { useGetStoryForReading, resolveAbsoluteUrl } from '@workspace/api-client-react';
 import type { StoryPage } from '@workspace/api-client-react';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -71,7 +71,7 @@ export default function StoryReaderScreen() {
           <View style={[styles.coverPage, { backgroundColor: colors.muted }]}>
             {data.story.coverImageUrl ? (
               <Image
-                source={{ uri: data.story.coverImageUrl }}
+                source={{ uri: resolveAbsoluteUrl(data.story.coverImageUrl) ?? undefined }}
                 style={styles.coverFullImage}
                 resizeMode="cover"
               />
@@ -95,7 +95,7 @@ export default function StoryReaderScreen() {
       <View style={[styles.page, { width: SCREEN_WIDTH, backgroundColor: colors.background }]}>
         {p.imageUrl && (
           <Image
-            source={{ uri: p.imageUrl }}
+            source={{ uri: resolveAbsoluteUrl(p.imageUrl) ?? undefined }}
             style={styles.pageImage}
             resizeMode="cover"
           />

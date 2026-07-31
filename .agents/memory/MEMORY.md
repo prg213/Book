@@ -3,3 +3,4 @@
 - [Clerk OAuth in Capacitor](clerk-capacitor-oauth.md) — redirectUrlComplete is invalid for signIn.create(); Clerk swallows the 422, making OAuth fail silently
 - [Clerk Expo Gradle Kotlin fix](clerk-expo-gradle-kotlin-fix.md) — must add "@clerk/expo" to app.json plugins or Kotlin 2.3.x metadata mismatch silently breaks Gradle
 - [Clerk Expo OAuth redirect URL](clerk-expo-oauth-redirect.md) — never pass custom redirectUrl to startSSOFlow with shared Clerk credentials; @clerk/expo uses clerk:// scheme internally
+- [EAS easignore pnpm store](eas-easignore-pnpm-store.md) — must exclude .local/ in .easignore or EAS copies global pnpm store → EDQUOT error -122 during archive upload
