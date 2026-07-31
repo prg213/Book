@@ -70,11 +70,10 @@ export default function SignInScreen() {
       });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
-        // Do NOT navigate manually here. Once setActive resolves, Clerk's
-        // React context updates isSignedIn → true, which triggers the
-        // (auth)/_layout.tsx <Redirect href="/(tabs)" /> naturally.
-        // That redirect fires only after isSignedIn is already true, so
-        // (tabs)/_layout.tsx never sees isSignedIn:false on mount.
+        // Navigate explicitly after setActive resolves. The (tabs) layout
+        // has a 300ms settling gate so it won't evaluate isSignedIn until
+        // Clerk's context has fully propagated — preventing bounce-back.
+        router.replace('/(tabs)');
       } else if (signUp?.status === 'missing_requirements') {
         // New Google user still needs profile completion — show error
         setErrorMsg('Sign-up incomplete. Please try again or use email.');

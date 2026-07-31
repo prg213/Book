@@ -1,11 +1,25 @@
-# Exclude large files that are not needed for the native app build
+# Deps are re-installed by EAS on the build server; exclude all local node_modules
+node_modules/
+.pnpm-store/
+
+# Expo / build artefacts
+.expo/
+static-build/
+*.log
+*.map
+
+# Native dirs (EAS uses its own build environment)
+android/
+ios/
+
+# Large monorepo assets not needed for native build
 attached_assets/
 artifacts/api-server/uploads/
 artifacts/api-server/dist/
 artifacts/mystorybook/dist/
 artifacts/mockup-sandbox/dist/
 
-# Exclude all per-artifact node_modules (root node_modules is already handled by mystorybook-native/.easignore)
+# Per-artifact node_modules (redundant after root exclusion, kept for clarity)
 artifacts/api-server/node_modules/
 artifacts/mystorybook/node_modules/
 artifacts/mockup-sandbox/node_modules/

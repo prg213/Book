@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -89,19 +89,25 @@ function ClassicTabLayout() {
 export default function TabLayout() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
 
+  // After any navigation to this layout, give Clerk's React context 300 ms
+  // to propagate the updated isSignedIn value before we act on it.
+  // Without this gate, the layout can mount and read isSignedIn:false in the
+  // same render cycle as setActive(), causing an immediate bounce to sign-in.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSettled(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+
   // Wire up bearer token for all API calls (mobile has no cookie jar)
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
 
-  // Wait for Clerk to finish loading
-  if (!isLoaded) return null;
+  // Wait for both Clerk to load and our settle window to pass
+  if (!isLoaded || !settled) return null;
 
-  // Not signed in — send to sign-in screen.
-  // This fires only after isLoaded is true, so Clerk has settled.
-  // Navigation here comes from (auth)/_layout.tsx redirecting to (tabs)
-  // only after setActive resolves, meaning isSignedIn will already be true
-  // when this layout mounts post-OAuth — no bounce-back.
+  // Definitively not signed in — send to sign-in
   if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
 
   if (isLiquidGlassAvailable()) {
