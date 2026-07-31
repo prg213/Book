@@ -64,20 +64,31 @@ export default function SignInScreen() {
     try {
       setGoogleLoading(true);
       setErrorMsg('');
-      const { createdSessionId, setActive } = await startSSOFlow({
+      const { createdSessionId, setActive, signIn, signUp } = await startSSOFlow({
         strategy: 'oauth_google',
-        redirectUrl: AuthSession.makeRedirectUri(),
+        redirectUrl: AuthSession.makeRedirectUri({ scheme: 'mystorybook-native' }),
       });
-      if (createdSessionId) {
-        await setActive!({
-          session: createdSessionId,
-          navigate: async ({ decorateUrl }) => {
-            router.replace(decorateUrl('/(tabs)') as any);
-          },
-        });
+      if (createdSessionId && setActive) {
+        // Existing account — activate session and navigate
+        await setActive({ session: createdSessionId });
+        router.replace('/(tabs)');
+      } else if (signUp?.status === 'missing_requirements') {
+        // New Google user — profile is complete enough, try to finalize
+        if (signUp.status === 'missing_requirements' && signUp.missingFields?.length === 0) {
+          await signUp.update({});
+        }
+        // AuthLayout's isSignedIn guard will redirect once session is active
+      } else if (signIn?.status === 'needs_first_factor' || signIn?.status === 'needs_second_factor') {
+        setErrorMsg('Additional verification required. Please sign in with email instead.');
+      } else {
+        // OAuth flow was cancelled or returned no session — show diagnostic
+        const detail = signIn?.status ?? signUp?.status ?? 'no_session';
+        console.warn('Google SSO: no session created', { detail });
+        setErrorMsg(`Sign-in incomplete (${detail}). Please try again or use email.`);
       }
     } catch (err: any) {
-      setErrorMsg('Google sign-in failed. Please try again.');
+      const msg = err?.errors?.[0]?.message ?? err?.message ?? 'Google sign-in failed.';
+      setErrorMsg(msg);
       console.error('Google SSO error:', err);
     } finally {
       setGoogleLoading(false);
