@@ -1,13 +1,18 @@
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 const APP_URL = 'https://mystorybook.world';
+
+// Chrome user-agent — no "wv" marker so Google allows OAuth
+const CHROME_UA =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
 
 export default function App() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
+  const webviewRef = useRef<WebView>(null);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -17,17 +22,20 @@ export default function App() {
         </View>
       )}
       <WebView
+        ref={webviewRef}
         source={{ uri: APP_URL }}
         style={styles.webview}
+        userAgent={CHROME_UA}
         javaScriptEnabled
         domStorageEnabled
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
         thirdPartyCookiesEnabled
         sharedCookiesEnabled
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        // Required for Google OAuth — allows popups to open in the same WebView
+        setSupportMultipleWindows={false}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}
-        userAgent="MyStoryBook/1.0 Android"
       />
     </View>
   );
