@@ -1,47 +1,59 @@
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
-import { WebView, WebViewNavigation } from 'react-native-webview';
+import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { useState, useRef, useCallback } from 'react';
 
 const APP_URL = 'https://mystorybook.world';
 
-// Chrome user-agent — no "wv" marker
+// Clerk domain from the publishable key (magical-mako-58.clerk.accounts.dev)
+const OAUTH_PATTERNS = [
+  'accounts.google.com',
+  'clerk.accounts.dev',   // catches ALL Clerk OAuth initiations including the redirect chain
+  'appleid.apple.com',
+];
+
+// Chrome user-agent — strips the "wv" WebView marker
 const CHROME_UA =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
 
-// URLs that must open in Chrome Custom Tab (blocked inside WebView)
-function needsCustomTab(url: string): boolean {
-  return (
-    url.includes('accounts.google.com') ||
-    url.includes('accounts.youtube.com') ||
-    url.includes('appleid.apple.com')
-  );
+function isOAuthUrl(url: string): boolean {
+  return OAUTH_PATTERNS.some((p) => url.includes(p));
 }
 
 export default function App() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const webviewRef = useRef<WebView>(null);
+  // Prevent handling the same URL twice (redirect chains can fire multiple events)
+  const handledRef = useRef<string | null>(null);
 
-  const handleShouldStartLoad = useCallback(
-    (request: WebViewNavigation): boolean => {
-      if (needsCustomTab(request.url)) {
-        // Open OAuth in Chrome Custom Tab; watch for redirect back to our domain
-        WebBrowser.openAuthSessionAsync(request.url, APP_URL).then((result) => {
-          if (result.type === 'success' && result.url) {
-            // Load the callback URL inside the WebView to complete sign-in
-            webviewRef.current?.injectJavaScript(
-              `window.location.href = ${JSON.stringify(result.url)};true;`
-            );
-          }
-        });
-        return false; // Prevent WebView from loading it
-      }
-      return true;
-    },
-    []
-  );
+  const openOAuth = useCallback((authUrl: string) => {
+    if (handledRef.current === authUrl) return;
+    handledRef.current = authUrl;
+
+    // Stop the WebView before it renders the OAuth page
+    webviewRef.current?.stopLoading();
+
+    WebBrowser.openAuthSessionAsync(authUrl, APP_URL)
+      .then((result) => {
+        handledRef.current = null;
+        if (result.type === 'success' && result.url) {
+          // Deliver the callback URL back into the WebView to complete sign-in
+          webviewRef.current?.injectJavaScript(
+            `window.location.href = ${JSON.stringify(result.url)};true;`
+          );
+        } else {
+          // User cancelled — go back to the app home
+          webviewRef.current?.injectJavaScript(
+            `window.location.href = ${JSON.stringify(APP_URL)};true;`
+          );
+        }
+      })
+      .catch(() => {
+        handledRef.current = null;
+      });
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -62,7 +74,21 @@ export default function App() {
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         setSupportMultipleWindows={false}
-        onShouldStartLoadWithRequest={handleShouldStartLoad}
+        // onShouldStartLoadWithRequest catches direct navigations
+        onShouldStartLoadWithRequest={(req) => {
+          if (isOAuthUrl(req.url)) {
+            openOAuth(req.url);
+            return false;
+          }
+          return true;
+        }}
+        // onNavigationStateChange catches server-side redirects (302s) that
+        // onShouldStartLoadWithRequest misses on Android
+        onNavigationStateChange={(navState) => {
+          if (isOAuthUrl(navState.url)) {
+            openOAuth(navState.url);
+          }
+        }}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}
       />
