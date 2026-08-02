@@ -64,6 +64,10 @@ app.use(
       getClerkProxyHost(req) ?? "",
       process.env.CLERK_PUBLISHABLE_KEY,
     ),
+    // Explicitly forward the secret key so Bearer JWT verification works
+    // when the callback form is used (otherwise @clerk/express may not
+    // fall back to the CLERK_SECRET_KEY env var for token validation).
+    secretKey: process.env.CLERK_SECRET_KEY,
   })),
 );
 
