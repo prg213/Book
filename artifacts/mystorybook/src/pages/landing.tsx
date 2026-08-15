@@ -4,16 +4,6 @@ import { useGetLibraryStats } from '@workspace/api-client-react';
 import { useUser, useClerk } from '@clerk/react';
 import { SupportButton } from '@/components/support-modal';
 
-const APK_URL = 'https://github.com/prg213/Book/releases/latest/download/mystorybook.apk';
-
-function AndroidIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M6.18 15.64a2.18 2.18 0 0 1-2.18-2.18V9.28a2.18 2.18 0 0 1 4.36 0v4.18a2.18 2.18 0 0 1-2.18 2.18zm11.64 0a2.18 2.18 0 0 1-2.18-2.18V9.28a2.18 2.18 0 0 1 4.36 0v4.18a2.18 2.18 0 0 1-2.18 2.18zM4.1 8.18C4.1 5.39 7.74 3.1 12 3.1s7.9 2.29 7.9 5.08H4.1zm3.08-3.5 1.3-2.35a.27.27 0 0 0-.1-.37.27.27 0 0 0-.37.1L6.65 4.4a5.58 5.58 0 0 0-2.56 1.7h.01zM17.35 4.4l-1.36-2.44a.27.27 0 0 0-.37-.1.27.27 0 0 0-.1.37l1.3 2.35h.01A5.58 5.58 0 0 1 19.4 6.1zm-5.35 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM8.5 4.69a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm7 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM5 9.28v5.64c0 .87.7 1.58 1.57 1.58H7v3.4A1.7 1.7 0 0 0 8.7 21.6a1.7 1.7 0 0 0 1.7-1.7v-3.4h3.2v3.4a1.7 1.7 0 0 0 1.7 1.7 1.7 1.7 0 0 0 1.7-1.7v-3.4h.43c.87 0 1.57-.71 1.57-1.58V9.28H5z"/>
-    </svg>
-  );
-}
-
 const BASE = import.meta.env.BASE_URL;
 
 export default function Landing() {
@@ -114,20 +104,18 @@ export default function Landing() {
 
         {/* CTAs */}
         <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-          <a href={APK_URL} style={{ textDecoration: 'none' }}>
-            <button style={{
-              display: 'inline-flex', alignItems: 'center', gap: 9,
-              padding: '14px 28px', borderRadius: 14, border: 'none',
-              background: 'linear-gradient(135deg, #2ec27e 0%, #3ddc84 100%)',
-              color: '#fff', fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 6px 24px rgba(61,220,132,0.4)', fontFamily: 'Fredoka, sans-serif',
-              letterSpacing: '0.01em',
-            }}>
-              <AndroidIcon />
-              Download for Android
-            </button>
-          </a>
-          <Link href="/create">
+          <button onClick={handleGetStarted} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 9,
+            padding: '14px 32px', borderRadius: 14, border: 'none',
+            background: 'linear-gradient(135deg, #e8855a 0%, #d4693e 100%)',
+            color: '#fff', fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 6px 24px rgba(232,133,90,0.45)', fontFamily: 'Fredoka, sans-serif',
+            letterSpacing: '0.01em',
+          }}>
+            <Sparkles style={{ width: 18, height: 18 }} />
+            Get Started — Free
+          </button>
+          <Link href="/library">
             <button style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '14px 24px', borderRadius: 14,
@@ -135,8 +123,8 @@ export default function Landing() {
               color: '#1a0e08', fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
               fontFamily: 'Fredoka, sans-serif',
             }}>
-              <Wand2 style={{ width: 17, height: 17, color: '#e8855a' }} />
-              Try on Web
+              <BookOpen style={{ width: 17, height: 17, color: '#e8855a' }} />
+              My Library
               <ChevronRight style={{ width: 15, height: 15, opacity: 0.5 }} />
             </button>
           </Link>
@@ -229,30 +217,28 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Android download CTA ── */}
+      {/* ── Final CTA ── */}
       <section style={{ padding: '80px 20px' }}>
         <div style={{ maxWidth: 660, margin: '0 auto', background: 'linear-gradient(135deg,#fff7ed,#fdeede)', borderRadius: 28, padding: '52px 36px', textAlign: 'center', border: '1px solid rgba(232,133,90,0.18)', boxShadow: '0 8px 48px rgba(232,133,90,0.12)' }}>
-          <div style={{ fontSize: '2.8rem', marginBottom: 10, lineHeight: 1 }}>📱</div>
+          <div style={{ fontSize: '2.8rem', marginBottom: 10, lineHeight: 1 }}>✨</div>
           <h2 style={{ fontFamily: 'Fredoka, sans-serif', fontSize: 'clamp(1.5rem, 3.5vw, 2rem)', fontWeight: 700, color: '#1a0e08', margin: '0 0 12px' }}>
-            Get the Android App
+            Ready to Create Magic?
           </h2>
           <p style={{ color: '#7a5535', lineHeight: 1.7, margin: '0 0 28px', fontSize: '0.97rem', maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
-            Read stories full-screen, record narrations, and convert pages to colouring sheets — all in the free Android app.
+            Your first story is free. Upload a photo, pick a theme, and have a personalised storybook in minutes.
           </p>
-          <a href={APK_URL} style={{ textDecoration: 'none' }}>
-            <button style={{
-              display: 'inline-flex', alignItems: 'center', gap: 10,
-              padding: '14px 30px', borderRadius: 16, border: 'none',
-              background: 'linear-gradient(135deg, #2ec27e 0%, #3ddc84 100%)',
-              color: '#fff', fontSize: '1.02rem', fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 6px 28px rgba(61,220,132,0.38)', fontFamily: 'Fredoka, sans-serif',
-            }}>
-              <AndroidIcon />
-              Download APK — Free
-            </button>
-          </a>
+          <button onClick={handleGetStarted} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            padding: '14px 30px', borderRadius: 16, border: 'none',
+            background: 'linear-gradient(135deg, #e8855a 0%, #d4693e 100%)',
+            color: '#fff', fontSize: '1.02rem', fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 6px 28px rgba(232,133,90,0.4)', fontFamily: 'Fredoka, sans-serif',
+          }}>
+            <Sparkles style={{ width: 18, height: 18 }} />
+            Create Your Story — Free
+          </button>
           <p style={{ fontSize: '0.76rem', color: '#a07055', marginTop: 14, marginBottom: 0 }}>
-            Android only · You may need to enable "Install from unknown sources" in Settings
+            No credit card required
           </p>
         </div>
       </section>
@@ -267,7 +253,6 @@ export default function Landing() {
           <div style={{ display: 'flex', gap: 20 }}>
             <Link href="/sign-in"><span style={{ color: '#a07055', cursor: 'pointer' }}>Sign in</span></Link>
             <Link href="/sign-up"><span style={{ color: '#a07055', cursor: 'pointer' }}>Sign up</span></Link>
-            <a href={APK_URL} style={{ color: '#a07055' }}>Download</a>
             <Link href="/terms"><span style={{ color: '#a07055', cursor: 'pointer' }}>Terms</span></Link>
           </div>
           <span>© {new Date().getFullYear()} MyStoryBook</span>

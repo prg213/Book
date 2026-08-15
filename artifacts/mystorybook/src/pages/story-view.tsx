@@ -145,10 +145,19 @@ function A5ImageCard({
         )}
         {/* Title overlay for the cover card */}
         {titleOverlay && (
-          <div className="absolute bottom-0 left-0 right-0 px-3 py-2"
-            style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.72))' }}>
-            <p className="text-white text-center font-bold text-xs leading-tight"
-              style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+          <div
+            className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8"
+            style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.72))' }}
+          >
+            <p
+              className="text-white text-center leading-tight font-bold"
+              style={{
+                fontFamily: "'Georgia', 'Times New Roman', serif",
+                fontSize: 'clamp(11px, 3.5cqi, 18px)',
+                textShadow: '0 1px 6px rgba(0,0,0,1), 0 0 12px rgba(0,0,0,0.8)',
+                letterSpacing: '0.01em',
+              }}
+            >
               {titleOverlay}
             </p>
           </div>
