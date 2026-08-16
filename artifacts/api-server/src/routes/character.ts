@@ -74,13 +74,14 @@ CARTOON STYLE:
 - Slight friendly smile
 
 FRAMING:
-- Full body visible from head to toe
-- Standing upright, arms relaxed at sides
-- Perfectly centered in frame
+- Full body completely visible from head to toe — head fully at top, feet fully at bottom, both 100% within the frame
+- Standing upright, arms relaxed at sides — both hands and arms completely visible, no clipping of any kind
+- Perfectly centered in the canvas with balanced breathing room on all four sides (approximately 5–10% clear space above the head and below the feet)
 - Pure white background only — no shadows, no scenery, no gradients
 
 CRITICAL: No text, no logos, no brand names, no watermarks.
-CRITICAL: Square 1:1 aspect ratio.`;
+CRITICAL: Square 1:1 aspect ratio, approximately 1024×1024 pixels.
+CRITICAL: The entire character — head, body, hands, and feet — must be 100% visible with absolutely no cropping, clipping, or cut-off of any body part whatsoever.`;
 }
 
 export { buildCharacterPrompt };

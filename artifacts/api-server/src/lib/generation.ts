@@ -69,6 +69,23 @@ const ANATOMY_RULE = `CRITICAL ANATOMY — STRICTLY ENFORCE:
 - If one hand holds an object, the other arm must hang at the side, rest on a hip, or be clearly positioned elsewhere — never floating free or hidden
 - Count limbs before finalising: two arms, two hands, two legs, two feet`;
 
+/**
+ * Safe-composition rules appended to every cover and illustration prompt.
+ * Ensures the generated square image can be safely cropped to A5 portrait
+ * (148 mm × 210 mm) without losing any character body part or key story element.
+ */
+const SAFE_COMPOSITION = `
+SAFE COMPOSITION — MANDATORY FOR A5 PORTRAIT PRINTING:
+- Keep ALL characters completely within a CENTRAL SAFE ZONE — approximately 60–70% of the canvas width, centred left-to-right; all characters must sit well inside this zone
+- NEVER crop, clip, or cut off any character's head, feet, hands, arms, or important held props — every body part must be 100% visible and fully within the frame
+- Keep all faces, hands, feet, and key story elements at least 15–20% away from the left edge and the right edge of the canvas
+- Do NOT place any character, face, or important object against or touching any outer canvas edge
+- Let ONLY background scenery, sky, ground, and environmental details extend to the canvas edges — never characters or key props
+- Characters must be posed and scaled so the full body (head to feet) is visible within the central area — never cut off at the knees, waist, or ankles to fit the square
+- The composition must remain complete and balanced when adapted to a tall A5 portrait format — all important content must survive a 15% left-and-right crop
+- Never sacrifice a character's body parts, important expressions, or story elements simply to fill the square canvas corners with scenery
+- Background can be rich and detailed all the way to the edges — foreground subjects must stay safely inside the central zone`;
+
 /** Derive a natural, scene-specific pose from the image prompt text */
 function derivePoseFromScene(imagePrompt: string, pageIndex: number): string {
   const p = imagePrompt.toLowerCase();
@@ -170,7 +187,8 @@ SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm 
 
 NO TEXT: Do NOT render any title, text, words, letters, numbers, or typography anywhere in the image. The scene must be purely illustrative — no captions, no title banners, no signage, no labels of any kind.
 
-COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind on any side. The background scene bleeds all the way to all four edges. Professional 3D animated movie quality. No logos, no brand names, no watermarks, no text of any kind.`;
+COMPOSITION: Square 1:1 aspect ratio. The background scene fills the canvas edge-to-edge — scenery and environment bleed to all four edges. Professional 3D animated movie quality. No logos, no brand names, no watermarks, no text of any kind.
+${SAFE_COMPOSITION}`;
 }
 
 /** Returns true when an error is an Aurora content-moderation rejection */
@@ -192,7 +210,8 @@ SCENE: Magical ${effectiveTheme} adventure background — richly detailed, warm 
 
 NO TEXT: Do NOT render any title, text, words, letters, or typography anywhere in the image.
 
-COMPOSITION: Square 1:1 aspect ratio. Fill canvas completely edge-to-edge — no white margins, no borders. Professional 3D animated movie quality. No watermarks, no text.`;
+COMPOSITION: Square 1:1 aspect ratio. Background scene fills the canvas edge-to-edge. Professional 3D animated movie quality. No watermarks, no text.
+${SAFE_COMPOSITION}`;
 }
 
 /**
@@ -218,7 +237,8 @@ SETTING: ${rawTheme} adventure scene, richly detailed, vibrant colors, soft warm
 
 CRITICAL — NO TEXT WHATSOEVER in the image.
 
-COMPOSITION: Square 1:1 aspect ratio. Fill canvas completely edge-to-edge — no white margins, no borders. Professional 3D animation quality.`;
+COMPOSITION: Square 1:1 aspect ratio. Background scene fills canvas edge-to-edge. Professional 3D animation quality.
+${SAFE_COMPOSITION}`;
 }
 
 /** Page illustration prompt — character MUST appear in every scene with a scene-specific pose */
@@ -284,7 +304,8 @@ SETTING: ${effectiveTheme} adventure scene, richly detailed, vibrant colors, sof
 
 CRITICAL — NO TEXT WHATSOEVER: Do NOT render any letters, words, numbers, speech bubbles, signs with text, book pages with text, or any written characters anywhere in the image. The image must be a purely visual scene — zero text of any kind.
 
-COMPOSITION: Square 1:1 aspect ratio. The illustration MUST fill the canvas completely edge-to-edge — no white margins, no blank borders, no padding of any kind. The background scene bleeds all the way to all four edges of the canvas. Richly detailed background. Professional 3D animated movie quality.`;
+COMPOSITION: Square 1:1 aspect ratio. The background scene fills the canvas edge-to-edge — scenery bleeds to all four edges. Richly detailed background. Professional 3D animated movie quality.
+${SAFE_COMPOSITION}`;
 }
 
 export async function runStoryGeneration(storyId: string): Promise<void> {
