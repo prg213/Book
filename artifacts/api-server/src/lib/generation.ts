@@ -9,6 +9,7 @@ import { buildCharacterPrompt } from "../routes/character";
 import { generateWavingVideoKling } from "./kling";
 import { logger } from "./logger";
 import { uploadImage } from "./imageStorage";
+import { toA5Master } from "./a5";
 
 // Local uploads dir — only used for reading user-uploaded original photos.
 // Generated images (covers, pages, characters) go to GCS via uploadImage().
@@ -51,11 +52,20 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
 }
 
 export async function saveImage(buf: Buffer, subdir: string): Promise<string> {
-  const processed = (subdir === "covers" || subdir === "characters" || subdir === "pages")
-    ? await processImage(buf, subdir === "covers")
-    : buf;
+  const isBookPage = subdir === "covers" || subdir === "pages";
+
+  // Step 1 — trim near-white borders with ImageMagick.
+  // Covers no longer use the destructive square-crop: toA5Master handles layout.
+  const needsTrim = isBookPage || subdir === "characters";
+  const trimmed   = needsTrim ? await processImage(buf, false) : buf;
+
+  // Step 2 — covers and story pages are converted to a print-ready A5 master:
+  //   1748 × 2480 px · 300 DPI · no cropping · no distortion.
+  // Character reference sheets are stored as trimmed PNGs (no A5 conversion).
+  const final = isBookPage ? await toA5Master(trimmed) : trimmed;
+
   // Returns a root-relative serving URL: /api/images/<subdir>/<uuid>.png
-  return uploadImage(processed, subdir);
+  return uploadImage(final, subdir);
 }
 
 async function updateStory(storyId: string, updates: Partial<typeof storiesTable.$inferSelect>): Promise<void> {
