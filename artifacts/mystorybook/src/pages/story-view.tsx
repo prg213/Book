@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGetStoryForReading, getGetStoryForReadingQueryKey } from '@workspace/api-client-react';
 import { Link, useSearch } from 'wouter';
-import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2, Printer, ShoppingCart, Package, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Image, AlignLeft, Loader2, Printer, ShoppingCart, Package, Sparkles, X, Download } from 'lucide-react';
 import { isCapacitor } from '@/lib/capacitor';
 import { useUser } from '@clerk/react';
 
@@ -399,11 +399,18 @@ export default function StoryView() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {!isCapacitor() && (
-              <button onClick={handlePrint} disabled={anyLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                title={anyLoading ? 'Wait for colouring pages to finish' : 'Print colouring book'}>
-                <Printer className="w-3.5 h-3.5" /> Print
-              </button>
+              <>
+                <button onClick={handlePrint} disabled={anyLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={anyLoading ? 'Wait for colouring pages to finish' : 'Print colouring book'}>
+                  <Printer className="w-3.5 h-3.5" /> Print
+                </button>
+                <a href={`${import.meta.env.BASE_URL}api/stories/${storyId}/pdf`} download
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all duration-200"
+                  title="Download colour story as PDF (A5, 300 DPI)">
+                  <Download className="w-3.5 h-3.5" /> PDF
+                </a>
+              </>
             )}
             <button onClick={() => setShowOrderModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 transition-all duration-200">

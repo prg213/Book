@@ -4,6 +4,7 @@ import storiesRouter from "./stories";
 import uploadRouter from "./upload";
 import characterRouter from "./character";
 import colouringRouter from "./colouring";
+import pdfRouter from "./pdf";
 import audioRouter from "./audio";
 import videoRouter from "./video";
 import mobileRelayRouter from "./mobile-relay";
@@ -20,6 +21,7 @@ router.use(uploadRouter);
 router.use(characterRouter);
 router.use(storiesRouter);
 router.use(colouringRouter);
+router.use(pdfRouter);      // GET /api/stories/:id/pdf[/coloring]
 router.use(audioRouter);
 router.use(videoRouter);
 router.use("/auth/mobile-relay", mobileRelayRouter);
