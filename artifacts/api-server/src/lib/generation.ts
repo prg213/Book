@@ -17,36 +17,22 @@ const uploadsDir = path.resolve(process.cwd(), "uploads");
 const execFileAsync = promisify(execFile);
 
 /**
- * Process an Aurora-generated image:
- * 1. Trim near-white borders (-fuzz 10%).
- * 2. For covers: crop to a 1:1 square (gravity North) so the image fills any
- *    cover container without gaps.
- * 3. For other images (characters, pages): trim only, preserve natural ratio.
+ * Trim near-white borders from an Aurora-generated image using ImageMagick.
+ * The old square-crop step (gravity North / -extent min×min) was removed —
+ * toA5Master() in lib/a5.ts handles all layout without any destructive crop.
  */
-async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
+async function processImage(buf: Buffer): Promise<Buffer> {
   try {
     const tmp = `/tmp/img-in-${Date.now()}.png`;
     const out = `/tmp/img-out-${Date.now()}.png`;
     await writeFile(tmp, buf);
-
-    const args = [tmp, "-fuzz", "18%", "-trim", "+repage"];
-
-    if (toSquare) {
-      args.push(
-        "-gravity", "North",
-        "-extent", "%[fx:min(w,h)]x%[fx:min(w,h)]",
-      );
-    }
-
-    args.push(out);
-    await execFileAsync("magick", args);
-
+    await execFileAsync("magick", [tmp, "-fuzz", "18%", "-trim", "+repage", out]);
     const { readFile, unlink } = await import("fs/promises");
     const result = await readFile(out);
     await Promise.all([unlink(tmp).catch(() => {}), unlink(out).catch(() => {})]);
     return result;
   } catch (err) {
-    logger.warn({ err }, "processImage failed — using original buffer");
+    logger.warn({ err }, "processImage: trim failed — using original buffer");
     return buf;
   }
 }
@@ -54,10 +40,9 @@ async function processImage(buf: Buffer, toSquare: boolean): Promise<Buffer> {
 export async function saveImage(buf: Buffer, subdir: string): Promise<string> {
   const isBookPage = subdir === "covers" || subdir === "pages";
 
-  // Step 1 — trim near-white borders with ImageMagick.
-  // Covers no longer use the destructive square-crop: toA5Master handles layout.
+  // Step 1 — trim near-white borders (covers and story pages only; characters too).
   const needsTrim = isBookPage || subdir === "characters";
-  const trimmed   = needsTrim ? await processImage(buf, false) : buf;
+  const trimmed   = needsTrim ? await processImage(buf) : buf;
 
   // Step 2 — covers and story pages are converted to a print-ready A5 master:
   //   1748 × 2480 px · 300 DPI · no cropping · no distortion.

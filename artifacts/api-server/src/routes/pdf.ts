@@ -27,6 +27,19 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
+// ── Path resolver ─────────────────────────────────────────────────────────────
+/**
+ * Mirror of resolveUrl() in routes/stories.ts.
+ * GCS paths already start with "/" (/api/images/...) — returned as-is.
+ * Legacy bare paths stored without a leading slash (e.g. "pages/uuid.png")
+ * are prefixed with /api/uploads/ to form a valid serving path.
+ */
+function resolveStoragePath(stored: string | null | undefined): string | null {
+  if (!stored) return null;
+  if (stored.startsWith("/")) return stored;
+  return `/api/uploads/${stored}`;
+}
+
 // ── A5 page dimensions in PDF points ─────────────────────────────────────────
 // 1 point = 1/72 inch · 1 inch = 25.4 mm
 // 148 mm × (72 / 25.4) = 419.527... pt
@@ -50,7 +63,8 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
  * Mirrors the caching logic in routes/colouring.ts so they share the same cache.
  */
 async function getOrMakeColouringPage(imageUrl: string): Promise<Buffer> {
-  const hash      = createHash("sha256").update(imageUrl).digest("hex").slice(0, 16);
+  // Must match the SHA-1 hash used in routes/colouring.ts — same cache namespace.
+  const hash      = createHash("sha1").update(imageUrl).digest("hex").slice(0, 16);
   const objectPath = `story-images/colouring/${hash}.png`;
   const bucketId  = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
 
@@ -196,6 +210,19 @@ async function drawCoverTitleBand(
   }
 }
 
+/**
+ * Safely fetch an image buffer — returns null (and logs a warning) instead of
+ * throwing when a legacy local-upload URL no longer resolves after a redeploy.
+ */
+async function safeFetchImageBuffer(imagePath: string): Promise<Buffer | null> {
+  try {
+    return await fetchImageBuffer(imagePath);
+  } catch (err) {
+    logger.warn({ imagePath, err }, "pdf: image not accessible — skipping page");
+    return null;
+  }
+}
+
 // ── GET /api/stories/:id/pdf ──────────────────────────────────────────────────
 // Full-colour story PDF: cover · illustration pages · text pages.
 router.get("/stories/:id/pdf", async (req, res) => {
@@ -206,10 +233,12 @@ router.get("/stories/:id/pdf", async (req, res) => {
     const [story] = await db.select().from(storiesTable).where(eq(storiesTable.id, id));
     if (!story) return res.status(404).json({ error: "Story not found" });
 
+    // Use storyPagesTable.pageNumber — the Drizzle camelCase name for "page_number".
+    // (story-view uses p.num which is a client-side alias set in the API response.)
     const pages = await db
       .select().from(storyPagesTable)
       .where(eq(storyPagesTable.storyId, id))
-      .orderBy(asc(storyPagesTable.num));
+      .orderBy(asc(storyPagesTable.pageNumber));
 
     const pdfDoc = await PDFDocument.create();
     pdfDoc.setTitle(story.title ?? "My Story");
@@ -220,26 +249,33 @@ router.get("/stories/:id/pdf", async (req, res) => {
     const timesRomanBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
     // ── Cover page ──────────────────────────────────────────────────────────
-    if (story.coverImageUrl) {
-      const coverBuf  = await fetchImageBuffer(story.coverImageUrl);
-      const coverPage = pdfDoc.addPage([A5_W, A5_H]);
-      await drawImageOnPage(pdfDoc, coverPage, coverBuf);
-      await drawCoverTitleBand(coverPage, story.title ?? "", timesRomanBold);
+    // Resolve bare legacy paths (e.g. "covers/uuid.png" → "/api/uploads/covers/uuid.png").
+    const coverPath = resolveStoragePath(story.coverImagePath);
+    if (coverPath) {
+      const coverBuf = await safeFetchImageBuffer(coverPath);
+      if (coverBuf) {
+        const coverPage = pdfDoc.addPage([A5_W, A5_H]);
+        await drawImageOnPage(pdfDoc, coverPage, coverBuf);
+        await drawCoverTitleBand(coverPage, story.title ?? "", timesRomanBold);
+      }
     }
 
     // ── Story pages ─────────────────────────────────────────────────────────
     for (const p of pages) {
 
-      // Illustration page
-      if (p.imageUrl) {
-        const imgBuf  = await fetchImageBuffer(p.imageUrl);
-        const imgPage = pdfDoc.addPage([A5_W, A5_H]);
-        await drawImageOnPage(pdfDoc, imgPage, imgBuf);
-        // Small page number in bottom-left
-        imgPage.drawText(String(p.num), {
-          x: 16, y: 14, size: 8, font: timesRoman,
-          color: rgb(0.55, 0.43, 0.2), opacity: 0.65,
-        });
+      // Illustration page — resolve bare legacy paths before fetching.
+      const imgPath = resolveStoragePath(p.imagePath);
+      if (imgPath) {
+        const imgBuf = await safeFetchImageBuffer(imgPath);
+        if (imgBuf) {
+          const imgPage = pdfDoc.addPage([A5_W, A5_H]);
+          await drawImageOnPage(pdfDoc, imgPage, imgBuf);
+          // Small page number in bottom-left corner
+          imgPage.drawText(String(p.pageNumber ?? ""), {
+            x: 16, y: 14, size: 8, font: timesRoman,
+            color: rgb(0.55, 0.43, 0.2), opacity: 0.65,
+          });
+        }
       }
 
       // Text page
@@ -287,7 +323,7 @@ router.get("/stories/:id/pdf", async (req, res) => {
         }
 
         // Footer — page number
-        const footNum = String((p.num ?? 0) + 1);
+        const footNum = String(p.pageNumber ?? "");
         const footW   = timesRoman.widthOfTextAtSize(footNum, 8);
         textPage.drawText(footNum, {
           x: (A5_W - footW) / 2, y: 14,
@@ -295,6 +331,11 @@ router.get("/stories/:id/pdf", async (req, res) => {
           color: rgb(0, 0, 0), opacity: 0.3,
         });
       }
+    }
+
+    const pageCount = pdfDoc.getPageCount();
+    if (pageCount === 0) {
+      return res.status(400).json({ error: "No accessible images found — story images may be unavailable (legacy local storage)" });
     }
 
     const pdfBytes = await pdfDoc.save();
@@ -327,11 +368,14 @@ router.get("/stories/:id/pdf/coloring", async (req, res) => {
     const pages = await db
       .select().from(storyPagesTable)
       .where(eq(storyPagesTable.storyId, id))
-      .orderBy(asc(storyPagesTable.num));
+      .orderBy(asc(storyPagesTable.pageNumber));
 
+    // Resolve bare legacy paths (e.g. "pages/uuid.png" → "/api/uploads/pages/uuid.png").
+    // The hash in the GCS coloring cache was computed from the resolved URL, so this
+    // must match exactly what routes/colouring.ts uses as the cache key.
     const imageUrls: string[] = [
-      ...(story.coverImageUrl ? [story.coverImageUrl] : []),
-      ...pages.filter(p => p.imageUrl).map(p => p.imageUrl as string),
+      ...(resolveStoragePath(story.coverImagePath) ? [resolveStoragePath(story.coverImagePath)!] : []),
+      ...pages.map(p => resolveStoragePath(p.imagePath)).filter(Boolean) as string[],
     ];
 
     if (imageUrls.length === 0) {
@@ -347,15 +391,29 @@ router.get("/stories/:id/pdf/coloring", async (req, res) => {
     let isFirstPage = true;
 
     for (const url of imageUrls) {
-      const colouringBuf = await getOrMakeColouringPage(url);
-      const page         = pdfDoc.addPage([A5_W, A5_H]);
+      // Gracefully skip images that can no longer be fetched (e.g. legacy
+      // local-upload URLs that disappeared after a redeploy).
+      let colouringBuf: Buffer;
+      try {
+        colouringBuf = await getOrMakeColouringPage(url);
+      } catch (err) {
+        logger.warn({ url, err }, "pdf/coloring: skipping inaccessible image");
+        isFirstPage = false;
+        continue;
+      }
+
+      const page = pdfDoc.addPage([A5_W, A5_H]);
       await drawImageOnPage(pdfDoc, page, colouringBuf);
 
       // Title band on the cover page only
-      if (isFirstPage && story.coverImageUrl) {
+      if (isFirstPage && story.coverImagePath) {
         await drawCoverTitleBand(page, story.title ?? "", timesRomanBold);
       }
       isFirstPage = false;
+    }
+
+    if (pdfDoc.getPageCount() === 0) {
+      return res.status(400).json({ error: "No accessible images found — story images may be unavailable" });
     }
 
     const pdfBytes = await pdfDoc.save();
