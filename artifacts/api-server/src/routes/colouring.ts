@@ -6,13 +6,32 @@ import { logger } from "../lib/logger";
 import { uploadImage, fetchImageBuffer } from "../lib/imageStorage";
 import { objectStorageClient } from "../lib/objectStorage";
 
-// A5 at 150 dpi — good quality, fast to render
+// A5 at ~213 dpi (1240 px ÷ 148 mm × 25.4 = 212.7 dpi)
 const A5_W = 1240;
 const A5_H = 1754; // 1240 × (210/148)
 
+/**
+ * Place the source image (any aspect ratio, typically 1:1 square) onto an
+ * A5 portrait canvas WITHOUT cropping.
+ *
+ * Strategy: scale-to-fit (contain) so the complete artwork is always visible,
+ * then pad the remaining space with solid white.  For a square input this
+ * produces white bands at the top and bottom — the image occupies the full
+ * 1240 px width and is centred vertically.
+ *
+ * NEVER use fit:"cover" here — that would centre-crop the sides off a square
+ * image and destroy the character/scene composition.
+ */
 async function toA5(inputBuf: Buffer): Promise<Buffer> {
   return sharp(inputBuf)
-    .resize(A5_W, A5_H, { fit: "cover", position: "centre" })
+    // Flatten any alpha channel to white before resizing so transparent pixels
+    // don't appear as black in the final PNG.
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
+    .resize(A5_W, A5_H, {
+      fit: "contain",           // scale down to fit — never crop
+      position: "centre",       // centre within the canvas
+      background: { r: 255, g: 255, b: 255, alpha: 1 }, // white padding
+    })
     .png({ compressionLevel: 8 })
     .toBuffer();
 }

@@ -282,12 +282,12 @@ export default function StoryView() {
       @page { size: A5 portrait; margin: 0; }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: white; }
-      .sheet { width: 148mm; height: 210mm; overflow: hidden; page-break-after: always; break-after: page; background: white; }
+      .sheet { width: 148mm; height: 210mm; page-break-after: always; break-after: page; background: white; display: flex; align-items: center; justify-content: center; }
       .sheet:last-child { page-break-after: avoid; break-after: avoid; }
-      .sheet img { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .cover-sheet { width: 148mm; height: 210mm; overflow: hidden; page-break-after: always; break-after: page; background: white; position: relative; }
+      .sheet img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+      .cover-sheet { width: 148mm; height: 210mm; page-break-after: always; break-after: page; background: white; position: relative; display: flex; align-items: center; justify-content: center; }
       .cover-sheet:last-child { page-break-after: avoid; break-after: avoid; }
-      .cover-sheet img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .cover-sheet img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; }
       .cover-title { position: absolute; bottom: 0; left: 0; right: 0; padding: 5mm 10mm 5mm; background: rgba(255,255,255,0.92); border-top: 0.5pt solid rgba(0,0,0,0.12); text-align: center; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
       .cover-title h1 { font-family: Georgia, serif; font-size: 18pt; font-weight: bold; color: #111; margin: 0; line-height: 1.3; }
       .text-sheet { width: 148mm; height: 210mm; padding: 12mm 14mm 10mm; display: flex; flex-direction: column; page-break-after: always; break-after: page; background: white; }
