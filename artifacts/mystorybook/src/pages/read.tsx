@@ -842,7 +842,7 @@ function PortraitCover({ story, firstPage, isOpening }: {
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#e8d8b8' }}>
             {firstPage?.imageUrl ? (
               <img src={firstPage.imageUrl} alt="Page 1" draggable={false}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             ) : (
               <div style={{
                 width: '100%', height: '100%',
@@ -879,7 +879,7 @@ function PortraitCover({ story, firstPage, isOpening }: {
             }}>
               {story.coverImageUrl && (
                 <img src={story.coverImageUrl} alt={story.title} draggable={false}
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
               )}
               {/* Title at top */}
               <div style={{
@@ -1071,7 +1071,7 @@ function LandscapeCoverPanel({ story, firstPage, flipPhase, swipeDx }: {
               <div className="absolute inset-0 overflow-hidden" style={{ background: '#120806' }}>
                 {story.coverImageUrl ? (
                   <img src={story.coverImageUrl} alt={story.title}
-                    style={{ position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center' }}
+                    style={{ position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain' }}
                     data-testid="img-cover-ls" draggable={false} />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center"
@@ -1113,7 +1113,7 @@ function PageIllustration({ imgPage, pageNumber, testId }: { imgPage: any; pageN
   return imgPage?.imageUrl ? (
     <img src={imgPage.imageUrl} alt={`Page ${pageNumber}`}
       className="w-full h-full"
-      style={{ objectFit: 'cover', objectPosition: 'center' }}
+      style={{ objectFit: 'contain' }}
       data-testid={testId} draggable={false} />
   ) : (
     <div className="w-full h-full flex items-center justify-center text-amber-800/30">
@@ -1342,7 +1342,7 @@ function OpenBookPortrait({ story, page, pageNumber, totalPages }: any) {
         {page?.imageUrl ? (
           <img src={page.imageUrl} alt={`Page ${pageNumber}`}
             className="w-full h-full"
-            style={{ objectFit: 'cover', objectPosition: 'center' }}
+            style={{ objectFit: 'contain' }}
             data-testid={`img-page-${pageNumber}`} draggable={false} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-amber-800/30">

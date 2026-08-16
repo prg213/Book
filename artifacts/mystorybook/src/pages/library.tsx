@@ -216,12 +216,13 @@ function StoryCard({ story, onDelete }: StoryCardProps) {
       data-testid={`card-story-${story.id}`}
     >
       {/* Cover image */}
-      <div className="relative h-48 bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 overflow-hidden rounded-t-3xl">
+      {/* Cover image — portrait A5 ratio so the full cover illustration is visible */}
+      <div className="relative overflow-hidden rounded-t-3xl bg-stone-100" style={{ aspectRatio: '148/210' }}>
         {coverUrl ? (
           <img
             src={coverUrl}
             alt={story.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+            className="w-full h-full object-contain"
             data-testid={`img-cover-${story.id}`}
           />
         ) : (

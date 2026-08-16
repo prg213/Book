@@ -137,7 +137,7 @@ function A5ImageCard({
         style={{ aspectRatio: `${148}/${210}` }}
       >
         {displaySrc ? (
-          <img src={displaySrc} alt={alt} className="w-full h-full object-cover transition-opacity duration-700" />
+          <img src={displaySrc} alt={alt} className="w-full h-full object-contain transition-opacity duration-700" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-amber-50">
             <Image className="w-12 h-12 text-amber-200" />
